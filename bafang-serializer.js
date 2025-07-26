@@ -273,10 +273,10 @@ function prepareParameter1WriteData(canbusInstance, value) {
         new_pkg[0] = value.system_voltage ?? 0xFF;
         new_pkg[1] = value.current_limit ?? 0xFF;
         new_pkg[2] = value.overvoltage ?? 0xFF;
-        new_pkg[3] = value.undervoltage ?? 0xFF;
-        new_pkg[4] = value.undervoltage_under_load ?? 0xFF;
-        new_pkg[5] = value.battery_recovery_voltage ?? 0xFF;
-		new_pkg[6] = value.par1_value_offset_6 ?? 0xFF;
+        new_pkg[3] = value.undervoltage_under_load&0xFF ?? 0xFF;
+        new_pkg[4] = value.undervoltage_under_load>>8 ?? 0xFF;
+        new_pkg[5] = value.undervoltage&0xFF ?? 0xFF;
+		new_pkg[6] = value.undervoltage>>8 ?? 0xFF;
         if (value.battery_capacity !== undefined && value.battery_capacity !== null) {
             const capBytes = intToByteArray(value.battery_capacity, 2); // 2 bytes LE
             new_pkg[7] = capBytes[0]; new_pkg[8] = capBytes[1];
@@ -392,15 +392,16 @@ function prepareParameter2WriteData(canbusInstance, value) {
              new_pkg[12 + i] = profile.return_torque_value ?? 0xFF;
              new_pkg[24 + i] = profile.min_current ?? 0xFF;
              new_pkg[18 + i] = profile.max_current ?? 0xFF;
+             new_pkg[30 + i] = profile.torque_decay_time ?? 0xFF;
              new_pkg[36 + i] = profile.start_pulse ?? 0xFF;
              new_pkg[42 + i] = (profile.current_decay_time !== undefined && profile.current_decay_time !== null) ? Math.min(255, Math.max(0, Math.floor(profile.current_decay_time / 5))) : 0xFF; // Clamp 0-255
              new_pkg[48 + i] = (profile.stop_delay !== undefined && profile.stop_delay !== null)? Math.min(255, Math.max(0, Math.floor(profile.stop_delay / 5))) : 0xFF; // Clamp 0-255
 		 }
 		 new_pkg[54] = value.acceleration_level ?? 0xFF;
 
-		 for (let i = 0; i < 6; i++) {
-			 new_pkg[30 + i] = value.unknown_bytes_1[i];
-		 }
+//		 for (let i = 0; i < 6; i++) {
+//			 new_pkg[30 + i] = value.unknown_bytes_1[i];
+//		 }
 		 
 		 for (let i = 0; i < 8; i++) {
 			 new_pkg[55 + i] = value.unknown_bytes_2[i];

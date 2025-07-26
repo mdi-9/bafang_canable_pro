@@ -169,8 +169,8 @@ class BafangCanControllerParser {
             system_voltage: packet.data[0], // Assuming SystemVoltage type handled elsewhere
             current_limit: packet.data[1],
             overvoltage: packet.data[2],
-            undervoltage: packet.data[3],
-            undervoltage_under_load: packet.data[4],
+            undervoltage: packet.data[5]+(packet.data[6]<<8),
+            undervoltage_under_load: packet.data[3]+(packet.data[4]<<8),
             battery_recovery_voltage: packet.data[5],
 			par1_value_offset_6: packet.data[6],
             battery_capacity: (packet.data[8] << 8) + packet.data[7],
@@ -257,6 +257,7 @@ class BafangCanControllerParser {
                         return_torque_value: packet.data[12 + i],
                         min_current: packet.data[24 + i],
                         max_current: packet.data[18 + i],
+                        torque_decay_time: packet.data[30 + i],
                         start_pulse: packet.data[36 + i],
                         current_decay_time: packet.data[42 + i] * 5,
                         stop_delay: packet.data[48 + i] * 2,
@@ -266,7 +267,7 @@ class BafangCanControllerParser {
                      break; // Stop processing profiles if data is too short
                  }
              }
-			 acceleration_level: packet.data[54];
+			 pkg.acceleration_level = packet.data[54];
         } else {
              console.warn("Insufficient data length for torque profiles in Parameter2");
         }

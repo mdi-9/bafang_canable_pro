@@ -65,6 +65,20 @@
           torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholder'),
 		};
 
+        const gearsElementsM820 = {
+          syncButton: document.getElementById('gearsSyncButtonM820'),
+          saveButton: document.getElementById('gearsSaveButtonM820'),
+		  controllerStartupAngleValueEl: document.getElementById('controllerStartupAngleValueM820'),
+		  controllerStartupAngleInputEl: document.getElementById('controllerStartupAngleInputM820'),
+          globalAccelerationValueEl: document.getElementById('globalAccelerationValueM820'),
+		  globalAccelerationInputEl: document.getElementById('globalAccelerationInputM820'),
+		  startupAnglePlaceholderEl: document.getElementById('startupAnglePlaceholderM820'),
+          assistLevelTableBody: document.getElementById('assistLevelTableBodyM820'),
+          torqueProfileTableBody: document.getElementById('torqueProfileTableBodyM820'),
+          assistLevelPlaceholder: document.getElementById('assistLevelPlaceholderM820'),
+          torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholderM820'),
+		};
+
         const debugElements = {
              canIdInput: document.getElementById('canIdInput'),
              canDataInput: document.getElementById('canDataInput'),
@@ -691,6 +705,12 @@
 		const pasCurvesContainer = document.getElementById('pasCurvesContainer');
 		const startRampPlaceholder = document.getElementById('startRampPlaceholder');
 		const startRampContainer = document.getElementById('startRampContainer');
+
+        		// --- Get references to new placeholder and container elements ---
+		const pasCurvesPlaceholderM820 = document.getElementById('pasCurvesPlaceholderM820');
+		const pasCurvesContainerM820 = document.getElementById('pasCurvesContainerM820');
+		const startRampPlaceholderM820 = document.getElementById('startRampPlaceholderM820');
+		const startRampContainerM820 = document.getElementById('startRampContainerM820');
 			
 		function updateDisplayUI() {
     // Records
@@ -993,6 +1013,179 @@
         }
 
 		// --- Gears Tab UI Update Function ---
+		function updateGearsUIM820() {
+			// --- Startup Angle ---
+			safeSetText(gearsElementsM820.controllerStartupAngleValueEl, lastStartupAngle);
+			safeSetInput(gearsElementsM820.controllerStartupAngleInputEl, { lastStartupAngle }, 'lastStartupAngle');
+			if (gearsElementsM820.startupAnglePlaceholderEl) {
+				gearsElementsM820.startupAnglePlaceholderEl.style.display = (lastStartupAngle !== null && lastStartupAngle !== undefined) ? 'none' : 'block';
+			}
+
+			// --- Assist Levels Table ---
+			const assistBody = gearsElementsM820.assistLevelTableBody;
+			if (!assistBody) {
+				console.error("Gears UI Update failed: assistLevelTableBody element not found!");
+				if (gearsElementsM820.assistLevelPlaceholder) gearsElementsM820.assistLevelPlaceholder.style.display = 'block';
+				return;
+			}
+			assistBody.innerHTML = ''; // Clear previous rows
+
+			const totalDisplayLevels = displayRealtime?.assist_levels;
+			let currentLevelMapping = null;
+
+			if (totalDisplayLevels && uiToInternalAssistMap[totalDisplayLevels]) {
+				currentLevelMapping = uiToInternalAssistMap[totalDisplayLevels];
+			}
+
+			if (!currentLevelMapping) {
+				console.warn(`Gears UI Update: No valid mapping for totalDisplayLevels: ${totalDisplayLevels}. Or displayRealtime not available. currentLevelMapping is null.`);
+				if (gearsElementsM820.assistLevelPlaceholder) gearsElementsM820.assistLevelPlaceholder.style.display = 'block';
+				// Hide torque placeholder too if assist levels can't be shown, as they are related
+				if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'block';
+				return;
+			}
+
+			//const p0 = lastControllerP0;
+			const p1 = lastControllerP1;
+
+			if (!p1 || !p1.assist_levels ) {
+				console.warn("Gears UI Update: Missing P1 data, or their internal assist_levels arrays.");
+				if (gearsElementsM820.assistLevelPlaceholder) gearsElementsM820.assistLevelPlaceholder.style.display = 'block';
+				// Hide torque placeholder too
+				if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'block';
+				return;
+			}
+
+			if (gearsElementsM820.assistLevelPlaceholder) gearsElementsM820.assistLevelPlaceholder.style.display = 'none';
+
+			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+				const internalIndex = currentLevelMapping[displayedLevel];
+
+				if (internalIndex === undefined) {
+					console.warn(`No internal Bafang index found for displayed level ${displayedLevel} with ${totalDisplayLevels} total levels.`);
+					continue;
+				}
+				if (internalIndex < 0 || internalIndex >= 9) { // Bafang P0/P1 usually have 9 slots (0-8)
+					console.warn(`Internal Bafang index ${internalIndex} is out of bounds for displayed level ${displayedLevel}.`);
+					continue;
+				}
+
+				const row = assistBody.insertRow();
+				row.insertCell(0).textContent = displayedLevel;
+
+				const cellCurrent = row.insertCell();
+				const inputCurrent = document.createElement('input');
+				inputCurrent.type = 'number';
+				inputCurrent.min = 0; inputCurrent.max = 100; inputCurrent.step = 1;
+				inputCurrent.value = (p1.assist_levels[internalIndex] && typeof p1.assist_levels[internalIndex].current_limit === 'number')
+									   ? p1.assist_levels[internalIndex].current_limit : '';
+				inputCurrent.placeholder = '0-100';
+				inputCurrent.dataset.internalType = 'p1';
+				inputCurrent.dataset.internalIndex = internalIndex.toString();
+				inputCurrent.dataset.param = 'current_limit';
+				inputCurrent.addEventListener('change', handleAssistInputChange);
+				cellCurrent.appendChild(inputCurrent);
+				cellCurrent.append(' %');
+
+				const cellSpeed = row.insertCell();
+				const inputSpeed = document.createElement('input');
+				inputSpeed.type = 'number';
+				inputSpeed.min = 0; inputSpeed.max = 100; inputSpeed.step = 1;
+				inputSpeed.value = (p1.assist_levels[internalIndex] && typeof p1.assist_levels[internalIndex].speed_limit === 'number')
+									 ? p1.assist_levels[internalIndex].speed_limit : '';
+				inputSpeed.placeholder = '0-100';
+				inputSpeed.dataset.internalType = 'p1';
+				inputSpeed.dataset.internalIndex = internalIndex.toString();
+				inputSpeed.dataset.param = 'speed_limit';
+				inputSpeed.addEventListener('change', handleAssistInputChange);
+				cellSpeed.appendChild(inputSpeed);
+				cellSpeed.append(' %');
+			}
+			// --- Torque Profiles Table (from P2) ---
+			const torqueBody = gearsElementsM820.torqueProfileTableBody;
+			if (!torqueBody) {
+				console.error("Gears UI Update failed: torqueProfileTableBody element not found!");
+				if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'block';
+				return;
+			}
+			torqueBody.innerHTML = '';
+
+			const p2 = lastControllerP2;
+			const angle = lastStartupAngle;
+			const signals = lastControllerP1?.pedal_sensor_signals_per_rotation; // Use P1 for signals
+
+			if (!p2 || !Array.isArray(p2.torque_profiles) || p2.torque_profiles.length < 6) {
+				console.warn("Gears UI Update: P2 data or torque_profiles missing/invalid for torque table.");
+				if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'block';
+				return;
+			}
+
+			if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'none';
+
+			for (let i = 0; i < 6; i++) { // Bafang P2 has 6 torque profiles (0-5)
+				const profileData = p2.torque_profiles[i];
+				const row = torqueBody.insertRow();
+				row.insertCell(0).textContent = i*3 +' to ' + (i*3+3) + ' mph'; // Display profile 0-5
+
+				const createInputCell = (paramName, value, min, max, step = 1, unit = '', isReadOnly = false, title = '') => {
+					const cell = row.insertCell();
+					const input = document.createElement('input');
+					input.type = 'number';
+					input.min = min; input.max = max; input.step = step;
+					input.value = (typeof value === 'number') ? value : '';
+					input.placeholder = `${min}-${max}`;
+					input.dataset.profileIndex = i.toString();
+					input.dataset.param = paramName;
+					if (isReadOnly) {
+						input.readOnly = true;
+						input.disabled = true; // Visually indicate it's not editable
+						if (title) input.title = title;
+					} else {
+						input.addEventListener('change', handleTorqueInputChange);
+					}
+					cell.appendChild(input);
+					if (unit) cell.append(` ${unit}`);
+					return cell;
+				};
+
+				createInputCell('start_torque_value', profileData?.start_torque_value, 0, 255, 1, '');
+				createInputCell('max_torque_value', profileData?.max_torque_value, 0, 255, 1, '');
+				createInputCell('return_torque_value', profileData?.return_torque_value, 0, 255, 1, '');
+				createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
+				createInputCell('max_current', profileData?.max_current, 0, 100, 1, '');
+
+				let startPulseValue = '';
+				let startPulseReadOnly = false;
+				let startPulseTitle = '';
+				if (i === 0) { // First profile (Level 0) for Start Pulse calculation
+					startPulseValue = calculateStartPulse(angle, signals); // Use calculated value
+					startPulseReadOnly = true;
+					startPulseTitle = "Calculated from Startup Angle & Cadence Signals (P1)";
+				} else {
+					startPulseValue = (profileData && typeof profileData.start_pulse === 'number') ? profileData.start_pulse : '';
+				}
+				createInputCell('start_pulse', startPulseValue, START_PULSE_MIN, START_PULSE_MAX, 1, '', startPulseReadOnly, startPulseTitle);
+
+				createInputCell('current_decay_time', profileData?.current_decay_time, 5, 1275, 5, '');
+                createInputCell('torque_decay_time', profileData?.torque_decay_time, 5, 1275, 5, '');
+				createInputCell('stop_delay', profileData?.stop_delay, 2, 510, 2, '');
+			}
+
+            // --- Global Acceleration ---
+
+            if (!p2 || !p2.acceleration_level) {
+				console.warn("Gears UI Update: P2 data or global acceleration missing.");
+				return;
+			}
+
+			safeSetText(gearsElementsM820.globalAccelerationValueEl, p2.acceleration_level);
+			safeSetInput(gearsElementsM820.globalAccelerationInputEl, p2, 'acceleration_level');
+
+            // --- Charts ---
+			updatePasCurvesChartM820();
+			updateStartRampChartM820();
+		}
+		// --- Gears Tab UI Update Function ---
 		function updateGearsUI() {
 			// --- Startup Angle ---
 			safeSetText(gearsElements.controllerStartupAngleValueEl, lastStartupAngle);
@@ -1142,7 +1335,7 @@
 			for (let i = 0; i < 6; i++) { // Bafang P2 has 6 torque profiles (0-5)
 				const profileData = p2.torque_profiles[i];
 				const row = torqueBody.insertRow();
-				row.insertCell(0).textContent = i; // Display profile 0-5
+				row.insertCell(0).textContent = i*3 +' to ' + (i*3+3) + ' mph'; // Display profile 0-5
 
 				const createInputCell = (paramName, value, min, max, step = 1, unit = '', isReadOnly = false, title = '') => {
 					const cell = row.insertCell();
@@ -1184,6 +1377,7 @@
 				createInputCell('start_pulse', startPulseValue, START_PULSE_MIN, START_PULSE_MAX, 1, '', startPulseReadOnly, startPulseTitle);
 
 				createInputCell('current_decay_time', profileData?.current_decay_time, 5, 1275, 5, '');
+                createInputCell('torque_decay_time', profileData?.torque_decay_time, 5, 1275, 5, '');
 				createInputCell('stop_delay', profileData?.stop_delay, 2, 510, 2, '');
 			}
 			updatePasCurvesChart();
@@ -1318,6 +1512,94 @@
 			}
 		}
 
+        function updatePasCurvesChartM820() {
+			const ctx = document.getElementById('pasCurvesChartM820')?.getContext('2d');
+			if (!ctx) {
+				console.error("PAS Curves chart canvas not found!");
+				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
+				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex'; // Use flex for centering
+				return;
+			}
+
+			if (!lastControllerP1 || !lastControllerP1.assist_levels ||
+				typeof lastControllerP1.system_voltage !== 'number' ||
+				typeof lastControllerP1.current_limit !== 'number' ||
+				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
+				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
+				if (pasChart) { pasChart.destroy(); pasChart = null; }
+				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
+				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex';
+				return;
+			}
+
+			// Data is available, show container, hide placeholder
+			if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'block';
+			if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'none';
+
+
+			const totalDisplayLevels = displayRealtime.assist_levels;
+			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
+			const systemVoltageP1 = lastControllerP1.system_voltage;
+			const controllerCurrentLimitP1 = lastControllerP1.current_limit;     // Overall controller current limit
+
+			const datasets = [];
+			let overallMaxMotorPower = 0;
+			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+
+			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+				const internalIndex = internalLevelMapping[displayedLevel];
+				if (internalIndex === undefined || internalIndex < 0 ||
+					internalIndex >= assistCurrentLimitsP1.length) {
+					continue;
+				}
+
+				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit; // This is "Max. Power %"
+
+				if (typeof currentLimitPercentForLevel !== 'number') continue;
+
+				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
+				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+
+				const dataPoints = [];
+				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
+					let motorOutput = humanPower * (200 / 100.0); // 200% because assist ratio not exist in M820
+					motorOutput = Math.min(maxPowerForLevel, motorOutput);
+					dataPoints.push({ x: humanPower, y: motorOutput });
+				}
+
+				datasets.push({
+					label: `Level ${displayedLevel}`,
+					data: dataPoints,
+					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
+					borderWidth: 2,
+					fill: false,
+					tension: 0.1
+				});
+			}
+
+			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600; //600 = max m820 power
+
+
+			if (pasChart) {
+				pasChart.data.datasets = datasets;
+				pasChart.options.scales.y.max = yAxisMax;
+				pasChart.update();
+			} else {
+				pasChart = new Chart(ctx, {
+					type: 'line',
+					data: { datasets: datasets },
+					options: {
+						responsive: true, maintainAspectRatio: false,
+						scales: {
+							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Human power (w)' }, min: 0, max: MAX_HUMAN_POWER_X_AXIS },
+							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
+						},
+						plugins: { legend: { position: 'top' } }
+					}
+				});
+			}
+		}
+
 		function updateStartRampChart() {
 			const ctx = document.getElementById('startRampChart')?.getContext('2d');
 			if (!ctx) {
@@ -1415,6 +1697,101 @@
 			}
 		}
 
+        function updateStartRampChartM820() {
+			const ctx = document.getElementById('startRampChartM820')?.getContext('2d');
+			if (!ctx) {
+				console.error("Start Ramp chart canvas not found!");
+				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
+				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
+				return;
+			}
+
+			if (!lastControllerP2 || !lastControllerP2.acceleration_level ||
+				!lastControllerP1 || !lastControllerP1.assist_levels ||
+				typeof lastControllerP1.system_voltage !== 'number' ||
+				typeof lastControllerP1.current_limit !== 'number' ||
+				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
+				console.warn("Start Ramp: Missing P2, P1, or displayRealtime data for chart.");
+				if (startRampChart) { startRampChart.destroy(); startRampChart = null; }
+				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
+				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
+				return;
+			}
+
+			// Data is available, show container, hide placeholder
+			if (startRampContainerM820) startRampContainerM820.style.display = 'block';
+			if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'none';
+
+			const totalDisplayLevels = displayRealtime.assist_levels;
+			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
+			const systemVoltageP1 = lastControllerP1.system_voltage;
+			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+
+			const datasets = [];
+			let overallMaxMotorPower = 0;
+			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+
+			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+				const internalIndex = internalLevelMapping[displayedLevel];
+				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) {
+					continue;
+				}
+
+				const accelValue = lastControllerP2.acceleration_level; // Value 1-8
+				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit;
+
+				if (typeof accelValue !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
+
+				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
+				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+
+				// Time_To_Reach_Max_Power = 2500.0 - (AccelerationSetting * 281.25)
+				// Higher accelValue (1-8) should mean *slower* ramp according to typical Bafang UI (e.g. "Acceleration: 2" on screen)
+				// The C# formula implies: higher accelValue -> smaller denominator -> steeper slope -> FASTER ramp.
+				// Let's verify the C# interpretation: if accelValue is 8 (most aggressive), denominator is 2500 - 8*281.25 = 2500 - 2250 = 250.
+				// If accelValue is 1 (least aggressive), denominator is 2500 - 1*281.25 = 2218.75.
+				// So, yes, in the C# formula, higher accelValue (1-8) means FASTER ramp.
+				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25)); // Ensure non-zero, min 50ms
+
+				const dataPoints = [];
+				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) { // Or 250ms steps like C#
+					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
+					motorOutput = Math.min(maxPowerForLevel, motorOutput);
+					dataPoints.push({ x: timeMs, y: motorOutput });
+				}
+
+				datasets.push({
+					label: `Level ${displayedLevel}`,
+					data: dataPoints,
+					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
+					borderWidth: 2,
+					fill: false,
+					tension: 0.1
+				});
+			}
+
+			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600;
+
+			if (startRampChart) {
+				startRampChart.data.datasets = datasets;
+				startRampChart.options.scales.y.max = yAxisMax;
+				startRampChart.update();
+			} else {
+				startRampChart = new Chart(ctx, {
+					type: 'line',
+					data: { datasets: datasets },
+					options: {
+						responsive: true, maintainAspectRatio: false,
+						scales: {
+							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' }, min: 0, max: MAX_TIME_X_AXIS_START_RAMP },
+							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
+						},
+						plugins: { legend: { position: 'top' } }
+					}
+				});
+			}
+		}
+
 		function handleAssistInputChange(event) {
 			const input = event.target;
 			if (!input) {
@@ -1482,35 +1859,35 @@
 		}
 		
 		function handleTorqueInputChange(event) {
-        const input = event.target;
-         // *** ADD CHECK: Ensure input element exists ***
-        if (!input) {
-            console.error("handleTorqueInputChange triggered with null input element!");
-            return;
-        }
-        const profileIndex = parseInt(input.dataset.profileIndex, 10);
-        const param = input.dataset.param;
-        const value = parseInt(input.value, 10);
-
-        // *** ADD CHECK: Prevent changes to calculated start_pulse[0] ***
-        if (param === 'start_pulse' && profileIndex === 0) {
-            console.log("Ignoring change attempt on calculated Start Pulse[0]");
-            return; // Do nothing
-        }
-
-        // *** ADD CHECK: Ensure lastControllerP2 and relevant structures exist ***
-        if (lastControllerP2 && lastControllerP2.torque_profiles && !isNaN(profileIndex) && param && !isNaN(value)) {
-             if (!lastControllerP2.torque_profiles[profileIndex]) {
-                // Create if missing (shouldn't normally happen if P2 is valid)
-                lastControllerP2.torque_profiles[profileIndex] = {}; // Or appropriate defaults
-                 console.warn(`Created missing torque_profiles entry for index ${profileIndex}`);
+            const input = event.target;
+            // *** ADD CHECK: Ensure input element exists ***
+            if (!input) {
+                console.error("handleTorqueInputChange triggered with null input element!");
+                return;
             }
-            lastControllerP2.torque_profiles[profileIndex][param] = value;
-            console.log(`Updated P2 Torque Profile ${profileIndex} ${param} to ${value}`);
-        } else {
-            console.warn("Could not update torque profile - data missing or invalid input", input?.dataset, input?.value);
+            const profileIndex = parseInt(input.dataset.profileIndex, 10);
+            const param = input.dataset.param;
+            const value = parseInt(input.value, 10);
+
+            // *** ADD CHECK: Prevent changes to calculated start_pulse[0] ***
+            if (param === 'start_pulse' && profileIndex === 0) {
+                console.log("Ignoring change attempt on calculated Start Pulse[0]");
+                return; // Do nothing
+            }
+
+            // *** ADD CHECK: Ensure lastControllerP2 and relevant structures exist ***
+            if (lastControllerP2 && lastControllerP2.torque_profiles && !isNaN(profileIndex) && param && !isNaN(value)) {
+                if (!lastControllerP2.torque_profiles[profileIndex]) {
+                    // Create if missing (shouldn't normally happen if P2 is valid)
+                    lastControllerP2.torque_profiles[profileIndex] = {}; // Or appropriate defaults
+                    console.warn(`Created missing torque_profiles entry for index ${profileIndex}`);
+                }
+                lastControllerP2.torque_profiles[profileIndex][param] = value;
+                console.log(`Updated P2 Torque Profile ${profileIndex} ${param} to ${value}`);
+            } else {
+                console.warn("Could not update torque profile - data missing or invalid input", input?.dataset, input?.value);
+            }
         }
-    }
 
 		function populateHexEditor() {
 			const tableBody = debugElements.hexEditorTableBody;
@@ -1717,10 +2094,13 @@
             let needsBatteryUpdate = false;
             let needsControllerUpdate = false;
             let needsGearsUpdate = false;
+            let needsGearsM820Update = false;
             let needsInfoUpdate = false;
 			let needsHexEditorUpdate = false;
 			let needsPasChartUpdate = false;
             let needsStartRampChartUpdate = false;
+            let needsPasChartUpdateM820 = false;
+            let needsStartRampChartUpdateM820 = false;
 
 		if (message.startsWith('CAN_DEVICE_STATUS:')) {
                 const parts = message.substring('CAN_DEVICE_STATUS:'.length).split(':');
@@ -1814,6 +2194,7 @@
                                         console.log(`Recalculating Start Pulse[0] due to P1 change: ${calculatedPulse}`);
                                         lastControllerP2.torque_profiles[0].start_pulse = calculatedPulse;
                                         needsGearsUpdate = true; // Ensure UI refresh if value changed
+                                        needsGearsM820Update = true; // Ensure UI refresh if value changed
                                     }
                                 } catch (e) {
                                     console.error("Error recalculating start pulse after P1 update:", e);
@@ -1831,8 +2212,11 @@
 							// Ensure flags are set even if calculation doesn't run/change value							
                             needsControllerUpdate = true;
                             needsGearsUpdate = true;
+                            needsGearsM820Update = true;
 							needsPasChartUpdate = true; // P1 values (voltage, current limits) 
-							needsStartRampChartUpdate = true; // P1 values used in Start Ramp calc						
+							needsStartRampChartUpdate = true; // P1 values used in Start Ramp calc	
+                            needsPasChartUpdateM820 = true; // P1 values (voltage, current limits) 
+							needsStartRampChartUpdateM820 = true; // P1 values used in Start Ramp calc							
                             break;
                         case 'controller_params_2':
                             controllerParams2 = parsedEvent.data;
@@ -1846,6 +2230,8 @@
 							needsHexEditorUpdate = true;
 							}
                             needsGearsUpdate = true;
+                            needsGearsM820Update = true;
+                            needsStartRampChartUpdateM820 = true; //P2 global acceleration
                             break;
                         case 'controller_params_6017': 
                             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
@@ -1907,6 +2293,7 @@
                                         console.log(`Recalculating Start Pulse[0] due to Angle change: ${calculatedPulse}`);
                                         lastControllerP2.torque_profiles[0].start_pulse = calculatedPulse;
                                         needsGearsUpdate = true; // Ensure UI refresh if value changed
+                                        needsGearsM820Update = true;
                                     }
                                 } catch (e) {
                                      console.error("Error recalculating start pulse after angle update:", e);
@@ -1915,6 +2302,7 @@
                                  // console.log("Skipping start pulse recalc after angle: Missing signals or P2[0].");
                             }
                             needsGearsUpdate = true; 
+                            needsGearsM820Update = true;
 							 break; 
 						// --- INFO CASES (Ensure these set needsInfoUpdate) ---
                         case 'controller_hw_version': controllerOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
@@ -1963,10 +2351,13 @@
                     if (needsBatteryUpdate) updateBatteryUI();
 					if (needsControllerUpdate) updateControllerUI();
 					if (needsGearsUpdate) updateGearsUI();
+                    if (needsGearsM820Update) updateGearsUIM820();
                     if (needsInfoUpdate) updateInfoUI(); 				
 					if (needsHexEditorUpdate) populateHexEditor(); 
 			        if (needsPasChartUpdate) updatePasCurvesChart();
 					if (needsStartRampChartUpdate) updateStartRampChart();
+                    if (needsPasChartUpdateM820) updatePasCurvesChartM820();
+					if (needsStartRampChartUpdateM820) updateStartRampChartM820();
 					
                 } catch (e) { 
 				    console.error("Error processing BAFANG_DATA:", e); // Log the full error object
@@ -2415,6 +2806,13 @@
 		  socket.send('READ_STARTUP_ANGLE'); //startup angle
 		};
 
+        gearsElementsM820.syncButton.onclick = () => {
+          addLog('REQ', 'Syncing Gears data ...');
+          socket.send('READ:2:96:17'); // Request Controller P1
+          socket.send('READ:2:96:18'); // Request Controller P2
+		  socket.send('READ_STARTUP_ANGLE'); //startup angle
+		};
+
       gearsElements.saveButton.onclick = async () => { 
 		  
 		    const angleStr = gearsElements.controllerStartupAngleInputEl?.value;
@@ -2480,6 +2878,70 @@
                 // This condition might not be reachable if the initial checks pass
                 // but kept for consistency.
                 addLog('INFO', 'No P0, P1 or P2 data available to save.');
+            }
+        };
+
+        gearsElementsM820.saveButton.onclick = async () => { 
+		  
+		    const angleStr = gearsElementsM820.controllerStartupAngleInputEl?.value;
+            const angleValue = (angleStr !== undefined && angleStr !== "") ? parseInt(angleStr, 10) : null;
+            let angleIsValid = (angleValue !== null && !isNaN(angleValue) && angleValue >= 0 && angleValue <= 360);
+            if (angleStr !== "" && !angleIsValid) {
+                 addLog('ERROR', `Invalid Startup Angle value entered: ${angleStr}. Must be 0-360.`);
+                 alert(`Invalid Startup Angle value entered: ${angleStr}. Must be between 0 and 360.`);
+                 return; // Stop save if angle is entered but invalid
+             }
+
+            if (!lastControllerP1 || !lastControllerP2) { // Check P0 as well
+                 let missing = [];
+                 if (!lastControllerP1) missing.push("P1 (Assist Limits)");
+                 if (!lastControllerP2) missing.push("P2 (Torque)");
+                  addLog('ERROR', `Cannot save Assist Settings - read required Controller data first: ${missing.join(', ')}`);
+                  return; // Stop if essential data is missing
+             }
+               
+            if (!confirm("Are you sure you want to write Assist Level AND Torque Profile changes to the Controller?")) return;
+            addLog('SAVE_REQ', 'Saving Gears & Assist Changes...');
+            let changesMade = false; // Track if anything was actually sent
+
+            // Send P1 (Assist Levels) - Use the locally modified object
+            if (lastControllerP1) { // Check again just in case, though covered above
+                // We send the whole P1 block because the user might have edited values via the table inputs
+                socket.send(`WRITE_LONG_P1:${JSON.stringify(lastControllerP1)}`);
+                addLog('SAVE_REQ', 'Controller Parameter 1 (Assist Levels)');
+                changesMade = true;
+				await new Promise(resolve => setTimeout(resolve, 500)); // Wait
+            }
+            // else { // Already handled by the check at the top }
+
+            // Send P2 (Torque Profiles) - Use the locally modified object
+            if (lastControllerP2) { // Check again just in case
+                // We send the whole P2 block
+                const globalAccelerationStr = gearsElementsM820.globalAccelerationInputEl?.value;
+                const globalAccelerationValue = (globalAccelerationStr !== undefined && globalAccelerationStr !== "") ? parseInt(globalAccelerationStr, 10) : null;
+                let globalAccelerationIsValid = (globalAccelerationValue !== null && !isNaN(globalAccelerationValue) && globalAccelerationValue >= 1 && globalAccelerationValue <= 8);
+                if (globalAccelerationIsValid){
+                    lastControllerP2.acceleration_level = globalAccelerationValue;
+                }
+                socket.send(`WRITE_LONG_P2:${JSON.stringify(lastControllerP2)}`);
+                addLog('SAVE_REQ', 'Controller Parameter 2 (Torque Profiles)');
+                changesMade = true;
+				await new Promise(resolve => setTimeout(resolve, 500)); // Wait
+            }
+			
+            if (angleIsValid && angleValue !== lastStartupAngle) { // Only send if valid AND changed
+                socket.send(`WRITE_STARTUP_ANGLE:${angleValue}`);
+                addLog('SAVE_REQ', `Startup Angle: ${angleValue}`);
+                changesMade = true;
+            } else if (angleIsValid && angleValue === lastStartupAngle) {
+                 // Don't log error, just note no change needed
+                 // addLog('INFO', 'Startup Angle not changed, skipping save.');
+            }
+
+            if (!changesMade) {
+                // This condition might not be reachable if the initial checks pass
+                // but kept for consistency.
+                addLog('INFO', 'No P1 or P2 data available to save.');
             }
         };
 		
@@ -2550,3 +3012,5 @@
         statusText.textContent = "Connecting to server..."; // Initial text before WebSocket open	
 		updatePasCurvesChart(); // Initial call to draw empty or placeholder chart
 		updateStartRampChart(); // Initial call
+        updatePasCurvesChartM820(); // Initial call to draw empty or placeholder chart
+		updateStartRampChartM820(); // Initial call

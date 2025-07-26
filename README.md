@@ -1,4 +1,4 @@
-Bafang Besst software replacement for M500, M510, M560 etc  
+Bafang Besst software replacement for M500, M510, M560, M820 etc  
 buy a suitable [Canable](https://www.ebay.com/itm/156316405598) (needs STM32F072 processor with [candlelight firmware](https://github.com/candle-usb/candleLight_fw))  
 install [NodeJS](https://nodejs.org/en/download/)  
 download and unzip [this repo](https://github.com/stancecoke/bafang_canable_pro/archive/refs/heads/master.zip)  
@@ -9,4 +9,7 @@ You can mod this kind of [display extension cable](https://aliexpress.com/item/1
 Double click on "Start_Tool.bat"  
 Have Fun!  
 ![GUI](Screenshot.jpg)
+![GUI](Screenshot2.png)
+![GUI](Screenshot1.png)
+
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.

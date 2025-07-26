@@ -36,6 +36,7 @@
             <button class="tab-button" data-tab="sensor">Sensor</button>
             <button class="tab-button" data-tab="battery">Battery</button>
             <button class="tab-button" data-tab="gears">Assist</button>
+            <button class="tab-button" data-tab="gearsM820">Assist (M820)</button>
             <button class="tab-button" data-tab="info">Info</button>
             <button class="tab-button" data-tab="debug">Debug</button>
         </div>
@@ -112,7 +113,7 @@
                          <tr>
                              <th>Undervoltage Cutoff (Under Load)</th>
                              <td>
-                                 <span id="ctrlP1UnderVoltageLoadValue">N/A</span> V<br>
+                                 <span id="ctrlP1UnderVoltageLoadValue">N/A</span> mV<br>
                                  <input type="number" id="ctrlP1UnderVoltageLoadInput" min="0" max="255" step="1" placeholder="Enter new value (V)">
                                   <small>Motor stops during riding if voltage drops below this.</small>
                              </td>
@@ -120,7 +121,7 @@
                           <tr>
                              <th>Undervoltage Cutoff (Idle)</th>
                              <td>
-                                 <span id="ctrlP1UnderVoltageIdleValue">N/A</span> V<br>
+                                 <span id="ctrlP1UnderVoltageIdleValue">N/A</span> mV<br>
                                  <input type="number" id="ctrlP1UnderVoltageIdleInput" min="0" max="255" step="1" placeholder="Enter new value (V)">
                                   <small>Motor won't start if voltage is below this.</small>
                              </td>
@@ -506,7 +507,7 @@
                      <table class="description-table torque-table">
                           <thead>
                               <tr>
-                                  <th>Level</th>
+                                  <th>Speed range</th>
                                   <th>Start Torque (Val)</th>
                                   <th>Max Torque (Val)</th>
                                   <th>Return Torque (Val)</th>
@@ -514,6 +515,7 @@
                                   <th>Max Current (%)</th>
                                   <th>Start Pulse (Signals)</th>
                                   <th>Current Decay (ms)</th>
+                                  <th>torque attenuation (10ms)</th>
                                   <th>Stop Delay (ms)</th>
                               </tr>
                           </thead>
@@ -524,21 +526,112 @@
                  </div>
                  <div id="torqueProfilePlaceholder" class="placeholder-text">Torque profile data (Controller P2) not yet received.</div>
 							 
-			<div class="settings-section">
-				<h2>Assist Curves</h2>
-				<div id="pasCurvesPlaceholder" class="chart-placeholder">Assist Curves data not yet available. Please Sync.</div>
-				<div id="pasCurvesContainer" class="chart-container" style="display: none;">
-					<canvas id="pasCurvesChart"></canvas>
-				</div>
-			</div>
+                <div class="settings-section">
+                    <h2>Assist Curves</h2>
+                    <div id="pasCurvesPlaceholder" class="chart-placeholder">Assist Curves data not yet available. Please Sync.</div>
+                    <div id="pasCurvesContainer" class="chart-container" style="display: none;">
+                        <canvas id="pasCurvesChart"></canvas>
+                    </div>
+                </div>
 
-			<div class="settings-section">
-				<h2>Start Ramp Curves</h2>
-				<div id="startRampPlaceholder" class="chart-placeholder">Start Ramp data not yet available. Please Sync.</div>
-				<div id="startRampContainer" class="chart-container" style="display: none;">
-					<canvas id="startRampChart"></canvas>
-				</div>
-			</div>
+                <div class="settings-section">
+                    <h2>Start Ramp Curves</h2>
+                    <div id="startRampPlaceholder" class="chart-placeholder">Start Ramp data not yet available. Please Sync.</div>
+                    <div id="startRampContainer" class="chart-container" style="display: none;">
+                        <canvas id="startRampChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gears Tab  -->
+            <div class="tab-content" id="tab-gearsM820">
+                 <h2>Assist</h2>
+                 <div class="general-controls">
+                    <button id="gearsSyncButtonM820">Sync Data</button>
+                    <button id="gearsSaveButtonM820">Save Changes</button>
+                 </div>
+
+				<!-- <h3>Startup Angle</h3> -->
+                 <table class="description-table">
+                     <tbody>
+                         <tr>
+                             <th>Startup Angle</th>
+                             <td>
+                                 <span id="controllerStartupAngleValueM820">N/A</span> degrees<br>
+                                 <input type="number" id="controllerStartupAngleInputM820" min="0" max="360" step="1" placeholder="Enter new value (0-360°)">
+                                 <small>Angle pedals must turn before motor assists.</small>
+                             </td>
+                         </tr>
+                         <tr>
+                             <th>Global Acceleration</th>
+                             <td>
+                                 <span id="globalAccelerationValueM820">N/A</span><br>
+                                 <input type="number" id="globalAccelerationInputM820" min="1" max="8" step="1" placeholder="Enter new value (1-8)">
+                             </td>
+                         </tr>
+                     </tbody>
+                 </table>
+                 <div id="startupAnglePlaceholderM820" class="placeholder-text">Startup Angle data not yet received.</div>
+
+				 
+                 <!-- Assist Levels Section -->
+                 <h3>Assist Levels (Parameter Block 1)</h3>
+                 <div class="table-container assist-table-container"> <!-- Added container for scrolling -->
+                     <table class="description-table assist-table">
+                         <thead>
+                             <tr>
+                                 <th>Assist Level</th>
+                                 <th>Current Limit (%)</th>
+                                 <th>Speed or Cadance Limit (%)</th>
+                             </tr>
+                         </thead>
+                         <tbody id="assistLevelTableBodyM820">
+                             <!-- Rows populated by JS -->
+                         </tbody>
+                     </table>
+                 </div>
+                 <div id="assistLevelPlaceholderM820" class="placeholder-text">Assist level data (Controller P1) not yet received.</div>
+
+                 <!-- Torque Profiles Section -->
+                 <h3>Torque Sensor-Controlled Assist (Parameter Block 2)</h3>
+                  <div class="table-container torque-table-container"> <!-- Added container for scrolling -->
+                     <table class="description-table torque-table">
+                          <thead>
+                              <tr>
+                                  <th>Speed range</th>
+                                  <th>Start Torque (Val)</th>
+                                  <th>Max Torque (Val)</th>
+                                  <th>Return Torque (Val)</th>
+                                  <th>Min Current (%)</th>
+                                  <th>Max Current (%)</th>
+                                  <th>Start Pulse (Signals)</th>
+                                  <th>Current Decay (ms)</th>
+                                  <th>torque attenuation (10ms)</th>
+                                  <th>Stop Delay (ms)</th>
+                              </tr>
+                          </thead>
+                          <tbody id="torqueProfileTableBodyM820">
+                              <!-- Rows populated by JS -->
+                          </tbody>
+                     </table>
+                 </div>
+                 <div id="torqueProfilePlaceholderM820" class="placeholder-text">Torque profile data (Controller P2) not yet received.</div>
+							 
+                <div class="settings-section">
+                    <h2>Assist Curves</h2>
+                    <div id="pasCurvesPlaceholderM820" class="chart-placeholder">Assist Curves data not yet available. Please Sync.</div>
+                    <div id="pasCurvesContainerM820" class="chart-container" style="display: none;">
+                        <canvas id="pasCurvesChartM820"></canvas>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>Start Ramp Curves</h2>
+                    <div id="startRampPlaceholderM820" class="chart-placeholder">Start Ramp data not yet available. Please Sync.</div>
+                    <div id="startRampContainerM820" class="chart-container" style="display: none;">
+                        <canvas id="startRampChartM820"></canvas>
+                    </div>
+                </div>
             </div>
 
 			
@@ -547,7 +640,7 @@
                  <div class="general-controls">
                     <button id="infoSyncButton">Sync All Info Data</button>
                     <button id="infoSaveButton">Save Info Changes</button> <!-- Added Save Button -->
-          </div>
+                </div>
 
                  <!-- Controller Info -->
                  <h3>Info: Controller</h3>
