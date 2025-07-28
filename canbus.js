@@ -2,7 +2,7 @@
 const { GSUsb } = require('./gsusb');
 const { CanFrame } = require('./canframe');
 const { EventEmitter } = require('node:events'); // Use Node.js built-in EventEmitter
-const usb = require('usb');
+//const usb = require('usb');
 
 const {
     CanOperation, DeviceNetworkId, charsToString, parseCanFrame,
