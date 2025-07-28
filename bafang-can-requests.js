@@ -1,7 +1,7 @@
 // bafang-can-requests.js
 "use strict";
 const { CanOperation, DeviceNetworkId } = require('./bafang-constants');
-const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
+//const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
 
 /**
  * Enqueues a READ command request.
@@ -111,6 +111,7 @@ function writeShortParameter(canbusInstance, requestManagerInstance, target, can
 async function writeLongParameter(canbusInstance, requestManagerInstance, target, can_command, value) {
       // Keep calling the low-level serializer which sends multiple frames
       // but register only ONCE for the final ACK.
+      // eslint-disable-next-line no-async-promise-executor
       return new Promise(async (resolve, reject) => {
          try {
             if (!canbusInstance.isConnected()) {

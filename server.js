@@ -438,7 +438,7 @@ const wss = new WebSocket.Server({ server });
 		return true;
 	}
 
-	async function handleDisplaySpecificWrites(ws, messageString) {
+	async function handleDisplaySpecificWrites(ws, messageString,sendResult) {
 		if (messageString.startsWith('WRITE_DISP_TOTAL_MILEAGE:')) {
 			const value = parseFloat(messageString.substring('WRITE_DISP_TOTAL_MILEAGE:'.length));
 			if (!isNaN(value)) {
@@ -573,7 +573,7 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleWriteLongParsedParams(ws, messageString);
 				if (!handled) handled = await handleWriteLongSpeedParams(ws, messageString);
 				if (!handled) handled = await handleWriteLongStringParams(ws, messageString);
-				if (!handled) handled = await handleDisplaySpecificWrites(ws, messageString);
+				if (!handled) handled = await handleDisplaySpecificWrites(ws, messageString, sendResult);
 				if (!handled) handled = await handleStartupAngleCommands(ws, messageString, sendResult);
 				if (!handled) handled = await handleRawCanFrame(ws, messageString);
 

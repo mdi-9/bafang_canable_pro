@@ -3,7 +3,7 @@
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const log = document.getElementById('log');
-        //const allControls = document.querySelectorAll('button, input, textarea');
+        const allControls = document.querySelectorAll('button, input, textarea');
         const clearLogButton = document.getElementById('clearLogButton');
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
@@ -230,7 +230,7 @@
         let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
         // Controller specific stores
         let controllerRealtime0 = null, controllerRealtime1 = null; 
-		let controllerParams0 = null; controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
+		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
         let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, manufacturer: null };
 		let displayShutdownTime = null; // <-- Add storage for shutdown time
 		
@@ -240,6 +240,10 @@
 		// --- Chart instances (initialize to null) ---
 		let pasChart = null;
 		let startRampChart = null;
+
+		// --- Chart instances M820 (initialize to null) ---
+		let pasChartM820 = null;
+		let startRampChartM820 = null;
 
 		// --- Constants for Charting (adjust as needed) ---
 		const MAX_HUMAN_POWER_X_AXIS = 300; 
@@ -749,46 +753,46 @@
 		errorBody.innerHTML = ''; // Clear previous errors
 		if (Array.isArray(displayErrors) && displayErrors.length > 0) {
 			const errorDescriptions = { 
-			04:	"Throttle not in correct position",
-			07:	 "Over voltage protection",
-			08:	"Hall sensor error",
-			09:	"Motor phase winding fault",
-			10:	"Motor overtemperature",
-			11:	"Motor temperature sensor fault",
-			12:	"Motor overcurrent",
-			13:	"Battery temperature sensor fault",
-			14:	"Controller overtemperature",
-			15:	"Controller temperature sensor fault",			
-			21: "Speed sensor error",
-			25: "Torque signal fault",
-			26:	"Torque sensor speed signal fault",
-			27:	"Controller overcurrent",
-			30:	"Communication failed",	
-			33:	"Brake detection circuit fault",
-			35:	"15V detection circuit error",	
-			36:	"Keypad detection circuit error",
-			37:	"WDT circuit fault Controller",
+			'04':	"Throttle not in correct position",
+			'07':	 "Over voltage protection",
+			'08':	"Hall sensor error",
+			'09':	"Motor phase winding fault",
+			'10':	"Motor overtemperature",
+			'11':	"Motor temperature sensor fault",
+			'12':	"Motor overcurrent",
+			'13':	"Battery temperature sensor fault",
+			'14':	"Controller overtemperature",
+			'15':	"Controller temperature sensor fault",			
+			'21': "Speed sensor error",
+			'25': "Torque signal fault",
+			'26':	"Torque sensor speed signal fault",
+			'27':	"Controller overcurrent",
+			'30':	"Communication failed",	
+			'33':	"Brake detection circuit fault",
+			'35':	"15V detection circuit error",	
+			'36':	"Keypad detection circuit error",
+			'37':	"WDT circuit fault Controller",
 			};
 			const errorRecommendations = { 
-			04: "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
-			07:	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
-			08:	"Check hall sensor connections, inspect for damage, replace if necessary",
-			09:	"Check motor connections, inspect for damage, test with a different controller",
-			10:	"Allow motor to cool down, reduce load, ensure proper ventilation",
-			11:	"Check sensor connection, inspect for damage, replace if necessary",
-			12:	"Reduce load, check wiring, inspect motor and controller",
-			13:	"Check sensor connection, inspect for damage, replace if necessary",
-			14:	"Allow controller to cool down, reduce load, ensure proper ventilation",
-			15:	"Check sensor connection, inspect for damage, replace if necessary",
-			21:	"Check sensor connection, inspect for damage, realign magnets",
-			25: "Check sensor connection, inspect for damage, replace if necessary",
-			26:	"Check sensor connection, inspect for damage, replace if necessary",
-			27:	"Reduce load, check wiring, inspect motor and controller",
-			30:	"Check connections, update firmware, replace faulty components",
-			33:	"Check sensor connection, inspect wiring, replace sensor if needed",
-			35:	"Check power supply and connections, replace damaged components",
-			36:	"Check keypad connection, inspect wiring, replace keypad if needed",
-			37:	"Consult a professional for diagnosis and repair",
+			'04': "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
+			'07':	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
+			'08':	"Check hall sensor connections, inspect for damage, replace if necessary",
+			'09':	"Check motor connections, inspect for damage, test with a different controller",
+			'10':	"Allow motor to cool down, reduce load, ensure proper ventilation",
+			'11':	"Check sensor connection, inspect for damage, replace if necessary",
+			'12':	"Reduce load, check wiring, inspect motor and controller",
+			'13':	"Check sensor connection, inspect for damage, replace if necessary",
+			'14':	"Allow controller to cool down, reduce load, ensure proper ventilation",
+			'15':	"Check sensor connection, inspect for damage, replace if necessary",
+			'21':	"Check sensor connection, inspect for damage, realign magnets",
+			'25': "Check sensor connection, inspect for damage, replace if necessary",
+			'26':	"Check sensor connection, inspect for damage, replace if necessary",
+			'27':	"Reduce load, check wiring, inspect motor and controller",
+			'30':	"Check connections, update firmware, replace faulty components",
+			'33':	"Check sensor connection, inspect wiring, replace sensor if needed",
+			'35':	"Check power supply and connections, replace damaged components",
+			'36':	"Check keypad connection, inspect wiring, replace keypad if needed",
+			'37':	"Consult a professional for diagnosis and repair",
 			};
 			displayErrors.forEach(code => {
 				const row = errorBody.insertRow();
@@ -899,11 +903,11 @@
                         }
                     }
 				}
-                } else {
-                // Clear or set to N/A if controllerParams1 is null
-                if (controllerElements.p1SysVoltageSelect) controllerElements.p1SysVoltageSelect.value = "";
-                safeSetText(controllerElements.p1SysVoltageRawValue, null, () => "(Raw: N/A)");
-				}
+			} else {
+				// Clear or set to N/A if controllerParams1 is null
+				if (controllerElements.p1SysVoltageSelect) controllerElements.p1SysVoltageSelect.value = "";
+				safeSetText(controllerElements.p1SysVoltageRawValue, null, () => "(Raw: N/A)");
+			}
 			safeSetText(controllerElements.p1CurrentLimitValue, controllerParams1?.current_limit);
 			safeSetInput(controllerElements.p1CurrentLimitInput, controllerParams1, 'current_limit');
 			safeSetText(controllerElements.p1MaxCurrentLowChargeValue, controllerParams1?.max_current_on_low_charge);
@@ -1497,6 +1501,7 @@
 				pasChart.options.scales.y.max = yAxisMax;
 				pasChart.update();
 			} else {
+				// eslint-disable-next-line no-undef
 				pasChart = new Chart(ctx, {
 					type: 'line',
 					data: { datasets: datasets },
@@ -1526,7 +1531,7 @@
 				typeof lastControllerP1.current_limit !== 'number' ||
 				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
 				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
-				if (pasChart) { pasChart.destroy(); pasChart = null; }
+				if (pasChartM820) { pasChartM820.destroy(); pasChartM820 = null; }
 				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
 				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex';
 				return;
@@ -1580,12 +1585,13 @@
 			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600; //600 = max m820 power
 
 
-			if (pasChart) {
-				pasChart.data.datasets = datasets;
-				pasChart.options.scales.y.max = yAxisMax;
-				pasChart.update();
+			if (pasChartM820) {
+				pasChartM820.data.datasets = datasets;
+				pasChartM820.options.scales.y.max = yAxisMax;
+				pasChartM820.update();
 			} else {
-				pasChart = new Chart(ctx, {
+				// eslint-disable-next-line no-undef
+				pasChartM820 = new Chart(ctx, {
 					type: 'line',
 					data: { datasets: datasets },
 					options: {
@@ -1682,6 +1688,7 @@
 				startRampChart.options.scales.y.max = yAxisMax;
 				startRampChart.update();
 			} else {
+				// eslint-disable-next-line no-undef
 				startRampChart = new Chart(ctx, {
 					type: 'line',
 					data: { datasets: datasets },
@@ -1712,7 +1719,7 @@
 				typeof lastControllerP1.current_limit !== 'number' ||
 				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
 				console.warn("Start Ramp: Missing P2, P1, or displayRealtime data for chart.");
-				if (startRampChart) { startRampChart.destroy(); startRampChart = null; }
+				if (startRampChartM820) { startRampChartM820.destroy(); startRampChartM820 = null; }
 				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
 				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
 				return;
@@ -1772,12 +1779,13 @@
 
 			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600;
 
-			if (startRampChart) {
-				startRampChart.data.datasets = datasets;
-				startRampChart.options.scales.y.max = yAxisMax;
-				startRampChart.update();
+			if (startRampChartM820) {
+				startRampChartM820.data.datasets = datasets;
+				startRampChartM820.options.scales.y.max = yAxisMax;
+				startRampChartM820.update();
 			} else {
-				startRampChart = new Chart(ctx, {
+				// eslint-disable-next-line no-undef
+				startRampChartM820 = new Chart(ctx, {
 					type: 'line',
 					data: { datasets: datasets },
 					options: {
@@ -2141,6 +2149,7 @@
 					
 					//skip some messages so log is not overflooded
 					const typesToSkipInUILog = [
+						 	'sensor_realtime',   // Added by DPC18RI for m400 CAN / torque sensor with CAN signals every 10ms? ******
 							'display_realtime',
 							'controller_realtime_0',
 							'controller_realtime_1',
@@ -2254,35 +2263,37 @@
                             } else {
                                 addLog('WARN', `Received ${parsedEvent.type} but no _rawBytes found.`);
                             }
-                        case 'controller_speed_params':
-                            const speedData = parsedEvent.data;
-                            if (speedData && Array.isArray(speedData.wheel_diameter_code)) {
-                                // --- Perform Wheel Diameter Lookup ---
-                                const code0 = speedData.wheel_diameter_code[0];
-                                const code1 = speedData.wheel_diameter_code[1];
-                                const foundWheel = wheelDiameterTable.find(wheel => wheel.code[0] === code0 && wheel.code[1] === code1);
+							break;
+                        case 'controller_speed_params':{
+								const speedData = parsedEvent.data;
+								if (speedData && Array.isArray(speedData.wheel_diameter_code)) {
+									// --- Perform Wheel Diameter Lookup ---
+									const code0 = speedData.wheel_diameter_code[0];
+									const code1 = speedData.wheel_diameter_code[1];
+									const foundWheel = wheelDiameterTable.find(wheel => wheel.code[0] === code0 && wheel.code[1] === code1);
 
-                                // Store the combined object (including the looked-up wheel info)
-                                controllerSpeedParams = {
-                                    speed_limit: speedData.speed_limit,
-                                    circumference: speedData.circumference,
-                                    // Store the full wheel object if found, otherwise keep the code
-                                    wheel_diameter: foundWheel ? foundWheel : { text: `Code ${code0.toString(16)}/${code1.toString(16)}`, code: [code0, code1] }
-                                };
-                                // --- End Lookup ---
-                            } else {
-                                // Handle case where data is invalid or missing code
-                                controllerSpeedParams = parsedEvent.data; // Store raw parsed data
-                            }
-							if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
-							rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
-							needsHexEditorUpdate = true;
-							} else if (parsedEvent.data && parsedEvent.data.raw_data && Array.isArray(parsedEvent.data.raw_data)) {
-							rawParamData[parsedEvent.type] = [...parsedEvent.data.raw_data];
-							needsHexEditorUpdate = true;
+									// Store the combined object (including the looked-up wheel info)
+									controllerSpeedParams = {
+										speed_limit: speedData.speed_limit,
+										circumference: speedData.circumference,
+										// Store the full wheel object if found, otherwise keep the code
+										wheel_diameter: foundWheel ? foundWheel : { text: `Code ${code0.toString(16)}/${code1.toString(16)}`, code: [code0, code1] }
+									};
+									// --- End Lookup ---
+								} else {
+									// Handle case where data is invalid or missing code
+									controllerSpeedParams = parsedEvent.data; // Store raw parsed data
+								}
+								if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
+								rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
+								needsHexEditorUpdate = true;
+								} else if (parsedEvent.data && parsedEvent.data.raw_data && Array.isArray(parsedEvent.data.raw_data)) {
+								rawParamData[parsedEvent.type] = [...parsedEvent.data.raw_data];
+								needsHexEditorUpdate = true;
+								}
+								needsControllerUpdate = true;
+								break;
 							}
-                            needsControllerUpdate = true;
-                            break;
 						case 'controller_startup_angle':
                             lastStartupAngle = parsedEvent.data?.startup_angle; // Extract angle value
                             // *** Recalculate Start Pulse if angle changes ***
@@ -2320,14 +2331,16 @@
                         case 'display_mfg': displayOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break; // Added MFG case
                         case 'display_bootloader_version': displayOtherInfo.bootloaderVersion = parsedEvent.data?.bootloader_version; needsInfoUpdate = true; break; // 
 
-                      // Sensor Data (Keep existing cases, ensure needsSensorUpdate is set)
+                      	// Sensor Data (Keep existing cases, ensure needsSensorUpdate is set)
                         case 'sensor_realtime': sensorRealtime = parsedEvent.data; needsSensorUpdate = true; break;
-						case 'sensor_realtime': sensorRealtime = parsedEvent.data; needsSensorUpdate = true; break;
-						
+						case 'sensor_hw_version': sensorOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;  // DPC18RI added
+                        case 'sensor_sw_version': sensorOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;  // DPC18RI added
+                        case 'sensor_mn': sensorOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // DPC18RI Added
+                        case 'sensor_sn': sensorOtherInfo.serialNumber = parsedEvent.data?.serial_number; needsInfoUpdate = true; break; // DPC18RI Added
                          // Battery Data
                         case 'battery_capacity': batteryCapacity = parsedEvent.data; needsBatteryUpdate = true; break;
                         case 'battery_state': batteryState = parsedEvent.data; needsBatteryUpdate = true; break;
-                        case 'battery_cells_raw':
+                        case 'battery_cells_raw':{
                             // Update batteryCells object based on raw data and subcode
                             const cellData = parsedEvent.data?.raw_cell_data;
                             const subCode = parsedEvent.data?.subcode;
@@ -2340,6 +2353,7 @@
                                 needsBatteryUpdate = true;
                             }
                             break;
+						}
                         case 'battery_hw_version': batteryOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsBatteryUpdate = true; break;
                         case 'battery_sw_version': batteryOtherInfo.swVersion = parsedEvent.data?.software_version; needsBatteryUpdate = true; break;
                         case 'battery_mn': batteryOtherInfo.modelNumber = parsedEvent.data?.model_number; needsBatteryUpdate = true; break;
@@ -2404,7 +2418,7 @@
             };
         });
         
-		document.getElementById('sendCustomFrame').onclick = () => { const id = canIdInput.value.trim(); const data = canDataInput.value.trim().replace(/\s/g, ''); if (!id) { alert('CAN ID required.'); return; } if (!/^[0-9a-fA-F]+$/.test(id)) { alert('CAN ID must be hex.'); return; } if (data && !/^[0-9a-fA-F]*$/.test(data)) { alert('Data must be hex.'); return; } if (data.length % 2 !== 0) { alert('Data hex must have even length.'); return; } if (data.length > 16) { alert('Data length max 8 bytes.'); return; } const command = `${id}#${data}`; socket.send(command); };
+		document.getElementById('sendCustomFrame').onclick = () => { const id = debugElements.canIdInput.value.trim(); const data = debugElements.canDataInput.value.trim().replace(/\s/g, ''); if (!id) { alert('CAN ID required.'); return; } if (!/^[0-9a-fA-F]+$/.test(id)) { alert('CAN ID must be hex.'); return; } if (data && !/^[0-9a-fA-F]*$/.test(data)) { alert('Data must be hex.'); return; } if (data.length % 2 !== 0) { alert('Data hex must have even length.'); return; } if (data.length > 16) { alert('Data length max 8 bytes.'); return; } const command = `${id}#${data}`; socket.send(command); };
 
 		if (debugElements.rawParamSelect) {
 			debugElements.rawParamSelect.addEventListener('change', (event) => {
@@ -2500,12 +2514,13 @@
 					case 'controller_params_2':
 						commandToSend = `WRITE_LONG_P2_RAW:${JSON.stringify(bytesToSend)}`;
 						break;
-					case 'controller_speed_params':
+					case 'controller_speed_params':{
 						// Speed params are short, send as hex directly via WRITE_SHORT
 						// Checksum is not typically part of the CAN frame data for these short Bafang commands
 						const dataHex = bytesToSend.map(b => b.toString(16).padStart(2, '0')).join('');
 						commandToSend = `WRITE_SHORT:2:50:3:${dataHex}`; // Target:Ctrl, Cmd:0x32, Sub:0x03
 						break;
+					}
 					default:
 						addLog('ERROR', `Unknown raw parameter type for save: ${currentRawParamType}`);
 						alert(`Cannot save unknown raw parameter type: ${currentRawParamType}`);
@@ -2544,19 +2559,6 @@
             let p1ToSend = null; // Object to hold changes for P1
             let p2ToSend = null; // Object to hold changes for P2
             let speedToSend = null; // Object to hold changes for Speed Params
-
-               // System Voltage from Dropdown
-            const selectedVoltageStr = controllerElements.p1SysVoltageSelect.value;
-                if (selectedVoltageStr !== "") {
-                    const selectedVoltage = parseInt(selectedVoltageStr, 10);
-                    if (!isNaN(selectedVoltage) && selectedVoltage !== controllerParams1.system_voltage) {
-                        p1ToSend.system_voltage = selectedVoltage;
-                        p1Changed = true;
-                        addLog('DEBUG', `System Voltage will be changed to: ${selectedVoltage}V`);
-                    } else if (isNaN(selectedVoltage)) {
-                        addLog('ERROR', `Invalid value selected for System Voltage: ${selectedVoltageStr}`);
-                    }
-            }
 				
             // --- Collect P1 Changes ---
             if (controllerParams1) { // Only save if we have baseline data
@@ -2564,17 +2566,17 @@
                 let p1Changed = false;
 				
                 // System Voltage from Dropdown
-            const selectedVoltageStr = controllerElements.p1SysVoltageSelect.value;
-            if (selectedVoltageStr !== "") {
-                    const selectedVoltage = parseInt(selectedVoltageStr, 10);
-                    if (!isNaN(selectedVoltage) && selectedVoltage !== controllerParams1.system_voltage) {
-                        p1ToSend.system_voltage = selectedVoltage;
-                        p1Changed = true;
-                        addLog('DEBUG', `System Voltage will be changed to: ${selectedVoltage}V`);
-                    } else if (isNaN(selectedVoltage)) {
-                        addLog('ERROR', `Invalid value selected for System Voltage: ${selectedVoltageStr}`);
-                    }
-            } 
+				const selectedVoltageStr = controllerElements.p1SysVoltageSelect.value;
+				if (selectedVoltageStr !== "") {
+						const selectedVoltage = parseInt(selectedVoltageStr, 10);
+						if (!isNaN(selectedVoltage) && selectedVoltage !== controllerParams1.system_voltage) {
+							p1ToSend.system_voltage = selectedVoltage;
+							p1Changed = true;
+							addLog('DEBUG', `System Voltage will be changed to: ${selectedVoltage}V`);
+						} else if (isNaN(selectedVoltage)) {
+							addLog('ERROR', `Invalid value selected for System Voltage: ${selectedVoltageStr}`);
+						}
+				} 
                     // I
                 // Compare each input field with stored controllerParams1 and add to p1ToSend if different
                 const checkP1 = (key, inputElement, parserFunc = parseFloat, precision = -1) => {
@@ -2717,8 +2719,8 @@
             //Send read requests for all display parameters
             socket.send('READ:3:96:7'); // Errors
             //socket.send('READ:3:99:0'); // Realtime
-            // socket.send('READ:3:99:1'); // Data1
-            //socket.send('READ:3:99:2'); // Data2
+            socket.send('READ:3:99:1'); // Data1
+            socket.send('READ:3:99:2'); // Data2
 			//socket.send('READ:3:99:3'); // Auto Shutdown Time
 
         };
@@ -2763,11 +2765,11 @@
             alert("Invalid threshold. Please enter a non-negative number.");
             return;
         }
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(`SET_AND_CLEAN_SERVICE_MILEAGE:${thresholdKm}`);
-            logToConsole(`UI: Sent SET_AND_CLEAN_SERVICE_MILEAGE:${thresholdKm}`);
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(`SET_AND_CLEAN_SERVICE_MILEAGE:${thresholdKm}`);
+            addLog(`UI: Sent SET_AND_CLEAN_SERVICE_MILEAGE:${thresholdKm}`);
         } else {
-            logToConsole("UI Error: WebSocket not connected.");
+            addLog("UI Error: WebSocket not connected.");
         }
         };
 

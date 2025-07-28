@@ -507,12 +507,12 @@ function prepareSetServiceThresholdWriteData(canbusInstance, thresholdKm) {
     while(data.length < 4) data.push(0x00);
 
     console.warn("[Serializer] Using fire-and-forget for SetServiceThreshold. ACK tracking might be separate.");
-    bafangSerializer.writeShortParameter( // Assuming this exists in bafangSerializer
+    writeShortParameter( // Assuming this exists in bafangSerializer
         canbusInstance,
         DeviceNetworkId.DISPLAY,
         CanWriteCommandsList.SetServiceThreshold,
         data.slice(0, 4)
-        );
+    );
 }
 
 function serializeMileage(mileage) {
