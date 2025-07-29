@@ -1,5 +1,5 @@
         // --- WebSocket and Globals ---
-        const socket = new WebSocket('ws://localhost:8080');
+        const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const log = document.getElementById('log');

@@ -6,7 +6,7 @@
   "bin": "server.js",
   "dependencies": {
     "candlelightjs": "github:ieb/candleLightJS",
-    "usb": "^2.11.0",
+    "usb": "^2.16.0",
     "ws": "^8.18.1"
   },
   "devDependencies": {
@@ -21,11 +21,11 @@
       "node_modules/usb/*",
       "node_modules/usb/**/*"
     ],
-    "targets": [ "node22-win-x64" ],
+    "targets": [ "node20-win-x64" ],
     "outputPath": "dist"
   },
     "scripts": {
-      "build": "pkg .", 
+      "build": "pkg . --compress Brotli", 
       "dev": "node server.js"
   },
   "comments":{
