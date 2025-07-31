@@ -20,10 +20,10 @@
 - Run `npm install` in terminal to download all dependencies
 - Run `node server.js` in terminal
 
-## Optional: candlelight firmware flashing (in case of wrong module firmware or drives issues)
+## Optional: candlelight firmware flashing (in case of wrong module firmware or drivers issues)
 - Download last version of [candlelight firmware](https://github.com/candle-usb/candleLight_fw/releases)
 - [Flash dowloaded firmware to the Canable device](https://canable.io/getting-started.html#flashing-new-firmware)
-- Drives on windows and linux should be working plug&play
+- Drivers on windows and linux should be working plug&play
 
 ### License
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
