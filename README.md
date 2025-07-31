@@ -11,7 +11,7 @@
 - Drives on windows and linux should be working plug&play
 
 ## Wire the Canable
-![GUI](UCAN_wiring.jpg)
+![GUI](UCAN_wiring.JPG)
 ## Run the software on windows from executable
 - Download and run last [release](https://github.com/mdi-9/bafang_canable_pro/releases)
 - Open [localhost:8080](http://localhost:8080)
