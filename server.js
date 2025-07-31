@@ -707,6 +707,9 @@ const wss = new WebSocket.Server({ server });
 		await checkCanDevicePresenceAndUpdateGlobal(); // await initial check
 		startPeriodicCanDeviceCheck();
 		console.log(`Initial CAN device state: ${detectedCanDeviceName ? 'Found (' + detectedCanDeviceName + ')' : 'Not Found'}`);
+		var start = (process.platform == 'darwin'? 'open': process.platform == 'win32'? 'start': 'xdg-open');
+		if(detectedCanDeviceName)
+			require('child_process').exec(start + ' ' + 'http://localhost:8080');
 	});
 
 

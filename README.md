@@ -1,15 +1,25 @@
-Bafang Besst software replacement for M500, M510, M560, M820 etc  
-buy a suitable [Canable](https://www.ebay.com/itm/156316405598) (needs STM32F072 processor with [candlelight firmware](https://github.com/candle-usb/candleLight_fw))  
-install [NodeJS](https://nodejs.org/en/download/)  
-download and unzip [this repo](https://github.com/stancecoke/bafang_canable_pro/archive/refs/heads/master.zip)  
-Open the unziped folder in the windows file manager  
-Double click on "Install_NPM.bat", this step is only needed once  
-Connect the Canable to the PC and to your Bafang System [Tutorial how to wire the Canable](https://kaspars.net/blog/bafang-canbus)  
-You can mod this kind of [display extension cable](https://aliexpress.com/item/1005005307730396.html) to loop in the Canable  
-Double click on "Start_Tool.bat"  
-Have Fun!  
+# Bafang Besst software replacement for M500, M510, M560, M820 etc  
 ![GUI](Screenshot.jpg)
-![GUI](Screenshot2.png)
-![GUI](Screenshot1.png)
+# Steps to run the software
+## Get hardware 
+ - Canable with STM32F072 processor ([Ebay](https://www.ebay.com/itm/156316405598),[Aliexpress](https://pl.aliexpress.com/item/1005006029234562.html))
+ - 5 pin Cable with male and famale plugs ([Ebay](https://www.ebay.com/itm/197421023105),[Aliexpress](https://pl.aliexpress.com/item/1005005307670708.html))
 
+## Prepere the hardware 
+- Download last version of [candlelight firmware](https://github.com/candle-usb/candleLight_fw/releases)
+- [Flash dowloaded firmware to the Canable device](https://canable.io/getting-started.html#flashing-new-firmware)
+- Drives on windows and linux should be working plug&play
+
+## Wire the Canable
+![GUI](UCAN_wiring.jpg)
+## Run the software on windows from executable
+- Download and run last [release](https://github.com/mdi-9/bafang_canable_pro/releases)
+- Open [localhost:8080](http://localhost:8080)
+## Or run the software from source code
+- Install nodeJS and npm
+- Download source code for last [release](https://github.com/mdi-9/bafang_canable_pro/releases)
+- Unzip and open folder in terminal
+- Run `npm install` in terminal to download all dependencies
+- Run `node server.js` in terminal
+### License
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
