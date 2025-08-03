@@ -434,7 +434,16 @@
                 </table>
                  <div id="batteryCellsPlaceholder" class="placeholder-text" style="display: block;">Cell voltage data not yet received.</div>
 
-
+                <h3>Design</h3>
+                 <table class="description-table">
+                    <tbody>
+                        <tr><th>Total cells in serie</th><td><span id="batteryTotalCellsInSerieValue">N/A</span> s</td></tr>
+                        <tr><th>Total series parallel</th><td><span id="batteryTotalSeriesParallelValue">N/A</span> p</td></tr>
+                        <tr><th>Capacity</th><td><span id="batteryCapacityValue">N/A</span> mAh</td></tr>
+                    </tbody>
+                </table>
+                 <div id="batteryDesignPlaceholder" class="placeholder-text" style="display: block;">Design data not yet received.</div>
+                 
                 <h3>Capacity Info</h3>
                 <table class="description-table">
                     <tbody>
@@ -456,8 +465,18 @@
                     </tbody>
                 </table>
                  <div id="batteryStatePlaceholder" class="placeholder-text" style="display: block;">Current state data not yet received.</div>
-            </div>
 
+                <h3>Charging info</h3>
+                 <table class="description-table">
+                    <tbody>
+                        <tr><th>Charge cycles count</th><td><span id="batteryChargeCyclesValue">N/A</span> x</td></tr>
+                        <tr><th>Max uncharged time</th><td><span id="batteryMaxUnchargedTimeValue">N/A</span></td></tr>
+                        <tr><th>Last uncharged time</th><td><span id="batteryLastUnchargedTimeValue">N/A</span></td></tr>
+                    </tbody>
+                </table>
+                 <div id="batteryChargingInfoPlaceholder" class="placeholder-text" style="display: block;">Charging info data not yet received.</div>
+            </div>
+            
             <!-- Gears Tab  -->
             <div class="tab-content" id="tab-gears">
                  <h2>Assist</h2>

@@ -446,13 +446,20 @@ class CanBusService extends EventEmitter {
              
 			 case DeviceNetworkId.BATTERY: dataType = 'battery'; 
 			 if (cmdCode === 0x34) { 
-			 if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(completedParsedFrame); dataType = 'battery_capacity'; } 
-			 else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(completedParsedFrame); dataType = 'battery_state'; } } 
-			 else if (cmdCode === 0x64) { parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
-			 else if (cmdCode === 0x60) { if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 
-			 else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_sw_version'; } 
-			 else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_sn'; } 
-			 else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_mn'; } } 
+                if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(completedParsedFrame); dataType = 'battery_capacity'; } 
+                else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(completedParsedFrame); dataType = 'battery_state'; } 
+             } 
+			 else if (cmdCode === 0x64) { 
+                if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(completedParsedFrame); dataType = 'battery_design'; } 
+                else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(completedParsedFrame); dataType = 'battery_charging_info'; } 
+                else parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
+             }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
+			 else if (cmdCode === 0x60) { 
+                if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 
+                else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_sw_version'; } 
+                else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_sn'; } 
+                else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_mn'; } 
+             } 
 			 break; // Added mn
              case DeviceNetworkId.TORQUE_SENSOR: dataType = 'sensor'; 
 			 if (cmdCode === 0x31 && subCode === 0x00) { parsedData = BafangCanSensorParser.package0(completedParsedFrame); dataType = 'sensor_realtime'; } 

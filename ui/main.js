@@ -52,6 +52,14 @@
              cellsPlaceholder: document.getElementById('batteryCellsPlaceholder'),
              capacityPlaceholder: document.getElementById('batteryCapacityPlaceholder'),
              statePlaceholder: document.getElementById('batteryStatePlaceholder'),
+			 chargingInfoPlaceholder: document.getElementById('batteryChargingInfoPlaceholder'),
+			 designPlaceholder: document.getElementById('batteryDesignPlaceholder'),
+			 totalCellsInSerieValue: document.getElementById('batteryTotalCellsInSerieValue'),
+			 totalSeriesParallelValue: document.getElementById('batteryTotalSeriesParallelValue'),
+			 capacityValue: document.getElementById('batteryCapacityValue'),
+			 chargeCyclesValue: document.getElementById('batteryChargeCyclesValue'),
+			 maxUnchargedTimeValue: document.getElementById('batteryMaxUnchargedTimeValue'),
+			 lastUnchargedTimeValue: document.getElementById('batteryLastUnchargedTimeValue'),
         };
 		const gearsElements = {
           syncButton: document.getElementById('gearsSyncButton'),
@@ -227,7 +235,8 @@
         let displayOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, manufacturer: null, customerNumber: null };
         let sensorRealtime = null;
         let sensorOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
-        let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
+        let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null;
+        let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
         // Controller specific stores
         let controllerRealtime0 = null, controllerRealtime1 = null; 
 		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
@@ -835,6 +844,18 @@
 			 safeSetText(batteryElements.currentValue, batteryState?.current, (val) => getNullableNumber(val, 2));
 			 safeSetText(batteryElements.tempValue, batteryState?.temperature);
 			 if (batteryElements.statePlaceholder) batteryElements.statePlaceholder.style.display = batteryState ? 'none' : 'block';
+
+			 // Design
+			 safeSetText(batteryElements.totalCellsInSerieValue, batteryDesign?.total_cells_in_series);
+			 safeSetText(batteryElements.totalSeriesParallelValue, batteryDesign?.total_series_parallel);
+			 safeSetText(batteryElements.capacityValue, batteryDesign?.capacity);
+			 if (batteryElements.designPlaceholder) batteryElements.designPlaceholder.style.display = batteryDesign ? 'none' : 'block';
+
+			 // Charging info
+			 safeSetText(batteryElements.chargeCyclesValue, batteryChargingInfo?.charge_cycles);
+			 safeSetText(batteryElements.maxUnchargedTimeValue, batteryChargingInfo?.max_uncharged_time);
+			 safeSetText(batteryElements.lastUnchargedTimeValue, batteryChargingInfo?.last_uncharged_time);
+			 if (batteryElements.chargingInfoPlaceholder) batteryElements.chargingInfoPlaceholder.style.display = batteryChargingInfo ? 'none' : 'block';
 
 			 // Cell Voltages
 			 const cellBody = batteryElements.cellVoltageTableBody;
@@ -2340,6 +2361,8 @@
                          // Battery Data
                         case 'battery_capacity': batteryCapacity = parsedEvent.data; needsBatteryUpdate = true; break;
                         case 'battery_state': batteryState = parsedEvent.data; needsBatteryUpdate = true; break;
+						case 'battery_design': batteryDesign = parsedEvent.data; needsBatteryUpdate = true; break;
+						case 'battery_charging_info': batteryChargingInfo = parsedEvent.data; needsBatteryUpdate = true; break;
                         case 'battery_cells_raw':{
                             // Update batteryCells object based on raw data and subcode
                             const cellData = parsedEvent.data?.raw_cell_data;
@@ -2792,6 +2815,8 @@
              addLog('REQ', 'Syncing all Battery data...');
              socket.send('READ:4:52:0'); // Capacity
              socket.send('READ:4:52:1'); // State
+			 socket.send('READ:4:100:0'); // Design info
+			 socket.send('READ:4:100:1'); // Charging info
              // Send requests for all cell groups
              socket.send('READ:4:100:2'); // Cells 0-3
              socket.send('READ:4:100:3'); // Cells 4-7
