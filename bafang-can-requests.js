@@ -23,7 +23,7 @@ function readParameter(canbusInstance, requestManagerInstance, target, can_comma
             const subcode = can_command.canCommandSubCode;
 			
 			// --- Validation for optional data ---
-            if (data && (!Array.isArray(data) || data.length > 8)) {
+            if (data && (!Array.isArray(data) || data.length > 16)) {
                  console.error(`Invalid data payload provided for readParameter enqueue: Length ${data?.length}`);
                  return resolve({ success: false, error: 'Invalid data payload length for read request.', timedOut: false });
             }
