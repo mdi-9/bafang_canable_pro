@@ -60,6 +60,9 @@
 			 chargeCyclesValue: document.getElementById('batteryChargeCyclesValue'),
 			 maxUnchargedTimeValue: document.getElementById('batteryMaxUnchargedTimeValue'),
 			 lastUnchargedTimeValue: document.getElementById('batteryLastUnchargedTimeValue'),
+			 cellMinVoltageValue: document.getElementById('batteryCellMinVoltageValue'),
+			 cellMaxVoltageValue: document.getElementById('batteryCellMaxVoltageValue'),
+			 cellDiffVoltageValue: document.getElementById('batteryCellDiffVoltageValue'),
         };
 		const gearsElements = {
           syncButton: document.getElementById('gearsSyncButton'),
@@ -235,7 +238,7 @@
         let displayOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, manufacturer: null, customerNumber: null };
         let sensorRealtime = null;
         let sensorOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
-        let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null;
+        let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null,batteryCellsStats = null;
         let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
         // Controller specific stores
         let controllerRealtime0 = null, controllerRealtime1 = null; 
@@ -879,6 +882,12 @@
 						 for (let i = cellIndices.length % 4; i < 4; i++) {
 							 row.insertCell().textContent = ''; // Empty cell for padding
 						 }
+					 }
+					 // Cell Voltage stats
+					 if(batteryCellsStats) {
+						 safeSetText(batteryElements.cellMinVoltageValue, batteryCellsStats?.minVoltage);
+						 safeSetText(batteryElements.cellMaxVoltageValue, batteryCellsStats?.maxVoltage);
+						 safeSetText(batteryElements.cellDiffVoltageValue, batteryCellsStats?.diffVoltage);
 					 }
 				 } else {
 					 if(batteryElements.cellsPlaceholder) batteryElements.cellsPlaceholder.style.display = 'block';
@@ -2375,6 +2384,13 @@
                                     const voltage = ((cellData[i * 2 + 1] << 8) + cellData[i * 2]) / 1000;
                                     batteryCells[baseIndex + i] = voltage;
                                 }
+								let batteryCellsArray = Object.values(batteryCells).filter(v => v && v > 0);
+								batteryCellsStats = {
+									maxVoltage: Math.max(...batteryCellsArray) * 1000, 
+									minVoltage: Math.min(...batteryCellsArray) * 1000,
+									diffVoltage: null,
+								}
+								batteryCellsStats.diffVoltage = batteryCellsStats.maxVoltage - batteryCellsStats.minVoltage;
                                 needsBatteryUpdate = true;
                             }
                             break;
