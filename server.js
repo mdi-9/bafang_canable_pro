@@ -624,7 +624,9 @@ const wss = new WebSocket.Server({ server });
 				'controller_current_assist_level',
 				'controller_calories',
 				'display_autoshutdown_time',
-				'sensor_realtime'
+				'sensor_realtime',
+				'battery_state',
+				'battery_capacity',
 				// Add any other types you want to omit from the console here
 			];
 

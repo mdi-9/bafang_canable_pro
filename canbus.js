@@ -452,7 +452,9 @@ class CanBusService extends EventEmitter {
 			 else if (cmdCode === 0x64) { 
                 if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(completedParsedFrame); dataType = 'battery_design'; } 
                 else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(completedParsedFrame); dataType = 'battery_charging_info'; } 
-                else parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
+                else {
+                    parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
+                }
              }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
 			 else if (cmdCode === 0x60) { 
                 if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 

@@ -75,7 +75,7 @@ class BafangCanBatteryParser {
         return {
             total_cells_in_serie: packet.data[0],
             total_series_parallel: packet.data[1],
-            capacity: (packet.data[2] << 8) + packet.data[3],
+            capacity: (packet.data[3] << 8) + packet.data[2],
         };
     }
 
@@ -85,9 +85,9 @@ class BafangCanBatteryParser {
         }
         let daysAndHours = (hours=>(hours/24).toFixed(0) + "d " + (hours%24).toFixed(0) + "h");
         return {
-            charge_cycles: (packet.data[0] << 8) + packet.data[1],
-            max_uncharged_time: daysAndHours((packet.data[2] << 8) + packet.data[3]),
-            last_uncharged_time: daysAndHours((packet.data[4] << 8) + packet.data[5]),
+            charge_cycles: (packet.data[1] << 8) + packet.data[0],
+            max_uncharged_time: daysAndHours((packet.data[3] << 8) + packet.data[2]),
+            last_uncharged_time: daysAndHours((packet.data[5] << 8) + packet.data[4]),
         };
     }
 }

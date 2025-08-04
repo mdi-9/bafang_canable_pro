@@ -2171,6 +2171,8 @@
 					//skip some messages so log is not overflooded
 					const typesToSkipInUILog = [
 						 	'sensor_realtime',   // Added by DPC18RI for m400 CAN / torque sensor with CAN signals every 10ms? ******
+							'battery_state',
+							'battery_capacity',
 							'display_realtime',
 							'controller_realtime_0',
 							'controller_realtime_1',
