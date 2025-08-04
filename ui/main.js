@@ -846,7 +846,7 @@
 			 if (batteryElements.statePlaceholder) batteryElements.statePlaceholder.style.display = batteryState ? 'none' : 'block';
 
 			 // Design
-			 safeSetText(batteryElements.totalCellsInSerieValue, batteryDesign?.total_cells_in_series);
+			 safeSetText(batteryElements.totalCellsInSerieValue, batteryDesign?.total_cells_in_serie);
 			 safeSetText(batteryElements.totalSeriesParallelValue, batteryDesign?.total_series_parallel);
 			 safeSetText(batteryElements.capacityValue, batteryDesign?.capacity);
 			 if (batteryElements.designPlaceholder) batteryElements.designPlaceholder.style.display = batteryDesign ? 'none' : 'block';

@@ -83,7 +83,7 @@ class BafangCanBatteryParser {
         if (!packet || !Array.isArray(packet.data) || packet.data.length < 6) {
              return { charge_cycles: null, max_uncharged_time: null, last_uncharged_time: null, parseError: true };
         }
-        let daysAndHours = (hours=>(hours/24).toFixed(0) + "d " + (hours%24).toFixed(0) + "h");
+        let daysAndHours = (hours=>Math.floor(hours/24) + "d " + Math.floor(hours%24) + "h");
         return {
             charge_cycles: (packet.data[1] << 8) + packet.data[0],
             max_uncharged_time: daysAndHours((packet.data[3] << 8) + packet.data[2]),
