@@ -101,6 +101,11 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x05,
         applicableDevices: [DeviceNetworkId.BATTERY],
     },
+    BatteryDesign: { // Read Battery Design Info
+        canCommandCode: 0x64, // 100
+        canCommandSubCode: 0x00,
+        applicableDevices: [DeviceNetworkId.BATTERY],
+    },
     BatteryCapacity: { // Read Battery Capacity Info
         canCommandCode: 0x34, // 52
         canCommandSubCode: 0x00,
@@ -111,7 +116,12 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x01,
         applicableDevices: [DeviceNetworkId.BATTERY],
     },
-       ControllerRealtime0: {
+    BatteryChargingInfo: { // Read Battery Charging Info
+        canCommandCode: 0x64, // 100
+        canCommandSubCode: 0x01,
+        applicableDevices: [DeviceNetworkId.BATTERY],
+    },
+    ControllerRealtime0: {
         canCommandCode: 0x32, // 50
         canCommandSubCode: 0x00,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],

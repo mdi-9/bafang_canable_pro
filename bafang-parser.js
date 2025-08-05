@@ -67,6 +67,29 @@ class BafangCanBatteryParser {
             temperature: packet.data[4] - 40, // Assuming temp is unsigned offset
         };
     }
+
+    static design(packet) {
+        if (!packet || !Array.isArray(packet.data) || packet.data.length < 4) {
+             return { total_cells_in_serie: null, total_series_parallel: null, capacity: null, parseError: true };
+        }
+        return {
+            total_cells_in_serie: packet.data[0],
+            total_series_parallel: packet.data[1],
+            capacity: (packet.data[3] << 8) + packet.data[2],
+        };
+    }
+
+    static chargingInfo(packet) {
+        if (!packet || !Array.isArray(packet.data) || packet.data.length < 6) {
+             return { charge_cycles: null, max_uncharged_time: null, last_uncharged_time: null, parseError: true };
+        }
+        let daysAndHours = (hours=>Math.floor(hours/24) + "d " + Math.floor(hours%24) + "h");
+        return {
+            charge_cycles: (packet.data[1] << 8) + packet.data[0],
+            max_uncharged_time: daysAndHours((packet.data[3] << 8) + packet.data[2]),
+            last_uncharged_time: daysAndHours((packet.data[5] << 8) + packet.data[4]),
+        };
+    }
 }
 
 class BafangCanControllerParser {
