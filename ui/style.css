@@ -1,7 +1,7 @@
 body { font-family: Arial, sans-serif; padding: 15px; max-width: 850px; margin: 0 auto; font-size: 14px; background-color: #f4f4f4; }
 .container { display: flex; flex-direction: column; gap: 15px; }
 .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.card h2, .card h3 { margin-top: 10px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #eee; color: #333; }
+.card h2, .card h3 { margin-top: 10px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #eee; color: #556B2F; }
 .status { display: flex; align-items: center; gap: 10px; }
 .status-indicator { width: 14px; height: 14px; border-radius: 50%; background-color: #dc3545; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
 .status-indicator.connected { background-color: #28a745; }
