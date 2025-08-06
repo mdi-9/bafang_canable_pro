@@ -2,7 +2,7 @@
 "use strict";
 
 // Import necessary constants (like DeviceNetworkId) if they are used
-const { DeviceNetworkId } = require('./bafang-constants');
+const { DeviceNetworkId, CanOperation } = require('./bafang-constants');
 
 const CanWriteCommandsList = Object.freeze({
     SerialNumber: { // Write Serial Number
@@ -69,6 +69,24 @@ const CanWriteCommandsList = Object.freeze({
         canCommandCode: 0x63,
         canCommandSubCode: 0x0B,
         applicableDevices: [DeviceNetworkId.DISPLAY],
+    },
+	FwUpdateSendFirstPackage: { 
+        canCommandCode: 0x20, // 32
+        canCommandSubCode: 0x01,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+        canOperationCode: CanOperation.MULTIFRAME_START,
+    },
+    FwUpdateSendData: { 
+        //canCommandCode: 0x00, canCommandCode: 0x00, ... canCommandCode: 0x001
+        //canCommandSubCode: 0x00, canCommandCode: 0x01, ... canCommandCode: 0xff
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+        canOperationCode: CanOperation.MULTIFRAME,
+    },
+    FwUpdateSendLastPackage: { 
+        //canCommandCode: 0xff,
+        //canCommandSubCode: 0ff,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+        canOperationCode: CanOperation.MULTIFRAME_END,
     },
     // Add other relevant write commands if identified
 });

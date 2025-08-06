@@ -122,7 +122,27 @@ class CanBusService extends EventEmitter {
 
     _mapRawFrameToBafangFrame(rawFrame) {
         // ... (mapping logic remains the same) ...
-        const canIdNum = rawFrame.can_id; const byte0 = (canIdNum >> 24) & 0xFF; const byte1 = (canIdNum >> 16) & 0xFF; const byte2 = (canIdNum >> 8) & 0xFF; const byte3 = canIdNum & 0xFF; const bafangId = [byte0, byte1, byte2, byte3]; const dataArray = []; const dataView = rawFrame.data; for (let i = 0; i < rawFrame.can_dlc; i++) { if (i < dataView.byteLength) dataArray.push(dataView.getUint8(i)); else { console.warn(`DLC mismatch...`); break; } } while(dataArray.length < rawFrame.can_dlc) { console.warn(`Padding data...`); dataArray.push(0); } if(dataArray.length > rawFrame.can_dlc) dataArray.length = rawFrame.can_dlc; return { id: bafangId, data: dataArray };
+        const canIdNum = rawFrame.can_id; 
+        const byte0 = (canIdNum >> 24) & 0xFF; 
+        const byte1 = (canIdNum >> 16) & 0xFF; 
+        const byte2 = (canIdNum >> 8) & 0xFF; 
+        const byte3 = canIdNum & 0xFF; 
+        const bafangId = [byte0, byte1, byte2, byte3]; 
+        const dataArray = []; 
+        const dataView = rawFrame.data; 
+        for (let i = 0; i < rawFrame.can_dlc; i++) { 
+            if (i < dataView.byteLength) 
+                dataArray.push(dataView.getUint8(i)); 
+            else { 
+                console.warn(`DLC mismatch...`); 
+                break; 
+            } 
+        } while(dataArray.length < rawFrame.can_dlc) {
+             console.warn(`Padding data...`); 
+             dataArray.push(0); 
+        } if(dataArray.length > rawFrame.can_dlc) 
+            dataArray.length = rawFrame.can_dlc; 
+        return { id: bafangId, data: dataArray };
     }
 
     /**

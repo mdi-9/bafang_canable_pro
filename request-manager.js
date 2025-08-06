@@ -113,13 +113,14 @@ class RequestManager {
 
                 const bafangIdArr = generateCanFrameId(source, target, operation, code, subcode);
                 const canId32bit = bafangIdArrayTo32Bit(bafangIdArr);
-                let dataHex = "";
+                //let dataHex = "";
                 // Prepare data hex only for write operations
-                if (operation === CanOperation.WRITE_CMD) {
-                     dataHex = data ? Buffer.from(data).toString('hex') : "";
-                     // Note: Long writes are handled differently (see bafang-can-requests.js)
-                     // This path is mainly for READ and WRITE_SHORT
-                }
+                let dataHex = data ? Buffer.from(data).toString('hex') : "";
+                // if (operation === CanOperation.WRITE_CMD) {
+                //      dataHex = data ? Buffer.from(data).toString('hex') : "";
+                //      // Note: Long writes are handled differently (see bafang-can-requests.js)
+                //      // This path is mainly for READ and WRITE_SHORT
+                // }
 
                 try {
                     // Use the low-level canbus sendFrame
