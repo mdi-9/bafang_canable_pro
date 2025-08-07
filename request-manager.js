@@ -62,7 +62,7 @@ class RequestManager {
              }
              return;
         }
-        console.log(`[RequestManager] Enqueuing request: Target=0x${requestDetails.target.toString(16)}, Cmd=0x${requestDetails.code.toString(16)}, Sub=0x${requestDetails.subcode.toString(16)}, Attempt=${attempt}`);
+        console.log(`[RequestManager] Enqueuing request: Target=0x${requestDetails.target.toString(16)}, Cmd=0x${requestDetails.code.toString(16)}, Sub=0x${requestDetails.subcode.toString(16)},Data=[${requestDetails.data?.map(b => b.toString(16).padStart(2,'0')).join(',')}] ,Attempt=${attempt}`);
         this.requestQueue.push({
             details: { ...requestDetails, attempt: attempt }, // Store attempt count in details
             timestampAdded: Date.now()
@@ -109,7 +109,7 @@ class RequestManager {
                 this.requestQueue.shift(); // Remove from queue *before* sending
                 this.lastSentTimestamp = now; // Update timestamp *before* async send
 
-                console.log(`[RequestManager] Dequeuing & Sending: Tgt=0x${target.toString(16)}, Cmd=0x${code.toString(16)}, Sub=0x${subcode.toString(16)}, Attempt=${attempt}, Delay=${now - this.lastSentTimestamp}ms (Req: ${requiredDelay}ms)`);
+                console.log(`[RequestManager] Dequeuing & Sending: Tgt=0x${target.toString(16)}, Cmd=0x${code.toString(16)}, Sub=0x${subcode.toString(16)},Data=[${data?.map(b => b.toString(16).padStart(2,'0')).join(',')}] Attempt=${attempt}, Delay=${now - this.lastSentTimestamp}ms (Req: ${requiredDelay}ms)`);
 
                 const bafangIdArr = generateCanFrameId(source, target, operation, code, subcode);
                 const canId32bit = bafangIdArrayTo32Bit(bafangIdArr);
@@ -129,7 +129,7 @@ class RequestManager {
                     if (sent) {
                         // Successfully sent, now register for ACK/timeout
                         // Pass the correct 'attempt' count when registering
-                        this.registerForAck(source, target, operation, code, subcode, promiseControls, attempt);
+                        this.registerForAck(source, target, operation, code, subcode, promiseControls, attempt, data);
                     } else {
                         console.error(`[RequestManager] sendFrame failed for ${code}/${subcode}`);
                         if (promiseControls) {
@@ -172,7 +172,7 @@ class RequestManager {
      * @param {object} promiseControls - Object containing { resolve, reject } functions.
      * @param {number} [attempt=1] - Current attempt number (for retries).
      */
-   registerForAck(source, target, operation, code, subcode, promiseControls, attempt = 1) {
+   registerForAck(source, target, operation, code, subcode, promiseControls, attempt = 1, data = null) {
         if (!promiseControls || !promiseControls.resolve) return;
         if (!this.canbus) { /* ... handle no canbus ... */ return; }
 
@@ -208,7 +208,7 @@ class RequestManager {
                     if (Object.keys(this.pendingAckRequests[target]).length === 0) delete this.pendingAckRequests[target];
 
                     this.enqueueRequest(
-                        { source, target, operation, code, subcode, data: null, promiseControls },
+                        { source, target, operation, code, subcode, data, promiseControls },
                         nextAttempt
                     );
 

@@ -100,24 +100,30 @@ async function announceHostReady() {
     // Start sending polling messages repeatedly
     updateInterval = setInterval(() => {
         const canId32bit = bafangIdArrayTo32Bit(generateCanFrameId(DeviceNetworkId.BESST, DeviceNetworkId.BROADCAST, CanOperation.MULTIFRAME_WARNING, 0x30, 0x05));
-        canbus.sendFrame(`${canId32bit.toString(16).padStart(8, '0')}#00`);
+        // logMessage(`BROADCASTING ${canId32bit.toString(16).padStart(8, '0')}#00`, 'INFO');
+        //canbus.sendFrame(`${canId32bit.toString(16).padStart(8, '0')}#00`);
+        canbus.sendRawFrame("05FF3005","00");
     }, 500); // Announce every 500 milliseconds
 
     await delay(4000);
     do{
         
-        const first4bytes = Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])])
-        const result = await canbus.readParameter(DeviceNetworkId.DRIVE_UNIT, CanReadCommandsList.FwUpdateReadyCheck,first4bytes);
+        //const first4bytes = Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])])
+        //const first3bytes = Array.from(firmwareBuffer.slice(0, 2).map(byte => byte.toString(16).padStart(2, '0'))).concat([0x02].concat([firmwareBuffer[3].toString(16).padStart(2, '0')]));
+        const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+        //const result = await canbus.readParameter(DeviceNetworkId.DRIVE_UNIT, CanReadCommandsList.FwUpdateReadyCheck,first4bytes);
         //const result = await canbus.writeShortParameterWithAck(DeviceNetworkId.DRIVE_UNIT, CanWriteCommandsList.FwUpdateReadyCheck, [0x88, 0x45, 0x02, 0x00]);
-        if (result && result.success) {
-            logMessage('Controller responded to firmware update readiness check.', 'INFO');
-            updateProcessStarted = true; // Set flag to indicate the process has started
-            clearInterval(updateInterval); // Stop announcing
-            break; // Exit the loop if response is received
-        } else {
-            logMessage('No response from controller yet, retrying...', 'INFO');
-            await delay(3000);
-        }
+        //console.log(first3bytes.join(''))
+        canbus.sendRawFrame("05112000",first3bytes.join(''));
+        // if (result && result.success) {
+        //     logMessage('Controller responded to firmware update readiness check.', 'INFO');
+        //     updateProcessStarted = true; // Set flag to indicate the process has started
+        //     clearInterval(updateInterval); // Stop announcing
+        //     break; // Exit the loop if response is received
+        // } else {
+        //     logMessage('No response from controller yet, retrying...', 'INFO');
+        // }
+        await delay(3000);
     }while(!updateProcessStarted);
 }
 
@@ -186,25 +192,25 @@ async function sendLastPackageAndEndTransfer() {
 }
 
 // --- Helper to format raw frame data ---
-// function formatRawCanFrameData(frame) {
-//     if (!frame || typeof frame.can_id !== 'number' || typeof frame.can_dlc !== 'number' || !(frame.data instanceof DataView)) {
-//         return { idHex: "INVALID", dataHex: "INVALID", dlc: 0, timestamp: Date.now() * 1000 };
-//     }
+function formatRawCanFrameData(frame) {
+    if (!frame || typeof frame.can_id !== 'number' || typeof frame.can_dlc !== 'number' || !(frame.data instanceof DataView)) {
+        return { idHex: "INVALID", dataHex: "INVALID", dlc: 0, timestamp: Date.now() * 1000 };
+    }
 
-//     const idHex = frame.can_id.toString(16).toUpperCase().padStart(8, '0');
-//     const dlc = frame.can_dlc;
-//     const dataBytes = [];
+    const idHex = frame.can_id.toString(16).toUpperCase().padStart(8, '0');
+    const dlc = frame.can_dlc;
+    const dataBytes = [];
 
-//     // Safely read data bytes up to DLC length
-//     for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
-//         dataBytes.push(frame.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
-//     }
-//     const dataHex = dataBytes.join(' ');
-//     // Use frame timestamp if available, otherwise use current time
-//     const timestamp = frame.timestamp_us || Date.now() * 1000;
+    // Safely read data bytes up to DLC length
+    for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
+        dataBytes.push(frame.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
+    }
+    const dataHex = dataBytes.join(' ');
+    // Use frame timestamp if available, otherwise use current time
+    const timestamp = frame.timestamp_us || Date.now() * 1000;
 
-//     return { idHex, dataHex, dlc, timestamp };
-// }
+    return { idHex, dataHex, dlc, timestamp };
+}
 
 /**
  * Main function to orchestrate the entire firmware update procedure.
@@ -246,15 +252,15 @@ async function startUpdateProcedure() {
             console.error(`CAN ERROR: ${errorMessage}`);
         });
 
-        // canbus.on('raw_frame_received', (rawFrame) => {
-        //     const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
+        canbus.on('raw_frame_received', (rawFrame) => {
+            const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
     
-        //     if (idHex === "INVALID") {
-        //         console.warn("Received invalid frame object, skipping.");
-        //         return;
-        //     }
-        //     console.log(`ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`);
-        // });
+            if (idHex === "INVALID") {
+                console.warn("Received invalid frame object, skipping.");
+                return;
+            }
+            console.log(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`);
+        });
 
         // Attempt to initialize the CAN connection
         const connected = await canbus.init();
