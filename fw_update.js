@@ -98,6 +98,7 @@ function delay(ms) {
 async function announceHostReady() {
     logMessage('Step 1: Announcing host readiness...', 'INFO');
     // Start sending polling messages repeatedly
+    await delay(2000);
     updateInterval = setInterval(() => {
         const canId32bit = bafangIdArrayTo32Bit(generateCanFrameId(DeviceNetworkId.BESST, DeviceNetworkId.BROADCAST, CanOperation.MULTIFRAME_WARNING, 0x30, 0x05));
         // logMessage(`BROADCASTING ${canId32bit.toString(16).padStart(8, '0')}#00`, 'INFO');
@@ -105,7 +106,7 @@ async function announceHostReady() {
         canbus.sendRawFrame("05FF3005","00");
     }, 500); // Announce every 500 milliseconds
 
-    await delay(4000);
+    await delay(1000);
     do{
         
         //const first4bytes = Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])])
