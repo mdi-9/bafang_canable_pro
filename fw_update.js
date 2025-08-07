@@ -105,7 +105,9 @@ async function announceHostReady() {
 
     await delay(4000);
     do{
-        const result = await canbus.readParameter(DeviceNetworkId.DRIVE_UNIT, CanReadCommandsList.FwUpdateReadyCheck,[0x88, 0x45, 0x02, 0x00]);
+        
+        const first4bytes = Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])])
+        const result = await canbus.readParameter(DeviceNetworkId.DRIVE_UNIT, CanReadCommandsList.FwUpdateReadyCheck,first4bytes);
         //const result = await canbus.writeShortParameterWithAck(DeviceNetworkId.DRIVE_UNIT, CanWriteCommandsList.FwUpdateReadyCheck, [0x88, 0x45, 0x02, 0x00]);
         if (result && result.success) {
             logMessage('Controller responded to firmware update readiness check.', 'INFO');
@@ -210,30 +212,30 @@ async function sendLastPackageAndEndTransfer() {
  */
 async function startUpdateProcedure() {
     // Check for command-line argument
-    // const firmwareFilePath = process.argv[2]; // Node.js arguments are at index 2 onwards
+    const firmwareFilePath = process.argv[2]; // Node.js arguments are at index 2 onwards
 
-    // if (!firmwareFilePath) {
-    //     logMessage('ERROR: Please provide the path to the firmware file as an argument.', 'ERROR');
-    //     logMessage('Usage: node canbusUpdate.js <path_to_firmware_file>', 'INFO');
-    //     process.exit(1); // Exit with an error code
-    // }
+    if (!firmwareFilePath) {
+        logMessage('ERROR: Please provide the path to the firmware file as an argument.', 'ERROR');
+        logMessage('Usage: node canbusUpdate.js <path_to_firmware_file>', 'INFO');
+        process.exit(1); // Exit with an error code
+    }
 
-    // const absolutePath = path.resolve(firmwareFilePath);
-    // logMessage(`Attempting to read firmware from: ${absolutePath}`, 'INFO');
+    const absolutePath = path.resolve(firmwareFilePath);
+    logMessage(`Attempting to read firmware from: ${absolutePath}`, 'INFO');
 
     try {
         // Read the firmware file synchronously for simplicity in this simulation
-        // In a real application, consider async fs.readFile for large files
-        // firmwareBuffer = fs.readFileSync(absolutePath);
-        // FIRMWARE_FILE_SIZE = firmwareBuffer.length;
+        //In a real application, consider async fs.readFile for large files
+        firmwareBuffer = fs.readFileSync(absolutePath);
+        FIRMWARE_FILE_SIZE = firmwareBuffer.length;
 
-        // // Calculate NUM_CHUNKS based on the actual file size and header
-        // // The data portion starts after the HEADER_SIZE bytes.
-        // const dataLength = Math.max(0, FIRMWARE_FILE_SIZE - HEADER_SIZE);
-        // NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
+        // Calculate NUM_CHUNKS based on the actual file size and header
+        // The data portion starts after the HEADER_SIZE bytes.
+        const dataLength = Math.max(0, FIRMWARE_FILE_SIZE - HEADER_SIZE);
+        NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
 
-        // logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
-
+        logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
+        logMessage(`First 4 bytes: ${Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])]).toString('hex')}`, 'INFO');
         // Listen for status updates
         canbus.on('can_status', (isConnected, statusMessage) => {
             console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
@@ -276,7 +278,7 @@ async function startUpdateProcedure() {
         }
     } catch (error) {
         if (error && error.code === 'ENOENT') {
-            //logMessage(`ERROR: File not found at ${absolutePath}. Please check the path.`, 'ERROR');
+            logMessage(`ERROR: File not found at ${absolutePath}. Please check the path.`, 'ERROR');
         }
         console.error('Detailed error:', error);
         process.exit(1); // Exit with an error code
