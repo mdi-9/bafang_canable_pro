@@ -1,40 +1,20 @@
-/**
- * CANBUS Controller Update Simulation (Node.js Console Program)
- *
- * This script simulates a firmware update procedure for a CAN bus controller,
- * now supporting reading firmware data from a specified file.
- *
- * Usage: node canbusUpdate.js <path_to_firmware_file>
- *
- * Steps simulated:
- * 1. Continuously announce host readiness.
- * 2. Wait for controller response and stop announcements.
- * 3. Send the first package (firmware file length).
- * 4. Wait for acknowledgment of the first package.
- * 5. Send firmware data in 8-byte chunks, waiting for acknowledgment after each.
- * 6. Send the last data package and signal transfer completion.
- *
- * All communication is simulated using console logs and `setTimeout` for delays.
- */
-
 const fs = require('fs'); // Node.js File System module for reading files
 const path = require('path'); // Node.js Path module for resolving file paths
 const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
-const { DeviceNetworkId, CanOperation } = require('./bafang-constants');
-const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
-const { CanReadCommandsList } = require('./bafang-can-read-commands');
-const { CanWriteCommandsList } = require('./bafang-can-write-commands');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
-
+const delayMs = 20; // Delay between frames (adjust if needed)
 // --- Global Variables ---
-let updateInterval = null; // To hold the interval ID for announcements
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
+let controllerReady = false; // Flag to track if controler is ready for update
 let updateProcessStarted = false; // Flag to track if the update process has started
-
+let lastChunkId = null; // Will be set after the last chunk number is calculated
+let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
+const timeout = 10000; // 10 seconds timeout;
+let startTime = Date.now();
 // --- Utility Functions ---
 
 /**
@@ -63,69 +43,63 @@ function getFirmwareChunk(chunkNum) {
     // Convert each byte in the slice to a 2-character hex string and join with spaces
     const chunkData = Array.from(chunkSlice).map(byte =>
         byte.toString(16).padStart(2, '0').toUpperCase()
-    ).join(' ');
+    ).join('');
 
     return chunkData;
 }
 
-/**
- * Logs a message to the console with a type prefix for clarity.
- * @param {string} message - The message to log.
- * @param {string} type - The type of message ('INFO', 'SENT', 'RECEIVED', 'ERROR').
- */
 function logMessage(message, type = 'INFO') {
     const timestamp = new Date().toLocaleTimeString();
     console.log(`[${timestamp}] [${type}] ${message}`);
 }
 
-/**
- * Creates a promise that resolves after a specified delay.
- * Useful for simulating asynchronous operations and network delays.
- * @param {number} ms - The delay in milliseconds.
- * @returns {Promise<void>} A promise that resolves after the delay.
- */
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// --- Firmware Update Procedure Steps ---
+async function sendRawFrameWithRetry(id,data,retries = 3){
+    let sent = false;
+    let tryCount = 0;
+    do{
+        sent = await canbus.sendRawFrame(id,data);
+        if (!sent) {
+            logMessage(`sendFrame returned false for ID${id}`, 'ERROR');
+            await delay(delayMs);
+        }
+        tryCount++;
+    }while(!sent && tryCount < retries);
+}
 
+// --- Firmware Update Procedure Steps ---
 /**
- * Step 1 & 2: Starts continuously announcing that the host (PC) is ready to transfer a firmware update.
+ * Step 1: Starts continuously announcing that the host (PC) is ready to transfer a firmware update.
  * Waits for the Controller response and stops announcements once received.
  * @returns {Promise<void>} A promise that resolves when the controller responds.
  */
 async function announceHostReady() {
     logMessage('Step 1: Announcing host readiness...', 'INFO');
-    // Start sending polling messages repeatedly
-    await delay(2000);
-    updateInterval = setInterval(() => {
-        const canId32bit = bafangIdArrayTo32Bit(generateCanFrameId(DeviceNetworkId.BESST, DeviceNetworkId.BROADCAST, CanOperation.MULTIFRAME_WARNING, 0x30, 0x05));
-        // logMessage(`BROADCASTING ${canId32bit.toString(16).padStart(8, '0')}#00`, 'INFO');
-        //canbus.sendFrame(`${canId32bit.toString(16).padStart(8, '0')}#00`);
-        canbus.sendRawFrame("05FF3005","00");
-    }, 500); // Announce every 500 milliseconds
-
-    await delay(1000);
     do{
-        
-        //const first4bytes = Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])])
-        //const first3bytes = Array.from(firmwareBuffer.slice(0, 2).map(byte => byte.toString(16).padStart(2, '0'))).concat([0x02].concat([firmwareBuffer[3].toString(16).padStart(2, '0')]));
-        const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
-        //const result = await canbus.readParameter(DeviceNetworkId.DRIVE_UNIT, CanReadCommandsList.FwUpdateReadyCheck,first4bytes);
-        //const result = await canbus.writeShortParameterWithAck(DeviceNetworkId.DRIVE_UNIT, CanWriteCommandsList.FwUpdateReadyCheck, [0x88, 0x45, 0x02, 0x00]);
-        //console.log(first3bytes.join(''))
-        canbus.sendRawFrame("05112000",first3bytes.join(''));
-        // if (result && result.success) {
-        //     logMessage('Controller responded to firmware update readiness check.', 'INFO');
-        //     updateProcessStarted = true; // Set flag to indicate the process has started
-        //     clearInterval(updateInterval); // Stop announcing
-        //     break; // Exit the loop if response is received
-        // } else {
-        //     logMessage('No response from controller yet, retrying...', 'INFO');
-        // }
-        await delay(3000);
-    }while(!updateProcessStarted);
+        await canbus.sendRawFrame("05FF3005","00");
+        await delay(delayMs);
+    }while(!controllerReady);
+
+}
+/**
+ * Step 2: Starts continuously asking for ack to controller ready.
+ * Waits for the Controller response and stops announcements once received.
+ * @returns {Promise<void>} A promise that resolves when the controller responds.
+ */
+async function checkForControllerReady(){
+    logMessage('Step 2:Waiting for controler ready state...', 'INFO');
+    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+    do{
+        await canbus.sendRawFrame("05112000",first3bytes.join(''));
+        await delay(60);
+          if (Date.now() - startTime > timeout) {
+            logMessage('Timeout reached, exiting loop....', 'ERROR');
+            break;
+        }
+    }while(!controllerReady);
 }
 
 /**
@@ -140,13 +114,25 @@ async function sendFirstPackage() {
     const fileLengthMinus16 = FIRMWARE_FILE_SIZE - HEADER_SIZE;
     const hexLength = fileLengthMinus16.toString(16).padStart(6, '0').toUpperCase(); // ## ## ## format
 
-    logMessage(`05142001 - ${hexLength} (Transfer started from BESST, contains length in hex)`, 'SENT');
+    logMessage(`ID:05142001#${hexLength}`, 'SENT');
 
-    // Simulate response for first package
-    await delay(2000); // Simulate 2-second delay for acknowledgment
-    logMessage('022A2001 - 00 (Transfer start ack from Controller)', 'RECEIVED');
-    logMessage('Step 4: Controller acknowledged first package.', 'INFO');
+    const sent = await canbus.sendRawFrame('05142001',hexLength);
+    if (!sent) {
+        logMessage('sendFrame returned false for ID 05142001', 'ERROR');
+    }
+
+    //Reset timeout and wait for response
+    startTime = Date.now();
+    logMessage('Step 4: Waiting for acknowledgment of the first package...', 'INFO');
+    do{
+        await delay(delayMs);
+          if (Date.now() - startTime > timeout) {
+            logMessage('Timeout reached, exiting loop....', 'ERROR');
+            break;
+        }
+    }while(!updateProcessStarted);
 }
+
 
 /**
  * Step 5: Sends firmware data in 8-byte chunks. Each chunk is numbered incrementally.
@@ -161,11 +147,10 @@ async function sendDataChunks() {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
         const chunkData = getFirmwareChunk(i); // XX XX XX XX XX XX XX XX
         if(i < 5 || i > NUM_CHUNKS - 5){
-            logMessage(`0515${chunkId} - ${chunkData} (Data transfer package)`, 'SENT');
 
-            // Wait for acknowledgment for the current chunk
-            //await delay(1); // Simulate quick acknowledgment for each chunk (100ms)
-            logMessage(`022A${chunkId} - (Data transfer package ack from controller)`, 'RECEIVED');
+            logMessage(`ID:0515${chunkId}#${chunkData} `, 'SENT');
+            await sendRawFrameWithRetry(`0515${chunkId}`,chunkData);
+            await delay(delayMs);
         }
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
@@ -180,16 +165,24 @@ async function sendLastPackageAndEndTransfer() {
     logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
 
     // The last chunk number is NUM_CHUNKS - 1
-    const lastChunkId = formatChunkNumber(NUM_CHUNKS - 1);
+    lastChunkId = formatChunkNumber(NUM_CHUNKS - 1);
     // Get the actual content of the last package
     const lastPackageContent = getFirmwareChunk(NUM_CHUNKS - 1);
 
-    logMessage(`0516${lastChunkId} - ${lastPackageContent} (Transfer completed from BESST)`, 'SENT');
-
-    // Simulate response for the last package
-    await delay(2000); // Simulate 2-second delay for final acknowledgment
-    logMessage(`022A${lastChunkId} - (Data transfer packages ack from controller)`, 'RECEIVED');
-    logMessage('Firmware update completed successfully!', 'INFO');
+    logMessage(`ID:0516${lastChunkId}#${lastPackageContent}`, 'SENT');
+    await sendRawFrameWithRetry(`0516${lastChunkId}`,lastPackageContent);
+    await delay(delayMs);
+    //Reset timeout and wait for response
+    startTime = Date.now();
+    logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
+    do{
+        await delay(delayMs);
+          if (Date.now() - startTime > timeout) {
+            logMessage('Timeout reached, exiting loop....', 'ERROR');
+            break;
+        }
+    }while(!lastChunkConfirmed);
+    
 }
 
 // --- Helper to format raw frame data ---
@@ -239,10 +232,14 @@ async function startUpdateProcedure() {
         // Calculate NUM_CHUNKS based on the actual file size and header
         // The data portion starts after the HEADER_SIZE bytes.
         const dataLength = Math.max(0, FIRMWARE_FILE_SIZE - HEADER_SIZE);
+        const maxValue = (2 ** (3 * 8)) - 1; 
+        if (dataLength < 0 || dataLength > maxValue) { 
+            logMessage(`File is to big ...`, 'ERROR');
+            process.exit(1); // Exit if connection failed
+        } 
         NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
 
         logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
-        logMessage(`First 4 bytes: ${Buffer.concat([firmwareBuffer.slice(0, 2), Buffer.from([0x02, 0x00])]).toString('hex')}`, 'INFO');
         // Listen for status updates
         canbus.on('can_status', (isConnected, statusMessage) => {
             console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
@@ -260,7 +257,18 @@ async function startUpdateProcedure() {
                 console.warn("Received invalid frame object, skipping.");
                 return;
             }
-            console.log(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`);
+            logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO');
+            if(idHex.includes('22A2000')){
+                logMessage('Controler is ready for update...', 'INFO');
+                controllerReady = true;
+            }
+            if(idHex.includes('22A2001')){
+                logMessage('Controler is ready to recive bin file...', 'INFO');
+                updateProcessStarted = true;
+            }
+            if(idHex.includes(`22A${lastChunkId}`)){
+                lastChunkConfirmed = true;
+            }
         });
 
         // Attempt to initialize the CAN connection
@@ -273,13 +281,21 @@ async function startUpdateProcedure() {
             console.error("Failed to initialize CAN Bus. Exiting.");
             process.exit(1); // Exit if connection failed
         }
-
-        await announceHostReady();
-        if(updateProcessStarted){
+        // Wait for cunbus to be stable
+        await delay(2000);
+        announceHostReady();
+        await delay(200);
+        await checkForControllerReady();
+        if(controllerReady){
             logMessage('Starting firmware update procedure...', 'INFO');
-            // await sendFirstPackage();
-            // await sendDataChunks();
-            // await sendLastPackageAndEndTransfer();
+            await delay(delayMs);
+            await sendFirstPackage();
+            await delay(delayMs);
+            if(updateProcessStarted){
+                await sendDataChunks();
+                await delay(delayMs);
+                await sendLastPackageAndEndTransfer();
+            }
         }else{
             logMessage('Firmware update process not started.', 'ERROR');
         }
@@ -290,11 +306,8 @@ async function startUpdateProcedure() {
         console.error('Detailed error:', error);
         process.exit(1); // Exit with an error code
     } finally {
-        logMessage('CANBUS Firmware Update Simulation Finished.', 'INFO');
-        // Ensure any remaining intervals are cleared if the process exits unexpectedly
-        if (updateInterval) {
-            clearInterval(updateInterval);
-        }
+        logMessage('Firmware update completed successfully!', 'INFO');
+        cleanup()
     }
 }
 
@@ -305,9 +318,6 @@ async function cleanup() {
 
     if (canbus.isConnected()) {
         await canbus.close();
-    }
-    if (updateInterval) {
-        clearInterval(updateInterval);
     }
     console.log("Cleanup complete.");
     process.exit(0);
