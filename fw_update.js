@@ -10,10 +10,11 @@ let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
 let controllerReady = false; // Flag to track if controler is ready for update
+let commnad5116008ack = false; // Flag to track if 5116008 ACK was received
 let updateProcessStarted = false; // Flag to track if the update process has started
 let lastChunkId = null; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
-const timeout = 10000; // 10 seconds timeout;
+const timeout = 5000; // 5 seconds timeout;
 let startTime = Date.now();
 
 const leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
@@ -107,6 +108,20 @@ async function checkForControllerReady(){
     }while(!controllerReady);
 }
 
+// Optional step 2.1 unknown id 5116008
+async function send5116008Id(){
+    await sendRawFrameWithRetry("5116008","");
+    startTime = Date.now();
+    logMessage('Step 2.1: Waiting for acknowledgment of the 5116008 package...', 'INFO');
+    do{
+        await delay(delayMs);
+        if (Date.now() - startTime > timeout) {
+            logMessage('Timeout reached, exiting loop....', 'ERROR');
+            process.exit(1);
+        }
+    }while(!commnad5116008ack);
+}
+
 /**
  * Step 3 & 4: Sends the first package containing the length of the firmware file
  * (minus the first 16 hex bytes) and waits for acknowledgment.
@@ -131,6 +146,7 @@ async function sendFirstPackage() {
           if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             break;
+            
         }
     }while(!updateProcessStarted);
 }
@@ -252,9 +268,9 @@ async function startUpdateProcedure() {
         });
     
         // Listen for errors
-        canbus.on('can_error', (errorMessage) => {
-            console.error(`CAN ERROR: ${errorMessage}`);
-        });
+        // canbus.on('can_error', (errorMessage) => {
+        //     console.error(`CAN ERROR: ${errorMessage}`);
+        // });
 
         canbus.on('raw_frame_received', (rawFrame) => {
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
@@ -274,6 +290,10 @@ async function startUpdateProcedure() {
             }
             if(idHex.includes(`22A${lastChunkId}`)){
                 lastChunkConfirmed = true;
+            }
+            if(idHex.includes("22A6008")){
+                logMessage('ACK for 5116008 received.', 'INFO');
+                commnad5116008ack = true;
             }
         });
 
@@ -295,6 +315,8 @@ async function startUpdateProcedure() {
         if(controllerReady){
             logMessage('Starting firmware update procedure...', 'INFO');
             await delay(delayMs);
+            if(controllerReadyIdSent == '5114000')
+                await send5116008Id();
             await sendFirstPackage();
             await delay(delayMs);
             if(updateProcessStarted){
@@ -317,7 +339,7 @@ async function startUpdateProcedure() {
         process.exit(1); // Exit with an error code
     } finally {
         logMessage('Firmware update completed successfully!', 'INFO');
-        cleanup()
+        await cleanup()
     }
 }
 
