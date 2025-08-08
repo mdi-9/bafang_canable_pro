@@ -9,10 +9,10 @@ const delayMs = 2; // Delay between frames (adjust if needed)
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
-let controllerReady = false; // Flag to track if controler is ready for update
-let updateProcessStarted = false; // Flag to track if the update process has started
+let controllerReady = true; // Flag to track if controler is ready for update
+let updateProcessStarted = true; // Flag to track if the update process has started
 let lastChunkId = null; // Will be set after the last chunk number is calculated
-let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
+let lastChunkConfirmed = true; // Flag to track if the last chunk has been confirmed
 const timeout = 10000; // 10 seconds timeout;
 let startTime = Date.now();
 // --- Utility Functions ---

@@ -1,6 +1,6 @@
 const fs = require('fs'); // Node.js File System module for reading files
 const path = require('path'); // Node.js Path module for resolving file paths
-const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
+//const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -9,9 +9,9 @@ const delayMs = 2; // Delay between frames (adjust if needed)
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
-let controllerReady = false; // Flag to track if controler is ready for update
-let updateProcessStarted = false; // Flag to track if the update process has started
-let lastChunkId = null; // Will be set after the last chunk number is calculated
+let controllerReady = true; // Flag to track if controler is ready for update
+let updateProcessStarted = true; // Flag to track if the update process has started
+let lastChunkId = true; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
 const timeout = 10000; // 10 seconds timeout;
 let startTime = Date.now();
@@ -43,7 +43,7 @@ function getFirmwareChunk(chunkNum) {
     // Convert each byte in the slice to a 2-character hex string and join with spaces
     const chunkData = Array.from(chunkSlice).map(byte =>
         byte.toString(16).padStart(2, '0').toUpperCase()
-    ).join('');
+    ).join(' ');
 
     return chunkData;
 }
@@ -57,18 +57,18 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function sendRawFrameWithRetry(id,data,retries = 3){
-    let sent = false;
-    let tryCount = 0;
-    do{
-        sent = await canbus.sendRawFrame(id,data);
-        if (!sent) {
-            logMessage(`sendFrame returned false for ID${id}`, 'ERROR');
-            await delay(delayMs);
-        }
-        tryCount++;
-    }while(!sent && tryCount < retries);
-}
+// async function sendRawFrameWithRetry(id,data,retries = 3){
+//     let sent = false;
+//     let tryCount = 0;
+//     do{
+//         sent = await canbus.sendRawFrame(id,data);
+//         if (!sent) {
+//             logMessage(`sendFrame returned false for ID${id}`, 'ERROR');
+//             await delay(delayMs);
+//         }
+//         tryCount++;
+//     }while(!sent && tryCount < retries);
+// }
 
 // --- Firmware Update Procedure Steps ---
 /**
@@ -79,7 +79,8 @@ async function sendRawFrameWithRetry(id,data,retries = 3){
 async function announceHostReady() {
     logMessage('Step 1: Announcing host readiness...', 'INFO');
     do{
-        await canbus.sendRawFrame("05FF3005","00");
+        logMessage('ID:05FF3005#00', 'SENT');
+        //await canbus.sendRawFrame("05FF3005","00");
         await delay(delayMs);
     }while(!controllerReady);
 
@@ -93,7 +94,8 @@ async function checkForControllerReady(){
     logMessage('Step 2:Waiting for controler ready state...', 'INFO');
     const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
     do{
-        await canbus.sendRawFrame("05112000",first3bytes.join(''));
+        //await canbus.sendRawFrame("05112000",first3bytes.join(''));
+        logMessage('ID:05112000#'+first3bytes.join(''), 'SENT');
         await delay(60);
           if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
@@ -116,10 +118,10 @@ async function sendFirstPackage() {
 
     logMessage(`ID:05142001#${hexLength}`, 'SENT');
 
-    const sent = await canbus.sendRawFrame('05142001',hexLength);
-    if (!sent) {
-        logMessage('sendFrame returned false for ID 05142001', 'ERROR');
-    }
+    //const sent = await canbus.sendRawFrame('05142001',hexLength);
+    // if (!sent) {
+    //     logMessage('sendFrame returned false for ID 05142001', 'ERROR');
+    // }
 
     //Reset timeout and wait for response
     startTime = Date.now();
@@ -143,11 +145,11 @@ async function sendFirstPackage() {
 async function sendDataChunks() {
     logMessage('Step 5: Sending data chunks...', 'INFO');
     // Loop through all chunks except the very last one
-    for (let i = 0; i < NUM_CHUNKS - 1; i++) {
+    for (let i = 0; i < (NUM_CHUNKS - 1); i++) {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
-        const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-        logMessage(`ID:0515${chunkId}#${chunkData} `, 'SENT');
-        await sendRawFrameWithRetry(`0515${chunkId}`,chunkData);
+        const chunkData = getFirmwareChunk(i); // XX XX XX XX XX XX XX XX
+        logMessage(`ID:0515${chunkId}# ${chunkData} `, 'SENT');
+        //await sendRawFrameWithRetry(`0515${chunkId}`,chunkData);
         await delay(delayMs);
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
@@ -166,8 +168,8 @@ async function sendLastPackageAndEndTransfer() {
     // Get the actual content of the last package
     const lastPackageContent = getFirmwareChunk(NUM_CHUNKS - 1);
 
-    logMessage(`ID:0516${lastChunkId}#${lastPackageContent}`, 'SENT');
-    await sendRawFrameWithRetry(`0516${lastChunkId}`,lastPackageContent);
+    logMessage(`ID:0516${lastChunkId}# ${lastPackageContent}`, 'SENT');
+    //await sendRawFrameWithRetry(`0516${lastChunkId}`,lastPackageContent);
     await delay(delayMs);
     //Reset timeout and wait for response
     startTime = Date.now();
@@ -238,46 +240,46 @@ async function startUpdateProcedure() {
 
         logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
         // Listen for status updates
-        canbus.on('can_status', (isConnected, statusMessage) => {
-            console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
-        });
+        // canbus.on('can_status', (isConnected, statusMessage) => {
+        //     console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
+        // });
     
-        // Listen for errors
-        canbus.on('can_error', (errorMessage) => {
-            console.error(`CAN ERROR: ${errorMessage}`);
-        });
+        // // Listen for errors
+        // canbus.on('can_error', (errorMessage) => {
+        //     console.error(`CAN ERROR: ${errorMessage}`);
+        // });
 
-        canbus.on('raw_frame_received', (rawFrame) => {
-            const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
+        // canbus.on('raw_frame_received', (rawFrame) => {
+        //     const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
     
-            if (idHex === "INVALID") {
-                console.warn("Received invalid frame object, skipping.");
-                return;
-            }
-            logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO');
-            if(idHex.includes('22A2000')){
-                logMessage('Controler is ready for update...', 'INFO');
-                controllerReady = true;
-            }
-            if(idHex.includes('22A2001')){
-                logMessage('Controler is ready to recive bin file...', 'INFO');
-                updateProcessStarted = true;
-            }
-            if(idHex.includes(`22A${lastChunkId}`)){
-                lastChunkConfirmed = true;
-            }
-        });
+        //     if (idHex === "INVALID") {
+        //         console.warn("Received invalid frame object, skipping.");
+        //         return;
+        //     }
+        //     logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO');
+        //     if(idHex.includes('22A2000')){
+        //         logMessage('Controler is ready for update...', 'INFO');
+        //         controllerReady = true;
+        //     }
+        //     if(idHex.includes('22A2001')){
+        //         logMessage('Controler is ready to recive bin file...', 'INFO');
+        //         updateProcessStarted = true;
+        //     }
+        //     if(idHex.includes(`22A${lastChunkId}`)){
+        //         lastChunkConfirmed = true;
+        //     }
+        // });
 
-        // Attempt to initialize the CAN connection
-        const connected = await canbus.init();
+        // // Attempt to initialize the CAN connection
+        // const connected = await canbus.init();
     
-        if (connected) {
-            console.log("CAN Bus Initialized. Listening for frames...");
-            // Keep the script running while connected
-        } else {
-            console.error("Failed to initialize CAN Bus. Exiting.");
-            process.exit(1); // Exit if connection failed
-        }
+        // if (connected) {
+        //     console.log("CAN Bus Initialized. Listening for frames...");
+        //     // Keep the script running while connected
+        // } else {
+        //     console.error("Failed to initialize CAN Bus. Exiting.");
+        //     process.exit(1); // Exit if connection failed
+        // }
         // Wait for cunbus to be stable
         await delay(2000);
         announceHostReady();
@@ -313,9 +315,9 @@ async function cleanup() {
     console.log("\nShutting down CAN listener...");
     console.log("-------------------------------------------------------------");
 
-    if (canbus.isConnected()) {
-        await canbus.close();
-    }
+    // if (canbus.isConnected()) {
+    //     await canbus.close();
+    // }
     console.log("Cleanup complete.");
     process.exit(0);
 }
