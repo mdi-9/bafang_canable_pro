@@ -14,7 +14,7 @@ let commnad5116008ack = false; // Flag to track if 5116008 ACK was received
 let updateProcessStarted = false; // Flag to track if the update process has started
 let lastChunkId = null; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
-const timeout = 5000; // 5 seconds timeout;
+const timeout = 10000; // 5 seconds timeout;
 let startTime = Date.now();
 
 const leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
@@ -193,7 +193,7 @@ async function sendLastPackageAndEndTransfer() {
     logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
     do{
         await delay(delayMs);
-          if (Date.now() - startTime > timeout) {
+          if (Date.now() - startTime > (60000*5)) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             break;
         }
@@ -274,7 +274,8 @@ async function startUpdateProcedure() {
 
         canbus.on('raw_frame_received', (rawFrame) => {
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
-    
+            if(idHex.startsWith(leadingIdNum+"515"))
+                return;
             if (idHex === "INVALID") {
                 console.warn("Received invalid frame object, skipping.");
                 return;
@@ -288,7 +289,7 @@ async function startUpdateProcedure() {
                 logMessage('Controler is ready to recive bin file...', 'INFO');
                 updateProcessStarted = true;
             }
-            if(idHex.includes(`22A${lastChunkId}`)){
+            if(idHex.includes(`22A${formatChunkNumber(NUM_CHUNKS)}`)){
                 lastChunkConfirmed = true;
             }
             if(idHex.includes("22A6008")){
@@ -310,7 +311,6 @@ async function startUpdateProcedure() {
         // Wait for cunbus to be stable
         await delay(3000);
         announceHostReady();
-        await delay(200);
         await checkForControllerReady();
         if(controllerReady){
             logMessage('Starting firmware update procedure...', 'INFO');
