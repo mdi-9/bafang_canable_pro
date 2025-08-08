@@ -15,8 +15,14 @@ let lastChunkId = null; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
 const timeout = 10000; // 10 seconds timeout;
 let startTime = Date.now();
-// --- Utility Functions ---
 
+const leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
+const controllerReadyIdSent = '5114000'; // 5114000 | 5112000
+const controllerReadyIdAck =  '22A4000'; // 22A4000 | 22A2000
+const firstPackageId =        '5104001'; // 5104001 | 5142001
+const firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
+// --- Utility Functions ---
+    
 /**
  * Formats a number into a 4-character hexadecimal string, padded with leading zeros.
  * @param {number} num - The number to format.
@@ -61,9 +67,9 @@ async function sendRawFrameWithRetry(id,data,retries = 3){
     let sent = false;
     let tryCount = 0;
     do{
-        sent = await canbus.sendRawFrame(id,data);
+        sent = await canbus.sendRawFrame(leadingIdNum+id,data);
         if (!sent) {
-            logMessage(`sendFrame returned false for ID${id}`, 'ERROR');
+            logMessage(`sendFrame returned false for ID${leadingIdNum+id}`, 'ERROR');
             await delay(delayMs);
         }
         tryCount++;
@@ -79,10 +85,9 @@ async function sendRawFrameWithRetry(id,data,retries = 3){
 async function announceHostReady() {
     logMessage('Step 1: Announcing host readiness...', 'INFO');
     do{
-        await canbus.sendRawFrame("05FF3005","00");
+        await sendRawFrameWithRetry("5FF3005","00",0);
         await delay(delayMs);
     }while(!controllerReady);
-
 }
 /**
  * Step 2: Starts continuously asking for ack to controller ready.
@@ -93,7 +98,7 @@ async function checkForControllerReady(){
     logMessage('Step 2:Waiting for controler ready state...', 'INFO');
     const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
     do{
-        await canbus.sendRawFrame("05112000",first3bytes.join(''));
+        await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
         await delay(60);
           if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
@@ -114,12 +119,9 @@ async function sendFirstPackage() {
     const fileLengthMinus16 = FIRMWARE_FILE_SIZE - HEADER_SIZE;
     const hexLength = fileLengthMinus16.toString(16).padStart(6, '0').toUpperCase(); // ## ## ## format
 
-    logMessage(`ID:05142001#${hexLength}`, 'SENT');
+    logMessage(`ID:${firstPackageId}#${hexLength}`, 'SENT');
 
-    const sent = await canbus.sendRawFrame('05142001',hexLength);
-    if (!sent) {
-        logMessage('sendFrame returned false for ID 05142001', 'ERROR');
-    }
+    await sendRawFrameWithRetry(firstPackageId,hexLength);
 
     //Reset timeout and wait for response
     startTime = Date.now();
@@ -146,9 +148,9 @@ async function sendDataChunks() {
     for (let i = 0; i < NUM_CHUNKS - 1; i++) {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
         const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-        //logMessage(`ID:0515${chunkId}#${chunkData} `, 'SENT');
+        //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
-        await sendRawFrameWithRetry(`0515${chunkId}`,chunkData);
+        await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
         await delay(delayMs);
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
@@ -167,8 +169,8 @@ async function sendLastPackageAndEndTransfer() {
     // Get the actual content of the last package
     const lastPackageContent = getFirmwareChunk(NUM_CHUNKS - 1);
 
-    logMessage(`ID:0516${lastChunkId}#${lastPackageContent}`, 'SENT');
-    await sendRawFrameWithRetry(`0516${lastChunkId}`,lastPackageContent);
+    logMessage(`ID:516${lastChunkId}#${lastPackageContent}`, 'SENT');
+    await sendRawFrameWithRetry(`516${lastChunkId}`,lastPackageContent);
     await delay(delayMs);
     //Reset timeout and wait for response
     startTime = Date.now();
@@ -181,6 +183,12 @@ async function sendLastPackageAndEndTransfer() {
         }
     }while(!lastChunkConfirmed);
     
+}
+
+async function announceFirmwareUpgradeEnd() {
+    logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
+    await sendRawFrameWithRetry("5FF3005","01");
+    await delay(delayMs);
 }
 
 // --- Helper to format raw frame data ---
@@ -256,11 +264,11 @@ async function startUpdateProcedure() {
                 return;
             }
             logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO');
-            if(idHex.includes('22A2000')){
+            if(idHex.includes(controllerReadyIdAck)){
                 logMessage('Controler is ready for update...', 'INFO');
                 controllerReady = true;
             }
-            if(idHex.includes('22A2001')){
+            if(idHex.includes(firstPackageIdAck)){
                 logMessage('Controler is ready to recive bin file...', 'INFO');
                 updateProcessStarted = true;
             }
@@ -280,7 +288,7 @@ async function startUpdateProcedure() {
             process.exit(1); // Exit if connection failed
         }
         // Wait for cunbus to be stable
-        await delay(2000);
+        await delay(3000);
         announceHostReady();
         await delay(200);
         await checkForControllerReady();
@@ -293,6 +301,10 @@ async function startUpdateProcedure() {
                 await sendDataChunks();
                 await delay(delayMs);
                 await sendLastPackageAndEndTransfer();
+                await delay(delayMs);
+                if(lastChunkConfirmed){
+                    await announceFirmwareUpgradeEnd();
+                }
             }
         }else{
             logMessage('Firmware update process not started.', 'ERROR');
