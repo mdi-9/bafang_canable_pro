@@ -58,8 +58,7 @@ async function setupLogger() {
 
   // Return the logging function
   return async function logToFile(message) {
-    const timestamp = new Date().toISOString();
-    const logEntry = `${timestamp} - ${message}\n`;
+    const logEntry = `${message}\n`;
     try {
       await fs.appendFile(logFilePath, logEntry);
     } catch (err) {
@@ -118,12 +117,12 @@ async function main() {
                 // Data has changed for this ID
                 // Log the summary of the previous sequence if it repeated
                 if (currentEntry.count > 1) {
-                    const logMessage = `(${currentEntry.lastTimestamp}) ID: ${idHex} DLC: ${currentEntry.dlc} Data: ${currentEntry.lastDataHex} (Repeated ${currentEntry.count} times)`;
+                    const logMessage = `${currentEntry.lastTimestamp}\tID:${idHex}\tDLC:${currentEntry.dlc}\tData:${currentEntry.lastDataHex}\t(Repeated ${currentEntry.count} times)`;
                     console.log(logMessage);
                     logToFile(logMessage)
                 }
                 // Log the new, different frame
-                const logMessage = `(${timestamp}) ID: ${idHex} DLC: ${dlc} Data: ${dataHex}`
+                const logMessage = `${timestamp}\tID:${idHex}\tDLC:${dlc}\tData:${dataHex}`
                 console.log(logMessage);
                 logToFile(logMessage)
                 // Update the accumulator with the new data and reset count
@@ -135,7 +134,7 @@ async function main() {
         } else {
             // First time seeing this non-filtered frame ID (since last change or startup)
             // Log the new frame
-            const logMessage = `(${timestamp}) ID: ${idHex} DLC: ${dlc} Data: ${dataHex}`
+            const logMessage = `${timestamp}\tID:${idHex}\tDLC:${dlc}\tData:${dataHex}`
             console.log(logMessage);
             logToFile(logMessage)
             // Create the entry in the accumulator
@@ -177,7 +176,7 @@ async function cleanup() {
         // No need to check filteredIds here, as they wouldn't be in the accumulator
         const entry = frameAccumulator[idHex];
         if (entry.count > 1) {
-            const logMessage = `(${entry.lastTimestamp}) ID: ${idHex} DLC: ${entry.dlc} Data: ${entry.lastDataHex} (Repeated ${entry.count} times)`;
+            const logMessage = `${entry.lastTimestamp}\tID:${idHex}\tDLC:${entry.dlc}\tData:${entry.lastDataHex}\t(Repeated ${entry.count} times)`;
             console.log(logMessage);
             logToFile(logMessage)
         }
