@@ -690,7 +690,7 @@ class CanBusService extends EventEmitter {
             for (let i = 0; i < dataBytes.length; i++) 
                 frameToSend.data.setUint8(i, dataBytes[i]); 
             frameToSend.echo_id = 0xFFFFFFFF; frameToSend.channel = 0; frameToSend.flags = 0; frameToSend.reserved = 0; 
-            console.log(`Sending CAN frame: ID=${idHex}, Data=[${dataBytes.map(b => b.toString(16).padStart(2,'0')).join(',')}]`);
+            //console.log(`Sending CAN frame: ID=${idHex}, Data=[${dataBytes.map(b => b.toString(16).padStart(2,'0')).join(',')}]`);
             const success = await this.canDevice.writeCANFrame(frameToSend); 
             if (!success) { 
                 console.error('CAN -> Failed send'); return false; } return true; 

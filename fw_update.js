@@ -146,7 +146,8 @@ async function sendDataChunks() {
     for (let i = 0; i < NUM_CHUNKS - 1; i++) {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
         const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-        logMessage(`ID:0515${chunkId}#${chunkData} `, 'SENT');
+        //logMessage(`ID:0515${chunkId}#${chunkData} `, 'SENT');
+        process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
         await sendRawFrameWithRetry(`0515${chunkId}`,chunkData);
         await delay(delayMs);
     }
