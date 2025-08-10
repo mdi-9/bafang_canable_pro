@@ -1,6 +1,7 @@
 const fs = require('fs'); // Node.js File System module for reading files
 const path = require('path'); // Node.js Path module for resolving file paths
 const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
+const { setupLogger, formatRawCanFrameData } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -16,13 +17,21 @@ let lastChunkId = null; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
 const timeout = 10000; // 5 seconds timeout;
 let startTime = Date.now();
-
-const leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
-const controllerReadyIdSent = '5114000'; // 5114000 | 5112000
-const controllerReadyIdAck =  '22A4000'; // 22A4000 | 22A2000
-const firstPackageId =        '5104001'; // 5104001 | 5142001
-const firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
+let logToFile = null; // Function to log messages to a file
+let leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
+let controllerReadyIdSent = '5114000'; // 5114000 | 5112000
+let controllerReadyIdAck =  '22A4000'; // 22A4000 | 22A2000
+let firstPackageId =        '5104001'; // 5104001 | 5142001
+let firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
 // --- Utility Functions ---
+
+function setupForOldMotor(){
+    leadingIdNum = "0";
+    controllerReadyIdSent = '5112000';
+    controllerReadyIdAck =  '22A2000';
+    firstPackageId =        '5142001';
+    firstPackageIdAck =     '22A2001';
+}
     
 /**
  * Formats a number into a 4-character hexadecimal string, padded with leading zeros.
@@ -58,6 +67,7 @@ function getFirmwareChunk(chunkNum) {
 function logMessage(message, type = 'INFO') {
     const timestamp = new Date().toLocaleTimeString();
     console.log(`[${timestamp}] [${type}] ${message}`);
+    logToFile(`[${timestamp}]\t[${type}]\t${message}`);
 }
 
 function delay(ms) {
@@ -207,32 +217,12 @@ async function announceFirmwareUpgradeEnd() {
     await delay(delayMs);
 }
 
-// --- Helper to format raw frame data ---
-function formatRawCanFrameData(frame) {
-    if (!frame || typeof frame.can_id !== 'number' || typeof frame.can_dlc !== 'number' || !(frame.data instanceof DataView)) {
-        return { idHex: "INVALID", dataHex: "INVALID", dlc: 0, timestamp: Date.now() * 1000 };
-    }
-
-    const idHex = frame.can_id.toString(16).toUpperCase().padStart(8, '0');
-    const dlc = frame.can_dlc;
-    const dataBytes = [];
-
-    // Safely read data bytes up to DLC length
-    for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
-        dataBytes.push(frame.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
-    }
-    const dataHex = dataBytes.join(' ');
-    // Use frame timestamp if available, otherwise use current time
-    const timestamp = frame.timestamp_us || Date.now() * 1000;
-
-    return { idHex, dataHex, dlc, timestamp };
-}
-
 /**
  * Main function to orchestrate the entire firmware update procedure.
  * Handles the sequence of steps and basic error logging.
  */
 async function startUpdateProcedure() {
+    logToFile = await setupLogger();
     // Check for command-line argument
     const firmwareFilePath = process.argv[2]; // Node.js arguments are at index 2 onwards
 
@@ -262,6 +252,12 @@ async function startUpdateProcedure() {
         NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
 
         logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
+
+        let byte4 = firmwareBuffer[4].toString(16).padStart(2, '0').toUpperCase()
+        if(byte4 === "00"){
+            logMessage('Detected old motor firmware format, setting up for old way...', 'INFO');
+            setupForOldMotor();
+        }
         // Listen for status updates
         canbus.on('can_status', (isConnected, statusMessage) => {
             console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
@@ -338,7 +334,11 @@ async function startUpdateProcedure() {
         console.error('Detailed error:', error);
         process.exit(1); // Exit with an error code
     } finally {
-        logMessage('Firmware update completed successfully!', 'INFO');
+        if(lastChunkConfirmed){
+            logMessage('Firmware update completed successfully!', 'INFO');
+        }else{
+            logMessage('Firmware update failed or was not completed.', 'ERROR');
+        }
         await cleanup()
     }
 }

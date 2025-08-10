@@ -70,21 +70,27 @@ const CanWriteCommandsList = Object.freeze({
         canCommandSubCode: 0x0B,
         applicableDevices: [DeviceNetworkId.DISPLAY],
     },
-	FwUpdateSendFirstPackage: { 
+	FwUpdateSendFirstPackageOld: { 
         canCommandCode: 0x20, // 32
         canCommandSubCode: 0x01,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
         canOperationCode: CanOperation.MULTIFRAME_START,
     },
+    FwUpdateSendFirstPackage: { 
+        canCommandCode: 0x40, // 64
+        canCommandSubCode: 0x01,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+        canOperationCode: CanOperation.MULTIFRAME_START,
+    },
     FwUpdateSendData: { 
-        //canCommandCode: 0x00, canCommandCode: 0x00, ... canCommandCode: 0x001
-        //canCommandSubCode: 0x00, canCommandCode: 0x01, ... canCommandCode: 0xff
+        //canCommandCode: 0x00, canCommandCode: 0x00, ... canCommandCode: 0x01 //dynamic
+        //canCommandSubCode: 0x00, canCommandCode: 0x01, ... canCommandCode: 0xff //dynamic
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
         canOperationCode: CanOperation.MULTIFRAME,
     },
     FwUpdateSendLastPackage: { 
-        //canCommandCode: 0xff,
-        //canCommandSubCode: 0ff,
+        //canCommandCode: 0xff, //dynamic
+        //canCommandSubCode: 0xff, //dynamic
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
         canOperationCode: CanOperation.MULTIFRAME_END,
     },

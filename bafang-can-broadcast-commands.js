@@ -6,7 +6,7 @@
 const { DeviceNetworkId, CanOperation } = require('./bafang-constants');
 
 const CanBroadcastCommandsList = Object.freeze({
-    FwUpdateInit: {
+    FwUpdateInitAndEnd: {
         canCommandCode: 0x30, // 48
         canCommandSubCode: 0x05,
         applicableDevices: [DeviceNetworkId.BROADCAST],

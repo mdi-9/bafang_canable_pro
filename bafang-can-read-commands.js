@@ -156,8 +156,13 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x18, // 24 in decimal
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
     },
-    FwUpdateReadyCheck: {
+    FwUpdateReadyCheckOld: {
         canCommandCode: 0x20, // 32
+        canCommandSubCode: 0x00,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
+    FwUpdateReadyCheck: {
+        canCommandCode: 0x40, // 64
         canCommandSubCode: 0x00,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
     },
