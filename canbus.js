@@ -122,7 +122,27 @@ class CanBusService extends EventEmitter {
 
     _mapRawFrameToBafangFrame(rawFrame) {
         // ... (mapping logic remains the same) ...
-        const canIdNum = rawFrame.can_id; const byte0 = (canIdNum >> 24) & 0xFF; const byte1 = (canIdNum >> 16) & 0xFF; const byte2 = (canIdNum >> 8) & 0xFF; const byte3 = canIdNum & 0xFF; const bafangId = [byte0, byte1, byte2, byte3]; const dataArray = []; const dataView = rawFrame.data; for (let i = 0; i < rawFrame.can_dlc; i++) { if (i < dataView.byteLength) dataArray.push(dataView.getUint8(i)); else { console.warn(`DLC mismatch...`); break; } } while(dataArray.length < rawFrame.can_dlc) { console.warn(`Padding data...`); dataArray.push(0); } if(dataArray.length > rawFrame.can_dlc) dataArray.length = rawFrame.can_dlc; return { id: bafangId, data: dataArray };
+        const canIdNum = rawFrame.can_id; 
+        const byte0 = (canIdNum >> 24) & 0xFF; 
+        const byte1 = (canIdNum >> 16) & 0xFF; 
+        const byte2 = (canIdNum >> 8) & 0xFF; 
+        const byte3 = canIdNum & 0xFF; 
+        const bafangId = [byte0, byte1, byte2, byte3]; 
+        const dataArray = []; 
+        const dataView = rawFrame.data; 
+        for (let i = 0; i < rawFrame.can_dlc; i++) { 
+            if (i < dataView.byteLength) 
+                dataArray.push(dataView.getUint8(i)); 
+            else { 
+                console.warn(`DLC mismatch...`); 
+                break; 
+            } 
+        } while(dataArray.length < rawFrame.can_dlc) {
+             console.warn(`Padding data...`); 
+             dataArray.push(0); 
+        } if(dataArray.length > rawFrame.can_dlc) 
+            dataArray.length = rawFrame.can_dlc; 
+        return { id: bafangId, data: dataArray };
     }
 
     /**
@@ -643,7 +663,38 @@ class CanBusService extends EventEmitter {
 
     // --- sendFrame (Low-level sender - Unchanged) ---
     async sendFrame(commandString) { /* ... */
-        if (!this.isStarted) throw new Error('CAN device not connected/started.'); try { const parts = commandString.split('#'); if (parts.length !== 2) throw new Error('Invalid command format.'); const idHex = parts[0]; const dataHex = parts[1]; const canId = parseInt(idHex, 16); if (isNaN(canId)) throw new Error('Invalid CAN ID format.'); const dataBytes = []; if (dataHex) { if (dataHex.length % 2 !== 0) throw new Error('Invalid Data Hex.'); for (let i = 0; i < dataHex.length; i += 2) { const byte = parseInt(dataHex.substring(i, i + 2), 16); if (isNaN(byte)) throw new Error('Invalid Data Hex.'); dataBytes.push(byte); } if (dataBytes.length > 8) throw new Error('CAN data payload too long.'); } const frameToSend = new CanFrame(this.frameLength); frameToSend.can_id = canId | CAN_EFF_FLAG; /* Ensure Extended ID flag is set */; frameToSend.can_dlc = dataBytes.length; for (let i = 0; i < dataBytes.length; i++) frameToSend.data.setUint8(i, dataBytes[i]); frameToSend.echo_id = 0xFFFFFFFF; frameToSend.channel = 0; frameToSend.flags = 0; frameToSend.reserved = 0; const success = await this.canDevice.writeCANFrame(frameToSend); if (!success) { console.error('CAN -> Failed send'); return false; } return true; } catch (err) { console.error('Error sending CAN frame:', err); throw err; }
+        if (!this.isStarted) throw new Error('CAN device not connected/started.'); 
+        try { 
+            const parts = commandString.split('#'); 
+            if (parts.length !== 2) 
+                throw new Error('Invalid command format.'); 
+            const idHex = parts[0]; const dataHex = parts[1]; const canId = parseInt(idHex, 16); 
+            if (isNaN(canId)) 
+                throw new Error('Invalid CAN ID format.'); 
+            const dataBytes = []; 
+            if (dataHex) { 
+                if (dataHex.length % 2 !== 0) 
+                    throw new Error('Invalid Data Hex.'); 
+                for (let i = 0; i < dataHex.length; i += 2) { 
+                    const byte = parseInt(dataHex.substring(i, i + 2), 16); 
+                    if (isNaN(byte)) throw new Error('Invalid Data Hex.'); 
+                    dataBytes.push(byte); 
+                } 
+                if (dataBytes.length > 8) 
+                    throw new Error('CAN data payload too long.'); 
+            } 
+            const frameToSend = new CanFrame(this.frameLength); 
+            frameToSend.can_id = canId | CAN_EFF_FLAG; 
+            /* Ensure Extended ID flag is set */; 
+            frameToSend.can_dlc = dataBytes.length; 
+            for (let i = 0; i < dataBytes.length; i++) 
+                frameToSend.data.setUint8(i, dataBytes[i]); 
+            frameToSend.echo_id = 0xFFFFFFFF; frameToSend.channel = 0; frameToSend.flags = 0; frameToSend.reserved = 0; 
+            //console.log(`Sending CAN frame: ID=${idHex}, Data=[${dataBytes.map(b => b.toString(16).padStart(2,'0')).join(',')}]`);
+            const success = await this.canDevice.writeCANFrame(frameToSend); 
+            if (!success) { 
+                console.error('CAN -> Failed send'); return false; } return true; 
+            } catch (err) { console.error('Error sending CAN frame:', err); throw err; }
     }
 
     isConnected() { return this.isStarted; }

@@ -2,7 +2,11 @@
 "use strict";
 
 const canbus = require('./canbus'); // Import your CAN bus service instance
-
+const fs = require('fs').promises;
+const path = require('path');
+const { setupLogger, formatRawCanFrameData } = require('./utils');
+const logsDir = path.join(__dirname, 'logs');
+var logToFile = null
 // --- Configuration: IDs to Filter Out ---
 // Add CAN IDs (as uppercase hex strings, padded to 8 chars) to this Set
 // Frames with these IDs will be completely ignored (not logged, not accumulated).
@@ -16,32 +20,11 @@ const filteredIds = new Set([
 // --- State for Frame Accumulation ---
 const frameAccumulator = {}; // Stores { lastDataHex: string, count: number, lastTimestamp: number, dlc: number } keyed by idHex
 
-// --- Helper to format raw frame data ---
-function formatRawCanFrameData(frame) {
-    if (!frame || typeof frame.can_id !== 'number' || typeof frame.can_dlc !== 'number' || !(frame.data instanceof DataView)) {
-        return { idHex: "INVALID", dataHex: "INVALID", dlc: 0, timestamp: Date.now() * 1000 };
-    }
-
-    const idHex = frame.can_id.toString(16).toUpperCase().padStart(8, '0');
-    const dlc = frame.can_dlc;
-    const dataBytes = [];
-
-    // Safely read data bytes up to DLC length
-    for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
-        dataBytes.push(frame.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
-    }
-    const dataHex = dataBytes.join(' ');
-    // Use frame timestamp if available, otherwise use current time
-    const timestamp = frame.timestamp_us || Date.now() * 1000;
-
-    return { idHex, dataHex, dlc, timestamp };
-}
-
 // --- Main Application Logic ---
 async function main() {
     console.log("CAN Listener starting...");
     console.log("Filtering IDs:", Array.from(filteredIds)); // Log which IDs are being filtered
-
+    logToFile = await setupLogger();
     // Listen for status updates
     canbus.on('can_status', (isConnected, statusMessage) => {
         console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
@@ -87,10 +70,14 @@ async function main() {
                 // Data has changed for this ID
                 // Log the summary of the previous sequence if it repeated
                 if (currentEntry.count > 1) {
-                    console.log(`(${currentEntry.lastTimestamp}) ID: ${idHex} DLC: ${currentEntry.dlc} Data: ${currentEntry.lastDataHex} (Repeated ${currentEntry.count} times)`);
+                    const logMessage = `${currentEntry.lastTimestamp}\tID:${idHex}\tDLC:${currentEntry.dlc}\tData:${currentEntry.lastDataHex}\t(Repeated ${currentEntry.count} times)`;
+                    console.log(logMessage);
+                    logToFile(logMessage)
                 }
                 // Log the new, different frame
-                console.log(`(${timestamp}) ID: ${idHex} DLC: ${dlc} Data: ${dataHex}`);
+                const logMessage = `${timestamp}\tID:${idHex}\tDLC:${dlc}\tData:${dataHex}`
+                console.log(logMessage);
+                logToFile(logMessage)
                 // Update the accumulator with the new data and reset count
                 currentEntry.lastDataHex = dataHex;
                 currentEntry.count = 1;
@@ -100,7 +87,9 @@ async function main() {
         } else {
             // First time seeing this non-filtered frame ID (since last change or startup)
             // Log the new frame
-            console.log(`(${timestamp}) ID: ${idHex} DLC: ${dlc} Data: ${dataHex}`);
+            const logMessage = `${timestamp}\tID:${idHex}\tDLC:${dlc}\tData:${dataHex}`
+            console.log(logMessage);
+            logToFile(logMessage)
             // Create the entry in the accumulator
             frameAccumulator[idHex] = {
                 lastDataHex: dataHex,
@@ -140,7 +129,9 @@ async function cleanup() {
         // No need to check filteredIds here, as they wouldn't be in the accumulator
         const entry = frameAccumulator[idHex];
         if (entry.count > 1) {
-             console.log(`(${entry.lastTimestamp}) ID: ${idHex} DLC: ${entry.dlc} Data: ${entry.lastDataHex} (Repeated ${entry.count} times)`);
+            const logMessage = `${entry.lastTimestamp}\tID:${idHex}\tDLC:${entry.dlc}\tData:${entry.lastDataHex}\t(Repeated ${entry.count} times)`;
+            console.log(logMessage);
+            logToFile(logMessage)
         }
     }
     console.log("-------------------------------------------------------------");

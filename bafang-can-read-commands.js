@@ -155,8 +155,17 @@ const CanReadCommandsList = Object.freeze({
         canCommandCode: 0x60,    // 96 in decimal
         canCommandSubCode: 0x18, // 24 in decimal
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
-    },	
-
+    },
+    FwUpdateReadyCheckOld: {
+        canCommandCode: 0x20, // 32
+        canCommandSubCode: 0x00,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
+    FwUpdateReadyCheck: {
+        canCommandCode: 0x40, // 64
+        canCommandSubCode: 0x00,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
 });
 
 module.exports = { CanReadCommandsList };

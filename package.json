@@ -12,7 +12,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "eslint": "^9.32.0",
-    "globals": "^18.3.0"
+    "globals": "^16.3.0"
   },
    "pkg": {
     "scripts": "**/*.js",
@@ -26,7 +26,8 @@
   },
     "scripts": {
       "build": "pkg . --no-bytecode --public-packages \"*\" --public --compress Brotli", 
-      "dev": "node server.js"
+      "dev": "node server.js",
+      "sniff": "node can-listener.js"
   },
   "comments":{
     "build": "Builds the application using yao-pkg"
