@@ -77,6 +77,7 @@ function delay(ms) {
 async function sendRawFrameWithRetry(id,data,retries = 3){
     let sent = false;
     let tryCount = 0;
+    //logMessage(`Sending ID:${leadingIdNum+id}`, 'SENT');
     do{
         sent = await canbus.sendRawFrame(leadingIdNum+id,data);
         if (!sent) {
@@ -111,7 +112,11 @@ async function checkForControllerReady(){
     do{
         await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
         await delay(60);
-          if (Date.now() - startTime > timeout) {
+        if (Date.now() - startTime > (timeout-5000) && controllerReadyIdSent == '5114000') {
+            logMessage('Not responding for this method, trying the old way....', 'INFO');
+            setupForOldMotor();
+        }
+        if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             break;
         }
@@ -253,11 +258,15 @@ async function startUpdateProcedure() {
 
         logMessage(`Firmware file loaded. Size: ${FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${NUM_CHUNKS}`, 'INFO');
 
-        let byte4 = firmwareBuffer[4].toString(16).padStart(2, '0').toUpperCase()
-        if(byte4 === "00"){
-            logMessage('Detected old motor firmware format, setting up for old way...', 'INFO');
-            setupForOldMotor();
-        }
+        const fileHeaderData = Array.from(firmwareBuffer.slice(0, 15)).map(byte =>byte.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+
+        logMessage(`File header data: ${fileHeaderData}`, 'INFO');
+
+        // let byte4 = firmwareBuffer[4].toString(16).padStart(2, '0').toUpperCase()
+        // if(byte4 === "00"){
+        //     logMessage('Detected old motor firmware format, setting up for old way...', 'INFO');
+        //     setupForOldMotor();
+        // }
         // Listen for status updates
         canbus.on('can_status', (isConnected, statusMessage) => {
             console.log(`CAN STATUS: ${statusMessage} (Connected: ${isConnected})`);
