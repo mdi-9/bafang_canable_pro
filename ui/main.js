@@ -484,6 +484,8 @@
             // Disable all inputs/buttons *within* tab contents if not connected
             tabContents.forEach(tabContent => {
                 tabContent.querySelectorAll('button, input, select, textarea').forEach(ctrl => {
+					// Ignore ids
+					if (ctrl.id === 'fwUpdateStartButton') return; // Skip firmware update button
                     // Don't disable the main connect button or debug tab's custom send if it's managed separately
                     if (ctrl.id !== 'connectCanButton' && !(ctrl.closest('#tab-debug') && (ctrl.id === 'sendCustomFrame' || ctrl.id === 'canIdInput' || ctrl.id === 'canDataInput'))) {
                          ctrl.disabled = !enable;
@@ -2435,7 +2437,12 @@
             else if (message.startsWith('NACK:')) { addLog('NACK', message.substring('NACK:'.length).trim()); }
 			else if (message.startsWith('FW_UPDATE_LOG:')) { addFwUpdateLog(message.substring('FW_UPDATE_LOG:'.length).trim()); }
 			else if (message.startsWith('FW_UPDATE_PROGRESS:')) { updateFwUpdateProgress(message.substring('FW_UPDATE_PROGRESS:'.length).trim()); }
-			else if (message.startsWith('FW_UPDATE_END')) { fwUpdateElements.fileInput.disabled=false; fwUpdateElements.fileInput.value = ""; }
+			else if (message.startsWith('FW_UPDATE_END')) { 
+				fwUpdateElements.fileInput.disabled=false; 
+				fwUpdateElements.fileInput.value = ""; 
+				tabButtons.forEach(button => button.disabled = false); // Enable all tabs after update
+				connectCanButton.disabled = false; // Enable connect button after update
+			}
             else { addLog('INFO', message); }
         };
 
@@ -3074,11 +3081,13 @@
 			fwUpdateElements.logArea.innerHTML = '';
 			fwUpdateElements.startButton.disabled = true;
 			fwUpdateElements.fileInput.disabled = true;
+			tabButtons.forEach(button => button.disabled = true); // Disable all tabs during update
+			connectCanButton.disabled = true; // Disable connect button during update
 			const file = fwUpdateElements.fileInput.files[0];
 			var reader = new FileReader();  
 			reader.onload = function(e) {
 				const base64Content = e.target.result.split(',')[1];
-                socket.send("FW_UPDATE_START:"+base64Content);
+				socket.send("FW_UPDATE_START:" + base64Content);
 				updateFwUpdateProgress(0)
             }
 			reader.readAsDataURL(file);

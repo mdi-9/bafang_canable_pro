@@ -16,11 +16,11 @@ class FwUpdater {
         this.firmwareBuffer = null; // Buffer to hold the firmware file content
         this.FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
         this.NUM_CHUNKS = 0;         // Will be calculated after reading the file
-        this.controllerReady = false; // Flag to track if controler is ready for update
-        this.commnad5116008ack = false; // Flag to track if 5116008 ACK was received
+        this.controllerReady =      false; // Flag to track if controler is ready for update
+        this.commnad5116008ack =    false; // Flag to track if 5116008 ACK was received
         this.updateProcessStarted = false; // Flag to track if the update process has started
+        this.lastChunkConfirmed =   false; // Flag to track if the last chunk has been confirmed
         this.lastChunkId = null; // Will be set after the last chunk number is calculated
-        this.lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
         this.timeout = 10000; // 10 seconds timeout;
         this.startTime = Date.now();
         this.progress = 0; // procentage
@@ -49,11 +49,15 @@ class FwUpdater {
             return progress;
     }
     logMessage(message, type = 'INFO',sendOverWS = true) {
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[${timestamp}] [${type}] ${message}`);
-        this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
-        if(sendOverWS){
-            this.ws.send(`FW_UPDATE_LOG:[${type}] ${message}`);
+        try {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] [${type}] ${message}`);
+            this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
+            if(sendOverWS){
+                this.ws.send(`FW_UPDATE_LOG:[${type}] ${message}`);
+            }
+        }catch( e ) {
+            console.log(e, 'ERROR');
         }
     }
     initFile(fileBuffer){
@@ -113,8 +117,13 @@ class FwUpdater {
     }
     async emitProgress() {
         do{
-            await delay(1000);
-            this.ws.send(`FW_UPDATE_PROGRESS:${this.overallProgress()}`);
+            try {
+                await delay(1000);
+                this.ws.send(`FW_UPDATE_PROGRESS:${this.overallProgress()}`);
+            }
+            catch( e ) {
+                //this.logMessage(e, 'ERROR',false);
+            }
         }while(!this.end);
     }
     async announceHostReady() {
@@ -176,7 +185,7 @@ class FwUpdater {
             }
         }while(!this.updateProcessStarted);
     }
-    privateformatChunkNumber(num) {
+    formatChunkNumber(num) {
         return num.toString(16).padStart(4, '0').toUpperCase();
     }
     getFirmwareChunk(chunkNum) {
@@ -194,6 +203,7 @@ class FwUpdater {
         for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i);
+            //this.logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT',false);
             await this.sendRawFrameWithRetry(`515${chunkId}`,chunkData);
             await delay(delayMs);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);

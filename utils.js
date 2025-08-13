@@ -83,4 +83,4 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-module.exports = { setupLogger, formatRawCanFrameData };
+module.exports = { setupLogger, formatRawCanFrameData, delay };

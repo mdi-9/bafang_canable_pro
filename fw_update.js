@@ -219,7 +219,16 @@ async function sendLastPackageAndEndTransfer() {
 async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
     await sendRawFrameWithRetry("5FF3005","01");
-    await delay(delayMs);
+    await delay(500);
+    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+    for (let i = 0; i < 4; i++) {
+        await sendRawFrameWithRetry("5FF3005","00");
+        await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes);
+    }
+    for (let i = 0; i < 4; i++) {
+        await sendRawFrameWithRetry("5F83501","00");
+    }
+    await delay(5000);
 }
 
 /**
