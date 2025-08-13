@@ -20,6 +20,7 @@ class FwUpdater {
         this.commnad5116008ack =    false; // Flag to track if 5116008 ACK was received
         this.updateProcessStarted = false; // Flag to track if the update process has started
         this.lastChunkConfirmed =   false; // Flag to track if the last chunk has been confirmed
+        this.restartConfirmed =     false;
         this.lastChunkId = null; // Will be set after the last chunk number is calculated
         this.timeout = 10000; // 10 seconds timeout;
         this.startTime = Date.now();
@@ -77,6 +78,8 @@ class FwUpdater {
     }
     setupCunbus(){
         this.canbus.on('raw_frame_received', (rawFrame) => {
+            if(this.end)
+                return;
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
             if(idHex.startsWith(this.leadingIdNum+"515"))
                 return;
@@ -99,6 +102,10 @@ class FwUpdater {
             if(idHex.includes("22A6008")){
                 this.logMessage('ACK for 5116008 received.', 'INFO');
                 this.commnad5116008ack = true;
+            }
+            if(idHex.includes("2FF1200")){
+                this.logMessage('ACK for restart received.', 'INFO');
+                this.restartConfirmed = true;
             }
         });
     }
@@ -131,7 +138,7 @@ class FwUpdater {
         do{
             await this.sendRawFrameWithRetry("5FF3005","00",0);
             await delay(delayMs);
-        }while(!this.controllerReady || !this.end);
+        }while(!this.controllerReady && !this.end);
     }
     async checkForControllerReady(){
         this.logMessage('Step 2:Waiting for controler ready state...', 'INFO');
@@ -217,7 +224,7 @@ class FwUpdater {
         this.lastChunkId = this.formatChunkNumber(this.NUM_CHUNKS - 1);
         // Get the actual content of the last package
         const lastPackageContent = this.getFirmwareChunk(this.NUM_CHUNKS - 1);
-
+        await delay(delayMs);
         this.logMessage(`ID:516${this.lastChunkId}#${lastPackageContent}`, 'SENT');
         await this.sendRawFrameWithRetry(`516${this.lastChunkId}`,lastPackageContent);
         await delay(delayMs);
@@ -226,7 +233,7 @@ class FwUpdater {
         this.logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
         do{
             await delay(delayMs);
-            if (Date.now() - this.startTime > (60000*3)) {
+            if (Date.now() - this.startTime > (60000)) {
                 this.logMessage('Timeout reached, exiting loop....', 'ERROR');
                 break;
             }
@@ -234,9 +241,20 @@ class FwUpdater {
         
     }
     async announceFirmwareUpgradeEnd() {
-        this.logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
+        this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
         await this.sendRawFrameWithRetry("5FF3005","01");
         await delay(delayMs);
+        // this.startTime = Date.now();
+        // this.logMessage('Step 8: Waiting for restart...', 'INFO');
+        // do{
+        //     await delay(delayMs);
+        //     if (Date.now() - this.startTime > this.timeout) {
+        //         this.logMessage('Timeout reached for restart, manual may be required....', 'WARN');
+        //         break;
+        //     }
+        // }while(!this.restartConfirmed);
+        // await this.sendRawFrameWithRetry("5F83501","00");
+        await delay(100);
     }
 
     async startUpdateProcedure(fileBuffer) {

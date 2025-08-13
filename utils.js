@@ -67,7 +67,7 @@ async function setupLogger() {
   const dateStr = now.toISOString().slice(0, 10);
   const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-');
   const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}.log`);
-
+  console.log('Log file created at:', logFilePath);
   // Return the logging function
   return async function logToFile(message) {
     const logEntry = `${message}\n`;
