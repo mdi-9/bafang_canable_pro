@@ -103,7 +103,7 @@
 			 hexEditorPlaceholder: document.getElementById('hexEditorPlaceholder'),
         };
 		
- const controllerElements = {
+ 		const controllerElements = {
              syncButton: document.getElementById('controllerSyncButton'),
              saveButton: document.getElementById('controllerSaveButton'),
              // Realtime 0
@@ -184,7 +184,7 @@
              calibratePositionButton: document.getElementById('ctrlCalibratePositionButton'),
           };
 		 //Selectors for Info Tab
- const infoElements = {
+ 		const infoElements = {
             syncButton: document.getElementById('infoSyncButton'),
             saveButton: document.getElementById('infoSaveButton'), // Added Save Button
             // Controller Info
@@ -219,6 +219,14 @@
             batterySnValue: document.getElementById('infoBatterySnValue'),
             batteryPlaceholder: document.getElementById('infoBatteryPlaceholder'),
         };
+
+		const fwUpdateElements = {
+			fileInput: document.getElementById('fwUpdateFileInput'),
+			startButton: document.getElementById('fwUpdateStartButton'),
+			progressValue: document.getElementById('fwUpdateProgressValue'),
+			logArea: document.getElementById('fwUpdatelog'),
+			clearButton: document.getElementById('clearFwUpdateLogButton'),
+		}
 
         // --- Global state for CAN connection ---
         let isCanDeviceFound = false;
@@ -2425,6 +2433,9 @@
             else if (message.startsWith('INFO:')) { addLog('INFO', message.substring('INFO:'.length).trim()); }
             else if (message.startsWith('ACK:')) { addLog('ACK', message.substring('ACK:'.length).trim()); }
             else if (message.startsWith('NACK:')) { addLog('NACK', message.substring('NACK:'.length).trim()); }
+			else if (message.startsWith('FW_UPDATE_LOG:')) { addFwUpdateLog(message.substring('FW_UPDATE_LOG:'.length).trim()); }
+			else if (message.startsWith('FW_UPDATE_PROGRESS:')) { updateFwUpdateProgress(message.substring('FW_UPDATE_PROGRESS:'.length).trim()); }
+			else if (message.startsWith('FW_UPDATE_END')) { fwUpdateElements.fileInput.disabled=false; fwUpdateElements.fileInput.value = ""; }
             else { addLog('INFO', message); }
         };
 
@@ -3047,6 +3058,52 @@
                 addLog('INFO', 'No device info changes detected to save.');
             }
         };
+
+		 // --- FW UPDATE SECTON ---
+
+		fwUpdateElements.fileInput.onchange = () => {
+			if (fwUpdateElements.fileInput.files && fwUpdateElements.fileInput.files.length > 0) {
+				//const file = fwUpdateElements.fileInput.files[0];
+				fwUpdateElements.startButton.disabled = false;
+			} else {
+				fwUpdateElements.startButton.disabled = true;
+			}
+		}
+
+		fwUpdateElements.startButton.onclick = () => {
+			fwUpdateElements.logArea.innerHTML = '';
+			fwUpdateElements.startButton.disabled = true;
+			fwUpdateElements.fileInput.disabled = true;
+			const file = fwUpdateElements.fileInput.files[0];
+			var reader = new FileReader();  
+			reader.onload = function(e) {
+				const base64Content = e.target.result.split(',')[1];
+                socket.send("FW_UPDATE_START:"+base64Content);
+				updateFwUpdateProgress(0)
+            }
+			reader.readAsDataURL(file);
+		}
+
+		fwUpdateElements.clearButton.onclick = () => { fwUpdateElements.logArea.innerHTML = ''; };
+
+		function updateFwUpdateProgress(progress){
+			safeSetText(fwUpdateElements.progressValue, progress);
+		}
+
+		function addFwUpdateLog(data) {
+            const entry = document.createElement('div'); entry.classList.add('log-entry');
+            const timeSpan = document.createElement('span'); timeSpan.classList.add('log-time'); timeSpan.textContent = `[${new Date().toLocaleTimeString()}]`;
+            const dataSpan = document.createElement('span'); dataSpan.classList.add('log-data');
+			dataSpan.textContent = String(data);
+
+            entry.appendChild(timeSpan);
+            entry.appendChild(dataSpan);
+
+            fwUpdateElements.logArea.appendChild(entry);
+            fwUpdateElements.logArea.scrollTop = fwUpdateElements.logArea.scrollHeight;
+        }
+
+
 		
         // --- Initial State ---
 		populateWheelSelect(); // Populate dropdown on load

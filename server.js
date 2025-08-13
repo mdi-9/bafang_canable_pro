@@ -14,6 +14,7 @@ const { CanReadCommandsList } = require('./bafang-can-read-commands');
 const { CanWriteCommandsList } = require('./bafang-can-write-commands');
 
 const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
+const FwUpdater = require('./fw-updater');
 
 // --- Globals ---
 let clients = [];
@@ -530,6 +531,17 @@ const wss = new WebSocket.Server({ server });
 		return true;
 	}
 
+	async function handleStartFwUpload(ws, messageString) {
+		if (messageString.startsWith('FW_UPDATE_START:')) {
+			const base64Content = messageString.substring('START_FW_UPLOAD:'.length);
+			const buffer = Buffer.from(base64Content, 'base64');
+			const fwUpdater = new FwUpdater(canbus,ws);
+			fwUpdater.startUpdateProcedure(buffer);
+			return true
+		}
+		return false;
+	}
+
 
 	wss.on('connection', async (ws) => {
 		clients.push(ws);
@@ -542,26 +554,26 @@ const wss = new WebSocket.Server({ server });
 			const messageString = message.toString();
 			console.log('Received from UI:', messageString);
 
-        const sendRawWriteStatus = (paramType, success, errorMsg = null) => {
-            if (success) {
-                ws.send(`ACK: Raw ${paramType} write sequence initiated.`);
-            } else {
-                ws.send(`NACK: Raw ${paramType} write failed. ${errorMsg || ''}`);
-            }
-        };
+			const sendRawWriteStatus = (paramType, success, errorMsg = null) => {
+				if (success) {
+					ws.send(`ACK: Raw ${paramType} write sequence initiated.`);
+				} else {
+					ws.send(`NACK: Raw ${paramType} write failed. ${errorMsg || ''}`);
+				}
+			};
 		
-        // Helper to send promise results back to UI
-        const sendResult = (commandName, promiseResult) => {
-            if (!promiseResult) { // Handle cases where the promise might not be returned (e.g., disconnected)
-                ws.send(`ERROR: Failed to execute ${commandName}.`);
-                return;
-            }
-            if (promiseResult.success) {
-                ws.send(`ACK: ${commandName} successful.`);
-            } else {
-                 ws.send(`NACK: ${commandName} failed. Reason: ${promiseResult.error}${promiseResult.timedOut ? ' (Timeout)' : ''}`);
-            }
-        };
+			// Helper to send promise results back to UI
+			const sendResult = (commandName, promiseResult) => {
+				if (!promiseResult) { // Handle cases where the promise might not be returned (e.g., disconnected)
+					ws.send(`ERROR: Failed to execute ${commandName}.`);
+					return;
+				}
+				if (promiseResult.success) {
+					ws.send(`ACK: ${commandName} successful.`);
+				} else {
+					ws.send(`NACK: ${commandName} failed. Reason: ${promiseResult.error}${promiseResult.timedOut ? ' (Timeout)' : ''}`);
+				}
+			};
 
 
 			try {
@@ -576,6 +588,7 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleDisplaySpecificWrites(ws, messageString, sendResult);
 				if (!handled) handled = await handleStartupAngleCommands(ws, messageString, sendResult);
 				if (!handled) handled = await handleRawCanFrame(ws, messageString);
+				if (!handled) handled = await handleStartFwUpload(ws, messageString);
 
 				if (!handled) {
 					console.warn("Unknown command received from UI (unhandled):", messageString);
