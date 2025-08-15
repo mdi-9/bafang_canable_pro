@@ -88,6 +88,7 @@ async function sendRawFrameWithRetry(id,data,retries = 3){
     }while(!sent && tryCount < retries);
 }
 
+
 // --- Firmware Update Procedure Steps ---
 /**
  * Step 1: Starts continuously announcing that the host (PC) is ready to transfer a firmware update.
@@ -111,7 +112,8 @@ async function checkForControllerReady(){
     const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
     do{
         await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
-        await delay(60);
+        //await delay(60);
+        await delay(delayMs);
         if (Date.now() - startTime > (timeout-5000) && controllerReadyIdSent == '5114000') {
             logMessage('Not responding for this method, trying the old way....', 'INFO');
             setupForOldMotor();
@@ -220,14 +222,14 @@ async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
     await sendRawFrameWithRetry("5FF3005","01");
     await delay(500);
-    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
-    for (let i = 0; i < 4; i++) {
-        await sendRawFrameWithRetry("5FF3005","00");
-        await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes);
-    }
-    for (let i = 0; i < 4; i++) {
-        await sendRawFrameWithRetry("5F83501","00");
-    }
+    // const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+    // for (let i = 0; i < 4; i++) {
+    //     await sendRawFrameWithRetry("5FF3005","00");
+    //     await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
+    // }
+    // for (let i = 0; i < 4; i++) {
+    //     await sendRawFrameWithRetry("5F83501","00");
+    // }
     await delay(5000);
 }
 
@@ -303,7 +305,7 @@ async function startUpdateProcedure() {
                 logMessage('Controler is ready to recive bin file...', 'INFO');
                 updateProcessStarted = true;
             }
-            if(idHex.includes(`22A${formatChunkNumber(NUM_CHUNKS)}`)){
+            if(idHex.includes(`22A${formatChunkNumber(NUM_CHUNKS)}`) || idHex.includes(`22A${formatChunkNumber(NUM_CHUNKS-1)}`)){
                 lastChunkConfirmed = true;
             }
             if(idHex.includes("22A6008")){
@@ -324,6 +326,8 @@ async function startUpdateProcedure() {
         }
         // Wait for cunbus to be stable
         await delay(3000);
+
+        setupForOldMotor();
         announceHostReady();
         await checkForControllerReady();
         if(controllerReady){

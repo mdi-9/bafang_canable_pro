@@ -96,7 +96,7 @@ class FwUpdater {
                 this.logMessage('Controler is ready to recive bin file...', 'INFO');
                 this.updateProcessStarted = true;
             }
-            if(idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS)}`)){
+            if(idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS)}`) || idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS-1)}`)){
                 this.lastChunkConfirmed = true;
             }
             if(idHex.includes("22A6008")){
