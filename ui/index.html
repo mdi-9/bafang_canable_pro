@@ -35,10 +35,11 @@
             <button class="tab-button" data-tab="display">Display</button>
             <button class="tab-button" data-tab="sensor">Sensor</button>
             <button class="tab-button" data-tab="battery">Battery</button>
-            <button class="tab-button" data-tab="gears">Assist</button>
-            <button class="tab-button" data-tab="gearsM820">Assist (M820)</button>
+            <button class="tab-button" data-tab="gears">Assist (Full)</button>
+            <button class="tab-button" data-tab="gearsM820">Assist (Limited)</button>
             <button class="tab-button" data-tab="info">Info</button>
             <button class="tab-button" data-tab="debug">Debug</button>
+            <button class="tab-button" data-tab="fwUpdate">Firmware update</button>
         </div>
 
         <!-- Tab Content Area -->
@@ -578,7 +579,7 @@
                     <button id="gearsSyncButtonM820">Sync Data</button>
                     <button id="gearsSaveButtonM820">Save Changes</button>
                  </div>
-
+                 <br />
 				<!-- <h3>Startup Angle</h3> -->
                  <table class="description-table">
                      <tbody>
@@ -786,6 +787,34 @@
                     </h2>
                     <div id="log" class="log"></div>
                  </div>
+            </div>
+            
+            <!-- Firmware Update Tab -->
+            <div class="tab-content" id="tab-fwUpdate">
+                <h2>Firmware update</h2>
+                <div class="general-controls">
+                    <button id="fwUpdateStartButton" disabled>Start update procedure</button>
+                </div>
+                <br />
+                <!-- Data -->
+                 <table class="description-table">
+                     <tbody>
+                        <tr>
+                            <th>Firmware bin file</th>
+                            <td>
+                                <input type="file" id="fwUpdateFileInput" accept="application/octet-stream" />
+                            </td>
+                        </tr>
+                        <tr><th>Progress</th><td><span id="fwUpdateProgressValue">N/A</span> %</td></tr>
+                     </tbody>
+                 </table>
+
+                <div class="card">
+                    <h2>Update Log
+                        <button id="clearFwUpdateLogButton" style="float: right; background-color: #6c757d;">Clear update log</button>
+                    </h2>
+                    <div id="fwUpdatelog" class="log"></div>
+                </div>
             </div>
         </div> <!-- End of main tab content card -->
 
