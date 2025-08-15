@@ -242,8 +242,8 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
+        await delay(8000); // Wait for 8 seconds before sending the end frame
         await this.sendRawFrameWithRetry("5FF3005","01");
-        await delay(delayMs);
         // this.startTime = Date.now();
         // this.logMessage('Step 8: Waiting for restart...', 'INFO');
         // do{
