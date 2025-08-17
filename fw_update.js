@@ -10,9 +10,10 @@ const delayMs = 2; // Delay between frames (adjust if needed)
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
-let controllerReady = false; // Flag to track if controler is ready for update
-let commnad5116008ack = false; // Flag to track if 5116008 ACK was received
-let updateProcessStarted = false; // Flag to track if the update process has started
+let controllerReady =       false; // Flag to track if controler is ready for update
+let commnad5116008ack =     false; // Flag to track if 5116008 ACK was received
+let updateProcessStarted =  false; // Flag to track if the update process has started
+let firstChunkACK =         false;
 let lastChunkId = null; // Will be set after the last chunk number is calculated
 let lastChunkConfirmed = false; // Flag to track if the last chunk has been confirmed
 const timeout = 10000; // 5 seconds timeout;
@@ -23,6 +24,9 @@ let controllerReadyIdSent = '5114000'; // 5114000 | 5112000
 let controllerReadyIdAck =  '22A4000'; // 22A4000 | 22A2000
 let firstPackageId =        '5104001'; // 5104001 | 5142001
 let firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
+let lastChunkSendIndex = -1;
+let chunksACKObject = {}; // Object to track ACKs for each chunk
+
 // --- Utility Functions ---
 
 function setupForOldMotor(){
@@ -168,6 +172,25 @@ async function sendFirstPackage() {
     }while(!updateProcessStarted);
 }
 
+async function sendFirstChunk() {
+    const chunkId0 = formatChunkNumber(0); // #### incrementing chunk number
+    const chunkData0 = getFirmwareChunk(0); // XXXXXXXXXXXXXXXX
+    await sendRawFrameWithRetry(`514${chunkId0}`,chunkData0);
+    await delay(delayMs);
+    const chunkId1 = formatChunkNumber(1); // #### incrementing chunk number
+    const chunkData1 = getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
+    await sendRawFrameWithRetry(`515${chunkId1}`,chunkData1);
+    startTime = Date.now();
+    logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
+    do{
+        await delay(delayMs);
+        if (Date.now() - startTime > timeout) {
+            logMessage('Timeout reached, exiting loop....', 'ERROR');
+            process.exit(1);
+        }
+    }while(!firstChunkACK);
+}
+
 
 /**
  * Step 5: Sends firmware data in 8-byte chunks. Each chunk is numbered incrementally.
@@ -178,16 +201,49 @@ async function sendFirstPackage() {
 async function sendDataChunks() {
     logMessage('Step 5: Sending data chunks...', 'INFO');
     // Loop through all chunks except the very last one
-    for (let i = 0; i < NUM_CHUNKS - 1; i++) {
+    for (let i = 2; i < NUM_CHUNKS - 1; i++) {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
         const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
         //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
+        lastChunkSendIndex = i;
         await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
-        await delay(delayMs);
+        if (i % 100 === 0) {
+            startTime = Date.now();
+            do{
+                await delay(delayMs);
+                if (Date.now() - startTime > timeout) {
+                    logMessage('Timeout reached, exiting loop....', 'ERROR');
+                    process.exit(0);
+                }
+            }while(!chunksACKObject[i]);
+        }else
+            await delay(delayMs);
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
 }
+async function sendDataChunksWithACK() {
+    logMessage('Step 5: Sending data chunks...', 'INFO');
+    // Loop through all chunks
+    for (let i = 0; i < NUM_CHUNKS; i++) {
+        const chunkId = formatChunkNumber(i); // #### incrementing chunk number
+        const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
+        //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
+        lastChunkSendIndex = i;
+        await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
+        startTime = Date.now();
+        do{
+            await delay(delayMs);
+            if (Date.now() - startTime > timeout) {
+                logMessage('Timeout reached, exiting loop....', 'ERROR');
+                process.exit(0);
+            }
+        }while(!chunksACKObject[i]);
+        process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
+    }
+    logMessage('All data chunks (except the last) sent.', 'INFO');
+}
+
 
 /**
  * Step 6: Sends the last data package to a different FrameID to signal transfer completion.
@@ -210,7 +266,7 @@ async function sendLastPackageAndEndTransfer() {
     logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
     do{
         await delay(delayMs);
-          if (Date.now() - startTime > (60000*5)) {
+          if (Date.now() - startTime > (60000)) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             break;
         }
@@ -220,8 +276,8 @@ async function sendLastPackageAndEndTransfer() {
 
 async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
+    await delay(5000);
     await sendRawFrameWithRetry("5FF3005","01");
-    await delay(500);
     // const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
     // for (let i = 0; i < 4; i++) {
     //     await sendRawFrameWithRetry("5FF3005","00");
@@ -290,8 +346,6 @@ async function startUpdateProcedure() {
 
         canbus.on('raw_frame_received', (rawFrame) => {
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
-            if(idHex.startsWith(leadingIdNum+"515"))
-                return;
             if (idHex === "INVALID") {
                 console.warn("Received invalid frame object, skipping.");
                 return;
@@ -311,6 +365,13 @@ async function startUpdateProcedure() {
             if(idHex.includes("22A6008")){
                 logMessage('ACK for 5116008 received.', 'INFO');
                 commnad5116008ack = true;
+            }
+            if(lastChunkSendIndex >= 0 && idHex.includes(`22A${formatChunkNumber(lastChunkSendIndex)}`)){
+                //logMessage(`ACK for chunk ${lastChunkSendIndex} received.`, 'INFO');
+                chunksACKObject[lastChunkSendIndex] = true; // Mark this chunk as acknowledged
+            }
+            if(idHex.includes(`22A0002`)){
+                firstChunkACK = true;
             }
         });
 
@@ -338,9 +399,17 @@ async function startUpdateProcedure() {
             await sendFirstPackage();
             await delay(delayMs);
             if(updateProcessStarted){
-                await sendDataChunks();
+                if(controllerReadyIdSent == '5114000'){
+                    await sendFirstChunk();
+                    await sendDataChunks();
+                }
+                else
+                    await sendDataChunksWithACK();
                 await delay(delayMs);
-                await sendLastPackageAndEndTransfer();
+                if(controllerReadyIdSent == '5114000')
+                    await sendLastPackageAndEndTransfer();
+                else
+                    lastChunkConfirmed = true
                 await delay(delayMs);
                 if(lastChunkConfirmed){
                     await announceFirmwareUpgradeEnd();
