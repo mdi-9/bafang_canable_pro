@@ -208,7 +208,7 @@ async function sendDataChunks() {
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
         lastChunkSendIndex = i;
         await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
-        if (i % 100 === 0) {
+        if ((i - 2) % 100 === 0 && i!==2) {
             startTime = Date.now();
             do{
                 await delay(delayMs);
