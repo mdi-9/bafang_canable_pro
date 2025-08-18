@@ -232,11 +232,11 @@ async function sendDataChunksWithACK() {
         lastChunkSendIndex = i;
         await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
         startTime = Date.now();
-        do{
+        timeoutLoop:do{
             await delay(delayMs);
             if (Date.now() - startTime > timeout) {
                 logMessage('Timeout reached, exiting loop....', 'ERROR');
-                process.exit(0);
+                break timeoutLoop;
             }
         }while(!chunksACKObject[i]);
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
@@ -278,14 +278,22 @@ async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
     await delay(5000);
     await sendRawFrameWithRetry("5FF3005","01");
-    // const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
-    // for (let i = 0; i < 4; i++) {
-    //     await sendRawFrameWithRetry("5FF3005","00");
-    //     await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
-    // }
-    // for (let i = 0; i < 4; i++) {
-    //     await sendRawFrameWithRetry("5F83501","00");
-    // }
+    await delay(5000);
+}
+
+async function announceFirmwareUpgradeEndOld() {
+    logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
+    await delay(600);
+    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+    for (let i = 0; i < 6; i++) {
+        await sendRawFrameWithRetry("5FF3005","00");
+        await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
+        await delay(50);
+    }
+    for (let i = 0; i < 4; i++) {
+        await sendRawFrameWithRetry("5F83501","00");
+        await delay(20);
+    }
     await delay(5000);
 }
 
@@ -388,7 +396,7 @@ async function startUpdateProcedure() {
         // Wait for cunbus to be stable
         await delay(3000);
 
-        setupForOldMotor();
+        //setupForOldMotor();
         announceHostReady();
         await checkForControllerReady();
         if(controllerReady){
@@ -412,7 +420,10 @@ async function startUpdateProcedure() {
                     lastChunkConfirmed = true
                 await delay(delayMs);
                 if(lastChunkConfirmed){
-                    await announceFirmwareUpgradeEnd();
+                    if(controllerReadyIdSent == '5114000')
+                        await announceFirmwareUpgradeEnd();
+                    else
+                        await announceFirmwareUpgradeEndOld();
                 }
             }
         }else{
