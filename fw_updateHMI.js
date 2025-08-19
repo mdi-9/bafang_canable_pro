@@ -21,9 +21,9 @@ let startTime = Date.now();
 let logToFile = null; // Function to log messages to a file
 let leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
 let controllerReadyIdSent = '5114000'; // 5114000 | 5112000
-let controllerReadyIdAck =  '32A4000'; // 22A4000 | 22A2000
+let controllerReadyIdAck =  '32A4000'; // 32A4000 | 32A2000
 let firstPackageId =        '5104001'; // 5104001 | 5142001
-let firstPackageIdAck =     '32A4001'; // 22A4001 | 22A2001
+let firstPackageIdAck =     '32A4001'; // 32A4001 | 32A2001
 let lastChunkSendIndex = -1;
 let chunksACKObject = {}; // Object to track ACKs for each chunk
 
@@ -105,7 +105,7 @@ async function announceHostReady() {
  */
 async function checkForControllerReady(){
     logMessage('Step 2:Waiting for controler ready state...', 'INFO');
-    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'02',firmwareBuffer[3].toString(16).padStart(2, '0')]
+    const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'03',firmwareBuffer[3].toString(16).padStart(2, '0')]
     do{
         await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
         await delay(60);
@@ -157,15 +157,6 @@ async function sendFirstPackage() {
             
         }
     }while(!updateProcessStarted);
-}
-
-async function reSendSecificChunk(hexId){
-    let i = parseInt('0x'+hexId)
-    lastChunkSendIndex = i;
-    const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-    logMessage(`ID:515${hexId}#${chunkData} `, 'RESENT');
-    await sendRawFrameWithRetry(`515${hexId}`,chunkData);
-  
 }
 
 async function sendFirstChunk() {
@@ -245,7 +236,7 @@ async function sendLastPackageAndEndTransfer() {
             break;
         }
         if(!lastChunkConfirmed)
-             sendRawFrameWithRetry(`516${lastChunkId}`,lastPackageContent);
+             sendRawFrameWithRetry(`51E${lastChunkId}`,lastPackageContent);
     }while(!lastChunkConfirmed);
     
 }
@@ -327,19 +318,16 @@ async function startUpdateProcedure() {
                 logMessage('Controler is ready to recive bin file...', 'INFO');
                 updateProcessStarted = true;
             }
-            if(idHex.includes(`32A${formatChunkNumber(NUM_CHUNKS)}`) || idHex.includes(`22A${formatChunkNumber(NUM_CHUNKS-1)}`)){
+            if(idHex.includes(`32A${formatChunkNumber(NUM_CHUNKS)}`) || idHex.includes(`32A${formatChunkNumber(NUM_CHUNKS-1)}`)){
                 lastChunkConfirmed = true;
             }
             if(idHex.includes("32A6008")){
                 logMessage('ACK for 5116008 received.', 'INFO');
                 commnad5116008ack = true;
             }
-            if(lastChunkSendIndex >= 0 && idHex.includes(`22A${formatChunkNumber(lastChunkSendIndex)}`)){
+            if(lastChunkSendIndex >= 0 && idHex.includes(`32A${formatChunkNumber(lastChunkSendIndex)}`)){
                 //logMessage(`ACK for chunk ${lastChunkSendIndex} received.`, 'INFO');
                 chunksACKObject[lastChunkSendIndex] = true; // Mark this chunk as acknowledged
-            }
-            if(idHex.startsWith(`${leadingIdNum}32B`)){
-                //reSendSecificChunk(idHex.substring(4))
             }
             if(idHex.includes(`32A0002`)){
                 firstChunkACK = true;
