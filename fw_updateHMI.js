@@ -5,13 +5,13 @@ const { setupLogger, formatRawCanFrameData } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
-const delayMs = 1; // Delay between frames (adjust if needed)
+const delayMs = 2; // Delay between frames (adjust if needed)
 // --- Global Variables ---
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
 let NUM_CHUNKS = 0;         // Will be calculated after reading the file
 let controllerReady =       false; // Flag to track if controler is ready for update
-let commnad5116008ack =     false; // Flag to track if 5116008 ACK was received
+let commnad6008ack =     false; // Flag to track if 5116008 ACK was received
 let updateProcessStarted =  false; // Flag to track if the update process has started
 let firstChunkACK =         false;
 let lastChunkId = null; // Will be set after the last chunk number is calculated
@@ -20,9 +20,9 @@ const timeout = 10000; // 5 seconds timeout;
 let startTime = Date.now();
 let logToFile = null; // Function to log messages to a file
 let leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
-let controllerReadyIdSent = '5114000'; // 5114000 | 5112000
+let controllerReadyIdSent = '5194000'; // 5114000 | 5112000
 let controllerReadyIdAck =  '32A4000'; // 32A4000 | 32A2000
-let firstPackageId =        '5104001'; // 5104001 | 5142001
+let firstPackageId =        '5184001'; // 5104001 | 5142001
 let firstPackageIdAck =     '32A4001'; // 32A4001 | 32A2001
 let lastChunkSendIndex = -1;
 let chunksACKObject = {}; // Object to track ACKs for each chunk
@@ -108,7 +108,7 @@ async function checkForControllerReady(){
     const first3bytes = [firmwareBuffer[0].toString(16).padStart(2, '0'),firmwareBuffer[1].toString(16).padStart(2, '0'),'03',firmwareBuffer[3].toString(16).padStart(2, '0')]
     do{
         await sendRawFrameWithRetry(controllerReadyIdSent,first3bytes.join(''));
-        await delay(60);
+        await delay(30);  // ---------------------------------------  was 60 but too much space between this one and 5FF3005 (for now)
         if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             break;
@@ -116,18 +116,18 @@ async function checkForControllerReady(){
     }while(!controllerReady);
 }
 
-// Optional step 2.1 unknown id 5116008
-async function send5116008Id(){
-    await sendRawFrameWithRetry("5116008","");
+// Optional step 2.1 unknown id 5196008
+async function send5196008Id(){
+    await sendRawFrameWithRetry("5196008","");
     startTime = Date.now();
-    logMessage('Step 2.1: Waiting for acknowledgment of the 5116008 package...', 'INFO');
+    logMessage('Step 2.1: Waiting for acknowledgment of the 5196008 package...', 'INFO');
     do{
         await delay(delayMs);
         if (Date.now() - startTime > timeout) {
             logMessage('Timeout reached, exiting loop....', 'ERROR');
             process.exit(1);
         }
-    }while(!commnad5116008ack);
+    }while(!commnad6008ack);
 }
 
 /**
@@ -166,7 +166,7 @@ async function sendFirstChunk() {
     await delay(delayMs);
     const chunkId1 = formatChunkNumber(1); // #### incrementing chunk number
     const chunkData1 = getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
-    await sendRawFrameWithRetry(`51D${chunkId1}`,chunkData1);
+    await sendRawFrameWithRetry(`51D${chunkId1}`,chunkData1); 
     startTime = Date.now();
     logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
     do{
@@ -204,8 +204,7 @@ async function sendDataChunks() {
                     process.exit(0);
                 }
             }while(!chunksACKObject[i]);
-        }else
-            await delay(delayMs);
+        } else await delay(delayMs);
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
 }
@@ -243,9 +242,9 @@ async function sendLastPackageAndEndTransfer() {
 
 async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
-    await delay(5000);
+    await delay(4000);
     await sendRawFrameWithRetry("5FF3005","01");
-    await delay(5000);
+    await delay(2000);
 }
 
 /**
@@ -322,8 +321,8 @@ async function startUpdateProcedure() {
                 lastChunkConfirmed = true;
             }
             if(idHex.includes("32A6008")){
-                logMessage('ACK for 5116008 received.', 'INFO');
-                commnad5116008ack = true;
+                logMessage('ACK for 5196008 received.', 'INFO');
+                commnad6008ack = true;
             }
             if(lastChunkSendIndex >= 0 && idHex.includes(`32A${formatChunkNumber(lastChunkSendIndex)}`)){
                 //logMessage(`ACK for chunk ${lastChunkSendIndex} received.`, 'INFO');
@@ -353,8 +352,8 @@ async function startUpdateProcedure() {
         if(controllerReady){
             logMessage('Starting firmware update procedure...', 'INFO');
             await delay(20);
-            if(controllerReadyIdSent == '5114000'){
-                await send5116008Id();
+            if(controllerReadyIdSent == '5194000'){
+                await send5196008Id(); 
                 await delay(20);
             }
             await sendFirstPackage();

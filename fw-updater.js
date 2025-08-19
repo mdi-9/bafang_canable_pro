@@ -22,7 +22,7 @@ class FwUpdater {
         this.lastChunkConfirmed =   false; // Flag to track if the last chunk has been confirmed
         this.firstChunkACK =        false;
         this.lastChunkId = null; // Will be set after the last chunk number is calculated
-        this.timeout = 10000; // 10 seconds timeout;
+        this.timeout = 15000; // 15 seconds timeout;
         this.startTime = Date.now();
         this.progress = 0; // procentage
         this.end = false;
@@ -54,7 +54,7 @@ class FwUpdater {
         try {
             const timestamp = new Date().toLocaleTimeString();
             console.log(`[${timestamp}] [${type}] ${message}`);
-            this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
+            //this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
             if(sendOverWS){
                 this.ws.send(`FW_UPDATE_LOG:[${type}] ${message}`);
             }
@@ -80,26 +80,21 @@ class FwUpdater {
             if(this.end)
                 return;
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
-            if(idHex.startsWith(this.leadingIdNum+"515"))
-                return;
             if (idHex === "INVALID") {
                 console.warn("Received invalid frame object, skipping.");
                 return;
             }
-            this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
+            //this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
             if(idHex.includes(this.controllerReadyIdAck)){
-                this.logMessage('Controler is ready for update...', 'INFO');
                 this.controllerReady = true;
             }
             if(idHex.includes(this.firstPackageIdAck)){
-                this.logMessage('Controler is ready to recive bin file...', 'INFO');
                 this.updateProcessStarted = true;
             }
             if(idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS)}`) || idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS-1)}`)){
                 this.lastChunkConfirmed = true;
             }
             if(idHex.includes("22A6008")){
-                this.logMessage('ACK for 5116008 received.', 'INFO');
                 this.commnad5116008ack = true;
             }
             if(this.lastChunkSendIndex >= 0 && idHex.includes(`22A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
@@ -113,7 +108,7 @@ class FwUpdater {
     async sendRawFrameWithRetry(id,data,retries = 3){
         let sent = false;
         let tryCount = 0;
-        //logMessage(`Sending ID:${leadingIdNum+id}`, 'SENT');
+        //this.logMessage(`Sending ID:${this.leadingIdNum+id}`, 'SENT');
         do{
             sent = await this.canbus.sendRawFrame(this.leadingIdNum+id,data);
             if (!sent) {
@@ -204,7 +199,7 @@ class FwUpdater {
         const chunkId0 = this.formatChunkNumber(0); // #### incrementing chunk number
         const chunkData0 = this.getFirmwareChunk(0); // XXXXXXXXXXXXXXXX
         await this.sendRawFrameWithRetry(`514${chunkId0}`,chunkData0);
-        await delay(delayMs);
+        await delay(20);
         const chunkId1 = this.formatChunkNumber(1); // #### incrementing chunk number
         const chunkData1 = this.getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
         await this.sendRawFrameWithRetry(`515${chunkId1}`,chunkData1);
@@ -234,8 +229,7 @@ class FwUpdater {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.chunksACKObject[i]);
-            }else
-                await delay(delayMs);
+            }else await delay(0.1);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -282,9 +276,9 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(5000);
+        await delay(4000);
         await this.sendRawFrameWithRetry("5FF3005","01");
-        await delay(5000);
+        await delay(2000);
     }
     async announceFirmwareUpgradeEndOld() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
@@ -299,12 +293,12 @@ class FwUpdater {
             await this.sendRawFrameWithRetry("5F83501","00");
             await delay(20);
         }
-        await delay(4000);
+        await delay(2000);
     }
 
     async startUpdateProcedure(fileBuffer) {
         try {
-            this.logToFile = await setupLogger();
+            //this.logToFile = await setupLogger();
             this.init();
             this.initFile(fileBuffer);
             this.emitProgress()
@@ -316,6 +310,7 @@ class FwUpdater {
                 await delay(20);
             }
             await this.sendFirstPackage();
+            await delay(20);
             if(this.controllerReadyIdSent == '5114000'){
                 await this.sendFirstChunk();
                 await delay(20);
@@ -326,7 +321,6 @@ class FwUpdater {
             await delay(100);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
-            await this.announceFirmwareUpgradeEnd();
             if(this.controllerReadyIdSent == '5114000')
                 await this.announceFirmwareUpgradeEnd();
             else

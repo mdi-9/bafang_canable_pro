@@ -211,7 +211,7 @@ async function sendDataChunks() {
     for (let i = 2; i < NUM_CHUNKS - 1; i++) {
         const chunkId = formatChunkNumber(i); // #### incrementing chunk number
         const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-        logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
+        //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
         lastChunkSendIndex = i;
         await sendRawFrameWithRetry(`515${chunkId}`,chunkData);
@@ -224,8 +224,7 @@ async function sendDataChunks() {
                     process.exit(0);
                 }
             }while(!chunksACKObject[i]);
-        }else
-            await delay(delayMs);
+        }
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
 }
@@ -285,9 +284,9 @@ async function sendLastPackageAndEndTransfer() {
 
 async function announceFirmwareUpgradeEnd() {
     logMessage('Step 7: Announcing firmware upgrade end...', 'INFO');
-    await delay(5000);
+    await delay(4000);
     await sendRawFrameWithRetry("5FF3005","01");
-    await delay(5000);
+    await delay(2000);
 }
 
 async function announceFirmwareUpgradeEndOld() {
@@ -304,7 +303,7 @@ async function announceFirmwareUpgradeEndOld() {
         await sendRawFrameWithRetry("5F83501","00");
         await delay(20);
     }
-    await delay(4000);
+    await delay(2000);
 }
 
 /**
