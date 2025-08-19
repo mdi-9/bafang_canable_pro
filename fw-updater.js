@@ -20,12 +20,14 @@ class FwUpdater {
         this.commnad5116008ack =    false; // Flag to track if 5116008 ACK was received
         this.updateProcessStarted = false; // Flag to track if the update process has started
         this.lastChunkConfirmed =   false; // Flag to track if the last chunk has been confirmed
-        this.restartConfirmed =     false;
+        this.firstChunkACK =        false;
         this.lastChunkId = null; // Will be set after the last chunk number is calculated
         this.timeout = 10000; // 10 seconds timeout;
         this.startTime = Date.now();
         this.progress = 0; // procentage
         this.end = false;
+        this.lastChunkSendIndex = -1;
+        this.chunksACKObject = {}; // Object to track ACKs for each chunk
         this.setupForNewMotor()
     }
     setupForNewMotor(){
@@ -36,14 +38,13 @@ class FwUpdater {
         this.firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
     }
     setupForOldMotor(){
-        this.leadingIdNum = "0";
         this.controllerReadyIdSent = '5112000';
         this.controllerReadyIdAck =  '22A2000';
         this.firstPackageId =        '5142001';
         this.firstPackageIdAck =     '22A2001';
     }
     overallProgress(){
-        let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed-3;
+        let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
         if(progress < 0)
             return 0;
         else 
@@ -67,14 +68,12 @@ class FwUpdater {
         const dataLength = Math.max(0, this.FIRMWARE_FILE_SIZE - HEADER_SIZE);
         const maxValue = (2 ** (3 * 8)) - 1; 
         if (dataLength < 0 || dataLength > maxValue) { 
-            this.logMessage(`File is to big ...`, 'ERROR');
-            return false
+            throw `File is to big ...`;
         } 
         this.NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
         this.logMessage(`Firmware file loaded. Size: ${this.FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${this.NUM_CHUNKS}`, 'INFO');
         const fileHeaderData = Array.from(this.firmwareBuffer.slice(0, 15)).map(byte =>byte.toString(16).padStart(2, '0').toUpperCase()).join(' ');
         this.logMessage(`File header data: ${fileHeaderData}`, 'INFO');
-        return true
     }
     setupCunbus(){
         this.canbus.on('raw_frame_received', (rawFrame) => {
@@ -103,9 +102,11 @@ class FwUpdater {
                 this.logMessage('ACK for 5116008 received.', 'INFO');
                 this.commnad5116008ack = true;
             }
-            if(idHex.includes("2FF1200")){
-                this.logMessage('ACK for restart received.', 'INFO');
-                this.restartConfirmed = true;
+            if(this.lastChunkSendIndex >= 0 && idHex.includes(`22A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
+                this.chunksACKObject[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
+            }
+            if(idHex.includes(`22A0002`)){
+                this.firstChunkACK = true;
             }
         });
     }
@@ -142,17 +143,16 @@ class FwUpdater {
     }
     async checkForControllerReady(){
         this.logMessage('Step 2:Waiting for controler ready state...', 'INFO');
-        const first3bytes = [this.firmwareBuffer[0].toString(16).padStart(2, '0'),this.firmwareBuffer[1].toString(16).padStart(2, '0'),'02',this.firmwareBuffer[3].toString(16).padStart(2, '0')]
+        this.first3bytes = [this.firmwareBuffer[0].toString(16).padStart(2, '0'),this.firmwareBuffer[1].toString(16).padStart(2, '0'),'02',this.firmwareBuffer[3].toString(16).padStart(2, '0')]
         do{
-            await this.sendRawFrameWithRetry(this.controllerReadyIdSent,first3bytes.join(''));
+            await this.sendRawFrameWithRetry(this.controllerReadyIdSent,this.first3bytes.join(''));
             await delay(60);
             if (Date.now() - this.startTime > (this.timeout-5000) && this.controllerReadyIdSent == '5114000') {
                 this.logMessage('Not responding for this method, trying the old way....', 'INFO');
                 this.setupForOldMotor();
             }
             if (Date.now() - this.startTime > this.timeout) {
-                this.logMessage('Timeout reached, exiting loop....', 'ERROR');
-                break;
+                throw 'Step 2: Timeout reached, exiting loop....'
             }
         }while(!this.controllerReady);
     }
@@ -163,11 +163,9 @@ class FwUpdater {
         do{
             await delay(delayMs);
             if (Date.now() - this.startTime > this.timeout) {
-                this.logMessage('Timeout reached, exiting loop....', 'ERROR');
-                return false
+                throw 'Step 2.1: Timeout reached, exiting loop....'
             }
         }while(!this.commnad5116008ack);
-        return true
     }
     async sendFirstPackage() {
         this.logMessage('Step 3: Sending first package (file length)...', 'INFO');
@@ -186,9 +184,7 @@ class FwUpdater {
         do{
             await delay(delayMs);
             if (Date.now() - this.startTime > this.timeout) {
-                this.logMessage('Timeout reached, exiting loop....', 'ERROR');
-                break;
-                
+                throw 'Step 4: Timeout reached, exiting loop....'
             }
         }while(!this.updateProcessStarted);
     }
@@ -204,16 +200,62 @@ class FwUpdater {
         ).join('');
         return chunkData;
     }
+    async sendFirstChunk() {
+        const chunkId0 = this.formatChunkNumber(0); // #### incrementing chunk number
+        const chunkData0 = this.getFirmwareChunk(0); // XXXXXXXXXXXXXXXX
+        await this.sendRawFrameWithRetry(`514${chunkId0}`,chunkData0);
+        await delay(delayMs);
+        const chunkId1 = this.formatChunkNumber(1); // #### incrementing chunk number
+        const chunkData1 = this.getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
+        await this.sendRawFrameWithRetry(`515${chunkId1}`,chunkData1);
+        this.startTime = Date.now();
+        this.logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
+        do{
+            await delay(delayMs);
+            if (Date.now() - this.startTime > this.timeout) {
+                throw 'Step 4.1: Timeout reached, exiting loop....';
+            }
+        }while(!this.firstChunkACK);
+    }
     async sendDataChunks() {
         this.logMessage('Step 5: Sending data chunks...', 'INFO');
         // Loop through all chunks except the very last one
+        for (let i = 2; i < this.NUM_CHUNKS - 1; i++) {
+            const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
+            const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
+            this.lastChunkSendIndex = i;
+            await this.sendRawFrameWithRetry(`515${chunkId}`,chunkData);
+            this.progress = Math.round((i/this.NUM_CHUNKS)*100);
+            if ((i - 2) % 256 === 0 && i!==2) {
+                this.startTime = Date.now();
+                do{
+                    await delay(delayMs);
+                    if (Date.now() - this.startTime > this.timeout) {
+                        throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
+                    }
+                }while(!this.chunksACKObject[i]);
+            }else
+                await delay(delayMs);
+        }
+        this.logMessage('All data chunks (except the last) sent.', 'INFO');
+    }
+    async sendDataChunksWithACK() {
+        this.logMessage('Step 5: Sending data chunks...', 'INFO');
+        // Loop through all chunks
         for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
-            const chunkData = this.getFirmwareChunk(i);
-            //this.logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT',false);
+            const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
+            //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
+            this.lastChunkSendIndex = i;
             await this.sendRawFrameWithRetry(`515${chunkId}`,chunkData);
-            await delay(delayMs);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
+            this.startTime = Date.now();
+            do{
+                await delay(delayMs);
+                if (Date.now() - this.startTime > this.timeout) {
+                    throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
+                }
+            }while(!this.chunksACKObject[i]);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -225,7 +267,6 @@ class FwUpdater {
         // Get the actual content of the last package
         const lastPackageContent = this.getFirmwareChunk(this.NUM_CHUNKS - 1);
         await delay(delayMs);
-        this.logMessage(`ID:516${this.lastChunkId}#${lastPackageContent}`, 'SENT');
         await this.sendRawFrameWithRetry(`516${this.lastChunkId}`,lastPackageContent);
         await delay(delayMs);
         //Reset timeout and wait for response
@@ -234,68 +275,68 @@ class FwUpdater {
         do{
             await delay(delayMs);
             if (Date.now() - this.startTime > (60000)) {
-                this.logMessage('Timeout reached, exiting loop....', 'ERROR');
-                break;
+                throw 'Step 7: Timeout reached, exiting loop....';
             }
         }while(!this.lastChunkConfirmed);
         
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(8000); // Wait for 8 seconds before sending the end frame
+        await delay(5000);
         await this.sendRawFrameWithRetry("5FF3005","01");
-        // this.startTime = Date.now();
-        // this.logMessage('Step 8: Waiting for restart...', 'INFO');
-        // do{
-        //     await delay(delayMs);
-        //     if (Date.now() - this.startTime > this.timeout) {
-        //         this.logMessage('Timeout reached for restart, manual may be required....', 'WARN');
-        //         break;
-        //     }
-        // }while(!this.restartConfirmed);
-        // await this.sendRawFrameWithRetry("5F83501","00");
-        await delay(100);
+        await delay(5000);
+    }
+    async announceFirmwareUpgradeEndOld() {
+        this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
+        await delay(4000);
+        for (let i = 0; i < 6; i++) {
+            await this.sendRawFrameWithRetry("5FF3005","00");
+            await this.sendRawFrameWithRetry(this.controllerReadyIdSent,this.first3bytes.join(''));
+            await delay(50);
+        }
+        await delay(4000);
+        for (let i = 0; i < 4; i++) {
+            await this.sendRawFrameWithRetry("5F83501","00");
+            await delay(20);
+        }
+        await delay(4000);
     }
 
     async startUpdateProcedure(fileBuffer) {
         try {
             this.logToFile = await setupLogger();
             this.init();
-            let fileReady = this.initFile(fileBuffer);
-            if(!fileReady)
-                throw "File not ready";
+            this.initFile(fileBuffer);
             this.emitProgress()
             this.announceHostReady();
             await this.checkForControllerReady();
-            if(!this.controllerReady)
-                throw "Controler do not respond to update commands.";
-            await delay(delayMs);
+            await delay(20);
             if(this.controllerReadyIdSent == '5114000'){
                 await this.send5116008Id();
-                if(!this.commnad5116008ack)
-                    throw "No ACK for 5116008";
+                await delay(20);
             }
-            await delay(delayMs);
             await this.sendFirstPackage();
-            await delay(delayMs);
-            if(!this.updateProcessStarted)
-                throw "No ACK for first package";
-            await this.sendDataChunks();
-            await delay(delayMs);
+            if(this.controllerReadyIdSent == '5114000'){
+                await this.sendFirstChunk();
+                await delay(20);
+                await this.sendDataChunks();
+            }
+            else
+                await this.sendDataChunksWithACK();
+            await delay(100);
             await this.sendLastPackageAndEndTransfer();
-            await delay(delayMs);
-            if(!this.lastChunkConfirmed)
-                throw "No ACK for last package";
+            await delay(20);
             await this.announceFirmwareUpgradeEnd();
-            if(this.lastChunkConfirmed)
-                this.logMessage('Firmware update completed successfully!', 'INFO');
-            
-            this.end = true
+            if(this.controllerReadyIdSent == '5114000')
+                await this.announceFirmwareUpgradeEnd();
+            else
+                await this.announceFirmwareUpgradeEndOld();
+            this.logMessage('Firmware update completed successfully!', 'INFO');
         } catch (error) {
             this.logMessage(error, 'ERROR');
-            this.end = true
             this.logMessage('Firmware update failed or was not completed.', 'ERROR');
         } finally {
+            this.end = true
             this.ws.send(`FW_UPDATE_END`);
         }
     }
