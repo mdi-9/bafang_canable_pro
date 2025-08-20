@@ -6,7 +6,7 @@ const delayMs = 1; // Delay between frames (adjust if needed)
 
 class FwUpdater {
 
-    constructor(canbus, ws){
+    constructor(canbus, ws=null){
         this.canbus = canbus;
         this.ws = ws;
         this.init()
@@ -54,8 +54,8 @@ class FwUpdater {
         try {
             const timestamp = new Date().toLocaleTimeString();
             console.log(`[${timestamp}] [${type}] ${message}`);
-            //this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
-            if(sendOverWS){
+            this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
+            if(sendOverWS && this.ws){
                 this.ws.send(`FW_UPDATE_LOG:[${type}] ${message}`);
             }
         }catch( e ) {
@@ -84,7 +84,7 @@ class FwUpdater {
                 console.warn("Received invalid frame object, skipping.");
                 return;
             }
-            //this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
+            this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
             if(idHex.includes(this.controllerReadyIdAck)){
                 this.controllerReady = true;
             }
@@ -122,7 +122,10 @@ class FwUpdater {
         do{
             try {
                 await delay(1000);
-                this.ws.send(`FW_UPDATE_PROGRESS:${this.overallProgress()}`);
+                if(this.ws)
+                    this.ws.send(`FW_UPDATE_PROGRESS:${this.overallProgress()}`);
+                else
+                    console.log(this.overallProgress())
             }
             catch( e ) {
                 //this.logMessage(e, 'ERROR',false);
@@ -199,7 +202,7 @@ class FwUpdater {
         const chunkId0 = this.formatChunkNumber(0); // #### incrementing chunk number
         const chunkData0 = this.getFirmwareChunk(0); // XXXXXXXXXXXXXXXX
         await this.sendRawFrameWithRetry(`514${chunkId0}`,chunkData0);
-        await delay(20);
+        await delay(delayMs);
         const chunkId1 = this.formatChunkNumber(1); // #### incrementing chunk number
         const chunkData1 = this.getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
         await this.sendRawFrameWithRetry(`515${chunkId1}`,chunkData1);
@@ -229,7 +232,7 @@ class FwUpdater {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.chunksACKObject[i]);
-            }else await delay(0.1);
+            }//else await delay(0.1);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -298,7 +301,7 @@ class FwUpdater {
 
     async startUpdateProcedure(fileBuffer) {
         try {
-            //this.logToFile = await setupLogger();
+            this.logToFile = await setupLogger();
             this.init();
             this.initFile(fileBuffer);
             this.emitProgress()
@@ -331,7 +334,8 @@ class FwUpdater {
             this.logMessage('Firmware update failed or was not completed.', 'ERROR');
         } finally {
             this.end = true
-            this.ws.send(`FW_UPDATE_END`);
+            if(this.ws)
+                this.ws.send(`FW_UPDATE_END`);
         }
     }
 
