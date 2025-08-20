@@ -60,6 +60,14 @@ function getFirmwareChunk(chunkNum) {
     return chunkData;
 }
 
+async function reSendSecificChunk(hexId){
+    let i = parseInt('0x'+hexId)
+    lastChunkSendIndex = i;
+    const chunkData = getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
+    logMessage(`ID:51D${hexId}#${chunkData} `, 'RESENT');
+    await sendRawFrameWithRetry(`51D${hexId}`,chunkData);
+}
+
 function logMessage(message, type = 'INFO') {
     const timestamp = new Date().toLocaleTimeString();
     console.log(`[${timestamp}] [${type}] ${message}`);
@@ -195,7 +203,7 @@ async function sendDataChunks() {
         process.stdout.write(`\rUploading firmware... ${((i/NUM_CHUNKS)*100).toFixed(1)}%`);
         lastChunkSendIndex = i;
         await sendRawFrameWithRetry(`51D${chunkId}`,chunkData);
-        if ((i - 2) % 256 === 0 && i!==2) {
+        if ((i - 2) % 4096 === 0 && i!==2) {
             startTime = Date.now();
             do{
                 await delay(delayMs);
@@ -204,7 +212,7 @@ async function sendDataChunks() {
                     process.exit(0);
                 }
             }while(!chunksACKObject[i]);
-        } else await delay(delayMs);
+        }
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
 }
@@ -224,7 +232,6 @@ async function sendLastPackageAndEndTransfer() {
 
     logMessage(`ID:51E${lastChunkId}#${lastPackageContent}`, 'SENT');
     await sendRawFrameWithRetry(`51E${lastChunkId}`,lastPackageContent);
-    await delay(delayMs);
     //Reset timeout and wait for response
     startTime = Date.now();
     logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
@@ -331,6 +338,9 @@ async function startUpdateProcedure() {
             if(idHex.includes(`32A0002`)){
                 firstChunkACK = true;
             }
+            if(idHex.startsWith(`${leadingIdNum}32B`)){
+                //reSendSecificChunk(idHex.substring(4))
+            }
         });
 
         // Attempt to initialize the CAN connection
@@ -360,9 +370,9 @@ async function startUpdateProcedure() {
             await delay(20);
             if(updateProcessStarted){
                 await sendFirstChunk();
-                await delay(20);
+                await delay(delayMs);
                 await sendDataChunks();
-                await delay(100);
+                await delay(delayMs);
                 await sendLastPackageAndEndTransfer();
                 await delay(20);
                 if(lastChunkConfirmed){
