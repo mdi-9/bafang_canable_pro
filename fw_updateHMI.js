@@ -5,7 +5,7 @@ const { setupLogger, formatRawCanFrameData } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
-const delayMs = 2; // Delay between frames (adjust if needed)
+const delayMs = 1; // Delay between frames (adjust if needed)
 // --- Global Variables ---
 let firmwareBuffer = null; // Buffer to hold the firmware file content
 let FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
@@ -212,7 +212,7 @@ async function sendDataChunks() {
                     process.exit(0);
                 }
             }while(!chunksACKObject[i]);
-        }
+        } else await delay(delayMs);
     }
     logMessage('All data chunks (except the last) sent.', 'INFO');
 }

@@ -2,10 +2,11 @@
   "name": "openbafang-cannable",
   "version": "1.0.0",
   "description": "CAN bus interface for Bafang motor controllers",
-  "main": "server.js",
-  "bin": "server.js",
+  "main": "can-listener.js",
+  "bin": "can-listener.js",
   "dependencies": {
     "candlelightjs": "github:ieb/candleLightJS",
+    "nanotimer": "^0.3.15",
     "usb": "^2.16.0",
     "ws": "^8.18.1"
   },
@@ -14,22 +15,24 @@
     "eslint": "^9.32.0",
     "globals": "^16.3.0"
   },
-   "pkg": {
+  "pkg": {
     "scripts": "**/*.js",
-    "assets": [ 
+    "assets": [
       "ui/**/*",
       "node_modules/usb/*",
       "node_modules/usb/**/*"
     ],
-    "targets": [ "node18-win-x64", "node18-win-arm64", "node18-linux-x64", "node18-linux-arm64", "node18-macos-x64" ],
+    "targets": [
+      "node18-win-x64"
+    ],
     "outputPath": "dist"
   },
-    "scripts": {
-      "build": "pkg . --no-bytecode --public-packages \"*\" --public --compress Brotli", 
-      "dev": "node server.js",
-      "sniff": "node can-listener.js"
+  "scripts": {
+    "build": "pkg . --no-bytecode --public-packages \"*\" --public --compress Brotli",
+    "dev": "node server.js",
+    "sniff": "node can-listener.js"
   },
-  "comments":{
+  "comments": {
     "build": "Builds the application using yao-pkg"
   }
 }
