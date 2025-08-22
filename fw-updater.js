@@ -17,7 +17,7 @@ class FwUpdater {
         this.FIRMWARE_FILE_SIZE = 0; // Will be set after reading the file
         this.NUM_CHUNKS = 0;         // Will be calculated after reading the file
         this.controllerReady =      false; // Flag to track if controler is ready for update
-        this.commnad5116008ack =    false; // Flag to track if 5116008 ACK was received
+        this.commnad6008ack =    false; // Flag to track if 6008 ACK was received
         this.updateProcessStarted = false; // Flag to track if the update process has started
         this.lastChunkConfirmed =   false; // Flag to track if the last chunk has been confirmed
         this.firstChunkACK =        false;
@@ -27,21 +27,39 @@ class FwUpdater {
         this.progress = 0; // procentage
         this.end = false;
         this.lastChunkSendIndex = -1;
+        this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each chunk
-        this.setupForNewMotor()
+        this.deviceId = '2'; //Controler
+        this.everyIndexAck = 256;
+        this.chunk0Prefix = '4';
+        this.chunkNPrefix = '5';
+        this.chunkEndPrefix = '6';
+        this.setupForNewMotor();
     }
     setupForNewMotor(){
-        this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
-        this.controllerReadyIdSent = '5114000'; // 5114000 | 5112000
-        this.controllerReadyIdAck =  '22A4000'; // 22A4000 | 22A2000
-        this.firstPackageId =        '5104001'; // 5104001 | 5142001
-        this.firstPackageIdAck =     '22A4001'; // 22A4001 | 22A2001
+        this.readyIdSent =       '5114000'; 
+        this.readyIdAck =        '22A4000'; 
+        this.firstPackageId =    '5104001'; 
+        this.firstPackageIdAck = '22A4001';
+        this.id6008 =            '5116008';
     }
     setupForOldMotor(){
-        this.controllerReadyIdSent = '5112000';
-        this.controllerReadyIdAck =  '22A2000';
-        this.firstPackageId =        '5142001';
-        this.firstPackageIdAck =     '22A2001';
+        this.readyIdSent =       '5112000';
+        this.readyIdAck =        '22A2000';
+        this.firstPackageId =    '5142001';
+        this.firstPackageIdAck = '22A2001';
+    }
+    setupForHMI(){
+        this.deviceId = '3'; //HMI
+        this.everyIndexAck = 4096;
+        this.chunk0Prefix = 'C';
+        this.chunkNPrefix = 'D';
+        this.chunkEndPrefix = 'E';
+        this.readyIdSent =       '5194000'; 
+        this.readyIdAck =        '32A4000'; 
+        this.firstPackageId =    '5184001'; 
+        this.firstPackageIdAck = '32A4001';
+        this.id6008 =            '5196008';
     }
     overallProgress(){
         let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
@@ -85,22 +103,22 @@ class FwUpdater {
                 return;
             }
             this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
-            if(idHex.includes(this.controllerReadyIdAck)){
+            if(idHex.includes(this.readyIdAck)){
                 this.controllerReady = true;
             }
             if(idHex.includes(this.firstPackageIdAck)){
                 this.updateProcessStarted = true;
             }
-            if(idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS)}`) || idHex.includes(`22A${this.formatChunkNumber(this.NUM_CHUNKS-1)}`)){
+            if(idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.NUM_CHUNKS)}`) || idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.NUM_CHUNKS-1)}`)){
                 this.lastChunkConfirmed = true;
             }
-            if(idHex.includes("22A6008")){
-                this.commnad5116008ack = true;
+            if(idHex.includes(`${this.deviceId}2A6008`)){
+                this.commnad6008ack = true;
             }
-            if(this.lastChunkSendIndex >= 0 && idHex.includes(`22A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
+            if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
                 this.chunksACKObject[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
             }
-            if(idHex.includes(`22A0002`)){
+            if(idHex.includes(`${this.deviceId}2A0002`)){
                 this.firstChunkACK = true;
             }
         });
@@ -143,9 +161,9 @@ class FwUpdater {
         this.logMessage('Step 2:Waiting for controler ready state...', 'INFO');
         this.first3bytes = [this.firmwareBuffer[0].toString(16).padStart(2, '0'),this.firmwareBuffer[1].toString(16).padStart(2, '0'),'02',this.firmwareBuffer[3].toString(16).padStart(2, '0')]
         do{
-            await this.sendRawFrameWithRetry(this.controllerReadyIdSent,this.first3bytes.join(''));
+            await this.sendRawFrameWithRetry(this.readyIdSent,this.first3bytes.join(''));
             await delay(60);
-            if (Date.now() - this.startTime > (this.timeout-5000) && this.controllerReadyIdSent == '5114000') {
+            if (Date.now() - this.startTime > (this.timeout-5000) && this.readyIdSent == '5114000') {
                 this.logMessage('Not responding for this method, trying the old way....', 'INFO');
                 this.setupForOldMotor();
             }
@@ -154,29 +172,23 @@ class FwUpdater {
             }
         }while(!this.controllerReady);
     }
-    async send5116008Id(){
-        await this.sendRawFrameWithRetry("5116008","");
+    async send6008Id(){
+        await this.sendRawFrameWithRetry(this.id6008,"");
         this.startTime = Date.now();
-        this.logMessage('Step 2.1: Waiting for acknowledgment of the 5116008 package...', 'INFO');
+        this.logMessage('Step 2.1: Waiting for acknowledgment of the 6008 package...', 'INFO');
         do{
             await delay(delayMs);
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 2.1: Timeout reached, exiting loop....'
             }
-        }while(!this.commnad5116008ack);
+        }while(!this.commnad6008ack);
     }
     async sendFirstPackage() {
         this.logMessage('Step 3: Sending first package (file length)...', 'INFO');
-
-        // The length of the file, minus the first 16 hex bytes, transformed into hex.
         const fileLengthMinus16 = this.FIRMWARE_FILE_SIZE - HEADER_SIZE;
         const hexLength = fileLengthMinus16.toString(16).padStart(6, '0').toUpperCase(); // ## ## ## format
-
-        this.logMessage(`ID:${this.firstPackageId}#${hexLength}`, 'SENT');
-
+        //this.logMessage(`ID:${this.firstPackageId}#${hexLength}`, 'SENT');
         await this.sendRawFrameWithRetry(this.firstPackageId,hexLength);
-
-        //Reset timeout and wait for response
         this.startTime = Date.now();
         this.logMessage('Step 4: Waiting for acknowledgment of the first package...', 'INFO');
         do{
@@ -201,11 +213,11 @@ class FwUpdater {
     async sendFirstChunk() {
         const chunkId0 = this.formatChunkNumber(0); // #### incrementing chunk number
         const chunkData0 = this.getFirmwareChunk(0); // XXXXXXXXXXXXXXXX
-        await this.sendRawFrameWithRetry(`514${chunkId0}`,chunkData0);
+        await this.sendRawFrameWithRetry(`51${this.chunk0Prefix}${chunkId0}`,chunkData0);
         await delay(delayMs);
         const chunkId1 = this.formatChunkNumber(1); // #### incrementing chunk number
         const chunkData1 = this.getFirmwareChunk(1); // XXXXXXXXXXXXXXXX
-        await this.sendRawFrameWithRetry(`515${chunkId1}`,chunkData1);
+        await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId1}`,chunkData1);
         this.startTime = Date.now();
         this.logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
         do{
@@ -217,14 +229,13 @@ class FwUpdater {
     }
     async sendDataChunks() {
         this.logMessage('Step 5: Sending data chunks...', 'INFO');
-        // Loop through all chunks except the very last one
         for (let i = 2; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
             this.lastChunkSendIndex = i;
-            await this.sendRawFrameWithRetry(`515${chunkId}`,chunkData);
+            await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-            if ((i - 2) % 256 === 0 && i!==2) {
+            if ((i - 2) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
                     await delay(delayMs);
@@ -238,13 +249,12 @@ class FwUpdater {
     }
     async sendDataChunksWithACK() {
         this.logMessage('Step 5: Sending data chunks...', 'INFO');
-        // Loop through all chunks
         for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
             //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
             this.lastChunkSendIndex = i;
-            await this.sendRawFrameWithRetry(`515${chunkId}`,chunkData);
+            await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             this.startTime = Date.now();
             do{
@@ -258,15 +268,9 @@ class FwUpdater {
     }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
-
-        // The last chunk number is NUM_CHUNKS - 1
         this.lastChunkId = this.formatChunkNumber(this.NUM_CHUNKS - 1);
-        // Get the actual content of the last package
         const lastPackageContent = this.getFirmwareChunk(this.NUM_CHUNKS - 1);
-        await delay(delayMs);
-        await this.sendRawFrameWithRetry(`516${this.lastChunkId}`,lastPackageContent);
-        await delay(delayMs);
-        //Reset timeout and wait for response
+        await this.sendRawFrameWithRetry(`51${this.chunkEndPrefix}${this.lastChunkId}`,lastPackageContent);
         this.startTime = Date.now();
         this.logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
         do{
@@ -288,7 +292,7 @@ class FwUpdater {
         await delay(4000);
         for (let i = 0; i < 6; i++) {
             await this.sendRawFrameWithRetry("5FF3005","00");
-            await this.sendRawFrameWithRetry(this.controllerReadyIdSent,this.first3bytes.join(''));
+            await this.sendRawFrameWithRetry(this.readyIdSent,this.first3bytes.join(''));
             await delay(50);
         }
         await delay(4000);
@@ -308,23 +312,23 @@ class FwUpdater {
             this.announceHostReady();
             await this.checkForControllerReady();
             await delay(20);
-            if(this.controllerReadyIdSent == '5114000'){
-                await this.send5116008Id();
+            if(this.readyIdSent.includes('4000')){
+                await this.send6008Id();
                 await delay(20);
             }
             await this.sendFirstPackage();
             await delay(20);
-            if(this.controllerReadyIdSent == '5114000'){
+            if(this.readyIdSent.includes('4000')){
                 await this.sendFirstChunk();
                 await delay(20);
                 await this.sendDataChunks();
             }
             else
                 await this.sendDataChunksWithACK();
-            await delay(100);
+            await delay(20);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
-            if(this.controllerReadyIdSent == '5114000')
+            if(this.readyIdSent.includes('4000'))
                 await this.announceFirmwareUpgradeEnd();
             else
                 await this.announceFirmwareUpgradeEndOld();

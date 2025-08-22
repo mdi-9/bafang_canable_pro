@@ -22,6 +22,7 @@ async function main(){
         process.exit(1); // Exit if connection failed
     }
     const fwUpdater = new FwUpdater(canbus);
+    //fwUpdater.setupForHMI()
     await fwUpdater.startUpdateProcedure(buffer);
 }
 
