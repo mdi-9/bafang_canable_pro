@@ -2,7 +2,7 @@ const { setupLogger, formatRawCanFrameData, delay } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
-const delayMs = 1; // Delay between frames (adjust if needed)
+const delayMs = 2; // Delay between frames (adjust if needed)
 
 class FwUpdater {
 
@@ -28,13 +28,14 @@ class FwUpdater {
         this.end = false;
         this.lastChunkSendIndex = -1;
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
-        this.chunksACKObject = {}; // Object to track ACKs for each chunk
+        this.chunksACKObject = {}; // Object to track ACKs for each 
+        this.chunksACKObjectplus1 = {} //
         this.deviceId = '2'; //Controler
         this.everyIndexAck = 256;
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
-        this.setupForNewMotor();
+        //this.setupForNewMotor();
     }
     setupForNewMotor(){
         this.readyIdSent =       '5114000'; 
@@ -51,7 +52,7 @@ class FwUpdater {
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
-        this.everyIndexAck = 4096;
+        this.everyIndexAck = 256;//4096;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
         this.chunkEndPrefix = 'E';
@@ -118,6 +119,9 @@ class FwUpdater {
             if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
                 this.chunksACKObject[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
             }
+            if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex+1)}`)){
+                this.chunksACKObjectplus1[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
+            }
             if(idHex.includes(`${this.deviceId}2A0002`)){
                 this.firstChunkACK = true;
             }
@@ -154,12 +158,12 @@ class FwUpdater {
         this.logMessage('Step 1: Announcing host readiness...', 'INFO');
         do{
             await this.sendRawFrameWithRetry("5FF3005","00",0);
-            await delay(delayMs);
+            await delay(60);
         }while(!this.controllerReady && !this.end);
     }
     async checkForControllerReady(){
         this.logMessage('Step 2:Waiting for controler ready state...', 'INFO');
-        this.first3bytes = [this.firmwareBuffer[0].toString(16).padStart(2, '0'),this.firmwareBuffer[1].toString(16).padStart(2, '0'),'02',this.firmwareBuffer[3].toString(16).padStart(2, '0')]
+        this.first3bytes = [this.firmwareBuffer[0].toString(16).padStart(2, '0'),this.firmwareBuffer[1].toString(16).padStart(2, '0'),this.deviceId.toString().padStart(2,'0'),this.firmwareBuffer[3].toString(16).padStart(2, '0')]
         do{
             await this.sendRawFrameWithRetry(this.readyIdSent,this.first3bytes.join(''));
             await delay(60);
@@ -177,7 +181,7 @@ class FwUpdater {
         this.startTime = Date.now();
         this.logMessage('Step 2.1: Waiting for acknowledgment of the 6008 package...', 'INFO');
         do{
-            await delay(delayMs);
+            await delay(20);
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 2.1: Timeout reached, exiting loop....'
             }
@@ -192,7 +196,7 @@ class FwUpdater {
         this.startTime = Date.now();
         this.logMessage('Step 4: Waiting for acknowledgment of the first package...', 'INFO');
         do{
-            await delay(delayMs);
+            await delay(20);
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 4: Timeout reached, exiting loop....'
             }
@@ -221,7 +225,7 @@ class FwUpdater {
         this.startTime = Date.now();
         this.logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
         do{
-            await delay(delayMs);
+            await delay(20);
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 4.1: Timeout reached, exiting loop....';
             }
@@ -235,15 +239,15 @@ class FwUpdater {
             this.lastChunkSendIndex = i;
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-            if ((i - 2) % this.everyIndexAck === 0 && i!==2) {
+            if ((i - 1) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
                     await delay(delayMs);
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
-                }while(!this.chunksACKObject[i]);
-            }//else await delay(0.1);
+                }while(!this.chunksACKObject[i] && !this.chunksACKObjectplus1[i]);
+            }//else await delay(delayMs);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -274,7 +278,7 @@ class FwUpdater {
         this.startTime = Date.now();
         this.logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
         do{
-            await delay(delayMs);
+            await delay(20);
             if (Date.now() - this.startTime > (60000)) {
                 throw 'Step 7: Timeout reached, exiting loop....';
             }
@@ -303,10 +307,14 @@ class FwUpdater {
         await delay(2000);
     }
 
-    async startUpdateProcedure(fileBuffer) {
+    async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         try {
-            this.logToFile = await setupLogger();
             this.init();
+            if(mode == "HMI")
+                this.setupForHMI()
+            else if (mode == "CONTROLER_OLD")
+                this.setupForOldMotor()
+            this.logToFile = await setupLogger();
             this.initFile(fileBuffer);
             this.emitProgress()
             this.announceHostReady();

@@ -21,9 +21,14 @@ async function main(){
         console.error("Failed to initialize CAN Bus. Exiting.");
         process.exit(1); // Exit if connection failed
     }
-    const fwUpdater = new FwUpdater(canbus);
-    //fwUpdater.setupForHMI()
-    await fwUpdater.startUpdateProcedure(buffer);
+    try {
+        const fwUpdater = new FwUpdater(canbus);
+        //fwUpdater.setupForHMI()
+        await fwUpdater.startUpdateProcedure(buffer,"HMI");
+    } catch (error) {
+        console.log(error)
+        cleanup()
+    }
 }
 
 
