@@ -32,6 +32,7 @@ class FwUpdater {
         this.chunksACKObjectplus1 = {} //
         this.deviceId = '2'; //Controler
         this.everyIndexAck = 256;
+        this.everyIndexAckStart = 2;
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
@@ -53,6 +54,7 @@ class FwUpdater {
     setupForHMI(){
         this.deviceId = '3'; //HMI
         this.everyIndexAck = 256;//4096;
+        this.everyIndexAckStart = 1;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
         this.chunkEndPrefix = 'E';
@@ -239,7 +241,7 @@ class FwUpdater {
             this.lastChunkSendIndex = i;
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-            if ((i - 1) % this.everyIndexAck === 0 && i!==2) {
+            if ((i - this.everyIndexAckStart) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
                     await delay(delayMs);
@@ -310,8 +312,11 @@ class FwUpdater {
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         try {
             this.init();
-            if(mode == "HMI")
+            if(mode == "HMI"){
                 this.setupForHMI()
+                await this.sendRawFrameWithRetry("5F83501","00");
+                await delay(40000);
+            }
             else if (mode == "CONTROLER_OLD")
                 this.setupForOldMotor()
             this.logToFile = await setupLogger();
