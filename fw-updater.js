@@ -36,7 +36,6 @@ class FwUpdater {
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
-        //this.setupForNewMotor();
     }
     setupForNewMotor(){
         this.readyIdSent =       '5114000'; 
@@ -53,7 +52,7 @@ class FwUpdater {
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
-        this.everyIndexAck = 256;//4096;
+        this.everyIndexAck = 256;
         this.everyIndexAckStart = 1;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
@@ -63,6 +62,11 @@ class FwUpdater {
         this.firstPackageId =    '5184001'; 
         this.firstPackageIdAck = '32A4001';
         this.id6008 =            '5196008';
+    }
+    setupForDPC18(){
+        this.setupForHMI();
+        this.everyIndexAck = 4096;
+        this.everyIndexAckStart = 2;
     }
     overallProgress(){
         let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
@@ -312,11 +316,14 @@ class FwUpdater {
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         try {
             this.init();
-            if(mode == "HMI"){
+            if(mode == "HMI")
                 this.setupForHMI()
-            }
+            else if(mode == "DPC18")
+                this.setupForDPC18()
             else if (mode == "CONTROLER_OLD")
                 this.setupForOldMotor()
+            else
+                this.setupForNewMotor()
             this.logToFile = await setupLogger();
             this.initFile(fileBuffer);
             this.emitProgress()
