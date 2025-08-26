@@ -83,13 +83,10 @@ async function setupLogger() {
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-//const timer = new nanoTimer();
-// function delay(ms) {
-//     if (Number.isInteger(ms))
-//         ms = ms + 'm';
-//     else 
-//         ms = ms * 1000 + 'u'; 
-//     return new Promise(resolve => timer.setTimeout(resolve, '', ms));
-// }
+const timer = new nanoTimer();
+function delayu(ms) {
+    ms = ms + 'u'; 
+    return new Promise(resolve => timer.setTimeout(resolve, '', ms));
+}
 
-module.exports = { setupLogger, formatRawCanFrameData, delay };
+module.exports = { setupLogger, formatRawCanFrameData, delay,delayu };

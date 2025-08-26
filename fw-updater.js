@@ -1,4 +1,4 @@
-const { setupLogger, formatRawCanFrameData, delay } = require('./utils');
+const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -105,7 +105,7 @@ class FwUpdater {
                 console.warn("Received invalid frame object, skipping.");
                 return;
             }
-            this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
+            //this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
             if(idHex.includes(this.readyIdAck)){
                 this.controllerReady = true;
             }
@@ -244,12 +244,12 @@ class FwUpdater {
             if ((i - this.everyIndexAckStart) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
-                    await delay(delayMs);
+                    await delayu(400);
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.chunksACKObject[i] && !this.chunksACKObjectplus1[i]);
-            }//else await delay(delayMs);
+            }await delayu(400);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -289,7 +289,7 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(4000);
+        await delay(200);
         await this.sendRawFrameWithRetry("5FF3005","01");
         await delay(2000);
     }
@@ -314,8 +314,6 @@ class FwUpdater {
             this.init();
             if(mode == "HMI"){
                 this.setupForHMI()
-                await this.sendRawFrameWithRetry("5F83501","00");
-                await delay(40000);
             }
             else if (mode == "CONTROLER_OLD")
                 this.setupForOldMotor()
@@ -333,12 +331,12 @@ class FwUpdater {
             await delay(20);
             if(this.readyIdSent.includes('4000')){
                 await this.sendFirstChunk();
-                await delay(20);
+                await delayu(400);
                 await this.sendDataChunks();
             }
             else
                 await this.sendDataChunksWithACK();
-            await delay(20);
+            await delayu(400);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
             if(this.readyIdSent.includes('4000'))
