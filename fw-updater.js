@@ -2,7 +2,8 @@ const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
-const delayMs = 2; // Delay between frames (adjust if needed)
+const delayMs = 2; // Delay between steps (milliseconds, adjust if needed)
+const delayUs = 400; // Delay between chunks (microseconds, adjust if needed)
 
 class FwUpdater {
 
@@ -248,12 +249,12 @@ class FwUpdater {
             if ((i - this.everyIndexAckStart) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
-                    await delayu(400);
+                    await delayu(delayUs);
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.chunksACKObject[i] && !this.chunksACKObjectplus1[i]);
-            }await delayu(400);
+            }await delayu(delayUs);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -268,7 +269,7 @@ class FwUpdater {
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             this.startTime = Date.now();
             do{
-                await delay(delayMs);
+                await delayu(delayUs);
                 if (Date.now() - this.startTime > this.timeout) {
                     throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                 }
@@ -338,12 +339,12 @@ class FwUpdater {
             await delay(20);
             if(this.readyIdSent.includes('4000')){
                 await this.sendFirstChunk();
-                await delayu(400);
+                await delayu(delayUs);
                 await this.sendDataChunks();
             }
             else
                 await this.sendDataChunksWithACK();
-            await delayu(400);
+            await delayu(delayUs);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
             if(this.readyIdSent.includes('4000'))
