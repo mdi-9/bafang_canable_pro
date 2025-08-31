@@ -92,10 +92,10 @@ class FwUpdater {
         this.firmwareBuffer = fileBuffer;
         this.FIRMWARE_FILE_SIZE = this.firmwareBuffer.length;
         const dataLength = Math.max(0, this.FIRMWARE_FILE_SIZE - HEADER_SIZE);
-        const maxValue = (2 ** (3 * 8)) - 1; 
-        if (dataLength < 0 || dataLength > maxValue) { 
-            throw `File is to big ...`;
-        } 
+        // const maxValue = (2 ** (3 * 8)) - 1; 
+        // if (dataLength < 0 || dataLength > maxValue) { 
+        //     throw `File is to big ...`;
+        // } 
         this.NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
         this.logMessage(`Firmware file loaded. Size: ${this.FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${this.NUM_CHUNKS}`, 'INFO');
         const fileHeaderData = Array.from(this.firmwareBuffer.slice(0, 15)).map(byte =>byte.toString(16).padStart(2, '0').toUpperCase()).join(' ');
@@ -174,10 +174,10 @@ class FwUpdater {
         do{
             await this.sendRawFrameWithRetry(this.readyIdSent,this.first3bytes.join(''));
             await delay(60);
-            if (Date.now() - this.startTime > (this.timeout-5000) && this.readyIdSent == '5114000') {
-                this.logMessage('Not responding for this method, trying the old way....', 'INFO');
-                this.setupForOldMotor();
-            }
+            // if (Date.now() - this.startTime > (this.timeout-5000) && this.readyIdSent == '5114000') {
+            //     this.logMessage('Not responding for this method, trying the old way....', 'INFO');
+            //     this.setupForOldMotor();
+            // }
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 2: Timeout reached, exiting loop....'
             }
@@ -210,7 +210,8 @@ class FwUpdater {
         }while(!this.updateProcessStarted);
     }
     formatChunkNumber(num) {
-        return num.toString(16).padStart(4, '0').toUpperCase();
+        const wrappedNum = num % 65536;
+        return wrappedNum.toString(16).padStart(4, '0').toUpperCase();
     }
     getFirmwareChunk(chunkNum) {
         const dataStartIndex = HEADER_SIZE + (chunkNum * CHUNK_SIZE);
