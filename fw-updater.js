@@ -12,6 +12,7 @@ class FwUpdater {
         this.ws = ws;
         this.init()
         this.setupCunbus()
+        this.delayUs = delayUs;
     }
     init(){
         this.firmwareBuffer = null; // Buffer to hold the firmware file content
@@ -251,12 +252,12 @@ class FwUpdater {
             if ((i - this.everyIndexAckStart) % this.everyIndexAck === 0 && i!==2) {
                 this.startTime = Date.now();
                 do{
-                    await delayu(delayUs);
+                    await delayu(this.delayUs);
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.chunksACKObjectplus1[i]);
-            }await delayu(delayUs);
+            }await delayu(this.delayUs);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
@@ -271,7 +272,7 @@ class FwUpdater {
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             this.startTime = Date.now();
             do{
-                await delayu(delayUs);
+                await delayu(this.delayUs);
                 if (Date.now() - this.startTime > this.timeout) {
                     throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                 }
@@ -342,12 +343,12 @@ class FwUpdater {
             await delay(20);
             if(this.readyIdSent.includes('4000')){
                 await this.sendFirstChunk();
-                await delayu(delayUs);
+                await delayu(this.delayUs);
                 await this.sendDataChunks();
             }
             else
                 await this.sendDataChunksWithACK();
-            await delayu(delayUs);
+            await delayu(this.delayUs);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
             if(this.readyIdSent.includes('4000'))

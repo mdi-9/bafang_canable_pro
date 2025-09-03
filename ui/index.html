@@ -800,6 +800,24 @@
                  <table class="description-table">
                      <tbody>
                         <tr>
+                            <th>Mode</th>
+                            <td>
+                                <select id="fwUpdateModeSelect">
+                                    <option value="CONTROLER" selected>Motor controller</option>
+                                    <option value="CONTROLER_OLD">Old motor controller</option>
+                                    <option value="HMI">HMI (DPC245, DPC080CB, DPC010CN)</option>
+                                    <option value="DPC18">DPC18</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Delay (microseconds)</th>
+                            <td>
+                                <input type="number" id="fwUpdateDelayUsInput" min="100" max="5000" step="100" value="300">
+                                <small>The lower the value, the faster the chunks will be sent.</small>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Firmware bin file</th>
                             <td>
                                 <input type="file" id="fwUpdateFileInput" accept="application/octet-stream" />

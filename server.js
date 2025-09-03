@@ -533,10 +533,14 @@ const wss = new WebSocket.Server({ server });
 
 	async function handleStartFwUpload(ws, messageString) {
 		if (messageString.startsWith('FW_UPDATE_START:')) {
-			const base64Content = messageString.substring('START_FW_UPLOAD:'.length);
+			const messageParts = messageString.split(':');
+			const modePart = messageParts[1];
+			const delayPart = messageParts[2];
+			const base64Content = messageParts[3];
 			const buffer = Buffer.from(base64Content, 'base64');
 			const fwUpdater = new FwUpdater(canbus,ws);
-			fwUpdater.startUpdateProcedure(buffer);
+			fwUpdater.delayUs = parseInt(delayPart) || 300;
+			fwUpdater.startUpdateProcedure(buffer,modePart);
 			return true
 		}
 		return false;

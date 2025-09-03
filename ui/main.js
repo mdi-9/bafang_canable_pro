@@ -1,3 +1,5 @@
+const { delay } = require("../utils");
+
         // --- WebSocket and Globals ---
         const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
@@ -226,6 +228,8 @@
 			progressValue: document.getElementById('fwUpdateProgressValue'),
 			logArea: document.getElementById('fwUpdatelog'),
 			clearButton: document.getElementById('clearFwUpdateLogButton'),
+			modeSelect: document.getElementById('fwUpdateModeSelect'),
+			delayInput: document.getElementById('fwUpdateDelayUsInput'),
 		}
 
         // --- Global state for CAN connection ---
@@ -3087,7 +3091,7 @@
 			var reader = new FileReader();  
 			reader.onload = function(e) {
 				const base64Content = e.target.result.split(',')[1];
-				socket.send("FW_UPDATE_START:" + base64Content);
+				socket.send(`FW_UPDATE_START:${fwUpdateElements.modeSelect.value}:${fwUpdateElements.delayInput.value}:${base64Content}`);
 				updateFwUpdateProgress(0)
             }
 			reader.readAsDataURL(file);
