@@ -3,7 +3,7 @@ const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
 const delayMs = 2; // Delay between steps (milliseconds, adjust if needed)
-const delayUs = 400; // Delay between chunks (microseconds, adjust if needed)
+const delayUs = 300; // Delay between chunks (microseconds, adjust if needed)
 
 class FwUpdater {
 
