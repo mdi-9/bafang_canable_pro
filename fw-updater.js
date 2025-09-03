@@ -289,7 +289,7 @@ class FwUpdater {
         this.logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
         do{
             await delay(20);
-            if (Date.now() - this.startTime > (60000)) {
+            if (Date.now() - this.startTime > (30000)) {
                 throw 'Step 7: Timeout reached, exiting loop....';
             }
         }while(!this.lastChunkConfirmed);

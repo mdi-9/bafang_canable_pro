@@ -1,5 +1,3 @@
-const { delay } = require("../utils");
-
         // --- WebSocket and Globals ---
         const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
