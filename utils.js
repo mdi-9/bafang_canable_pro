@@ -2,7 +2,6 @@ const fsp = require("fs").promises;
 const path = require("path");
 const logsDir = path.join(__dirname, "logs");
 const nanoTimer = require("nanotimer");
-const { Worker, isMainThread, parentPort } = require("worker_threads");
 
 function mapId(canIdNum) {
   const byte0 = (canIdNum >> 24) & 0xff;
@@ -90,53 +89,6 @@ async function setupLogger() {
     }
   };
 }
-async function setupLoggerInWorker() {
-  if (isMainThread) {
-    // Tworzenie kodu funkcji w formie stringa
-    const workerCode = ` 
-      const { parentPort } = require('worker_threads'); 
-      const fsp = require('fs').promises; 
-      const path = require('path'); 
-
-      let logFilePath = null; 
-
-      parentPort.on('message', async (data) => { 
-      if (data.type === 'setup') { 
-        logFilePath = data.logFilePath; 
-      try { 
-        await fsp.mkdir(path.dirname(logFilePath), { recursive: true }); 
-      } catch (err) { 
-        console.error('Failed to create log directory in worker:', err); 
-      } 
-      } else if (data.type === 'log' && logFilePath) { 
-        const logEntry = 'data.message\\n'; 
-        try { 
-          await fsp.appendFile(logFilePath, logEntry); 
-        } catch (err) { 
-          console.error('Failed to write to log file in worker:', err); 
-        } 
-      } 
-      }); 
-      `;
-
-    // Użycie Data URI do uruchomienia Worker'a
-    const worker = new Worker(
-      "data:text/javascript;base64," +
-        Buffer.from(workerCode).toString("base64")
-    );
-
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "-");
-    const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}.log`);
-
-    worker.postMessage({ type: "setup", logFilePath: logFilePath });
-
-    return function logToFile(message) {
-      worker.postMessage({ type: "log", message: message });
-    };
-  }
-}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -151,6 +103,5 @@ module.exports = {
   setupLogger,
   formatRawCanFrameData,
   delay,
-  delayu,
-  setupLoggerInWorker,
+  delayu
 };

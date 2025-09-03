@@ -23,7 +23,7 @@ async function main(){
     }
     try {
         const fwUpdater = new FwUpdater(canbus);
-        await fwUpdater.startUpdateProcedure(buffer,"HMI"); // "CONTROLER" or "CONTROLER_OLD" or "DPC18" or "HMI" depending on the target device
+        await fwUpdater.startUpdateProcedure(buffer,"CONTROLER"); // "CONTROLER" or "CONTROLER_OLD" or "DPC18" or "HMI" depending on the target device
     } catch (error) {
         console.log(error)
         cleanup()

@@ -33,7 +33,7 @@ class FwUpdater {
         this.chunksACKObjectplus1 = {} //
         this.deviceId = '2'; //Controler
         this.everyIndexAck = 256;
-        this.everyIndexAckStart = 2;
+        this.everyIndexAckStart = 1;
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
@@ -79,7 +79,8 @@ class FwUpdater {
     logMessage(message, type = 'INFO',sendOverWS = true) {
         try {
             const timestamp = new Date().toLocaleTimeString();
-            console.log(`[${timestamp}] [${type}] ${message}`);
+            if(sendOverWS)
+                console.log(`[${timestamp}] [${type}] ${message}`);
             this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
             if(sendOverWS && this.ws){
                 this.ws.send(`FW_UPDATE_LOG:[${type}] ${message}`);
@@ -254,7 +255,7 @@ class FwUpdater {
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
-                }while(!this.chunksACKObject[i] && !this.chunksACKObjectplus1[i]);
+                }while(!this.chunksACKObjectplus1[i]);
             }await delayu(delayUs);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
@@ -295,7 +296,7 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(200);
+        await delay(3000);
         await this.sendRawFrameWithRetry("5FF3005","01");
         await delay(2000);
     }
@@ -316,6 +317,7 @@ class FwUpdater {
     }
 
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
+        const startTime = performance.now();
         try {
             this.init();
             if(mode == "HMI")
@@ -358,6 +360,9 @@ class FwUpdater {
             this.logMessage('Firmware update failed or was not completed.', 'ERROR');
         } finally {
             this.end = true
+            const endTime = performance.now();
+            const timeInSeconds = (endTime - startTime) / 1000;
+            this.logMessage(`Runtime: ${timeInSeconds}s`,'INFO');
             if(this.ws)
                 this.ws.send(`FW_UPDATE_END`);
         }
