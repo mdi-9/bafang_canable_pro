@@ -68,7 +68,6 @@ class FwUpdater {
     setupForDPC18(){
         this.setupForHMI();
         this.everyIndexAck = 4096;
-        this.everyIndexAckStart = 2;
     }
     overallProgress(){
         let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
