@@ -1,4 +1,4 @@
-body { font-family: Arial, sans-serif; padding: 15px; max-width: 850px; margin: 0 auto; font-size: 14px; background-color: #f4f4f4; }
+body { font-family: Arial, sans-serif; padding: 15px; max-width: 1000px; margin: 0 auto; font-size: 14px; background-color: #f4f4f4; }
 .container { display: flex; flex-direction: column; gap: 15px; }
 .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 h1 {color: #556B2F;}
