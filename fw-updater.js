@@ -302,18 +302,18 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEndOld() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(4000);
+        await delay(2000);
         for (let i = 0; i < 6; i++) {
             await this.sendRawFrameWithRetry("5FF3005","00");
             await this.sendRawFrameWithRetry(this.readyIdSent,this.first3bytes.join(''));
             await delay(50);
         }
-        await delay(4000);
+        await delay(2000);
         for (let i = 0; i < 4; i++) {
             await this.sendRawFrameWithRetry("5F83501","00");
             await delay(20);
         }
-        await delay(2000);
+        await delay(1000);
     }
 
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
