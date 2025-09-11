@@ -436,6 +436,7 @@
 
 		function getProductionDateFromSerial(serialNumber) {
 			if (!serialNumber) return 'Unknown';
+			serialNumber = serialNumber.replace(/\s/g, '');
 			let dateCode = serialNumber.substring(serialNumber.length-8,serialNumber.length-4);
 			let y = dateCode[0].charCodeAt(0) - 65 + 2000;
 			let m = isNaN(dateCode[1]) ? dateCode[1].charCodeAt(0) - 65 + 10 : parseInt(dateCode[1]);

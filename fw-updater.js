@@ -31,9 +31,11 @@ class FwUpdater {
         this.lastChunkSendIndex = -1;
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
-        this.chunksACKObjectplus1 = {} //
+        this.chunksACKObjectplus1 = {}; //
         this.deviceId = '2'; //Controler
         this.indexAckCheckFct = (i) => (i - 1) % 256 === 0 && i!==2;
+        this.doWhileAckCheckFct = (i) => this.chunksACKObjectplus1[i];
+        this.startSendChunkIndex = 2;
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
@@ -50,6 +52,9 @@ class FwUpdater {
         this.readyIdAck =        '22A2000';
         this.firstPackageId =    '5142001';
         this.firstPackageIdAck = '22A2001';
+        this.startSendChunkIndex = 0;
+        this.indexAckCheckFct = (i) => true;
+        this.doWhileAckCheckFct = (i) => this.chunksACKObject[i];
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
@@ -65,7 +70,6 @@ class FwUpdater {
     }
     setupForDPC18(){
         this.setupForHMI();
-        //this.everyIndexAck = 4096;
         this.indexAckCheckFct = (i) => (i - 1) % 4096 === 0 && i!==2;
     }
     setupForDPE160(){
@@ -74,7 +78,8 @@ class FwUpdater {
     }
     setupForHubControler(){
         this.setupForNewMotor();
-        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 19) % 256 === 0;
+        this.indexAckCheckFct = (i) => (i % 256 === 0 && i!==2) || (i + 20) % 256 === 0;
+        this.doWhileAckCheckFct = (i) => this.chunksACKObject[i];
     }
     overallProgress(){
         let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
@@ -249,7 +254,7 @@ class FwUpdater {
     }
     async sendDataChunks() {
         this.logMessage('Step 5: Sending data chunks...', 'INFO');
-        for (let i = 2; i < this.NUM_CHUNKS - 1; i++) {
+        for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
             this.lastChunkSendIndex = i;
@@ -262,30 +267,30 @@ class FwUpdater {
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
-                }while(!this.chunksACKObjectplus1[i]);
-            }await delayu(this.delayUs);
-        }
-        this.logMessage('All data chunks (except the last) sent.', 'INFO');
-    }
-    async sendDataChunksWithACK() {
-        this.logMessage('Step 5: Sending data chunks...', 'INFO');
-        for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
-            const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
-            const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-            //logMessage(`ID:515${chunkId}#${chunkData} `, 'SENT');
-            this.lastChunkSendIndex = i;
-            await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
-            this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-            this.startTime = Date.now();
-            do{
+                }while(!this.doWhileAckCheckFct(i));
+            }else
                 await delayu(this.delayUs);
-                if (Date.now() - this.startTime > this.timeout) {
-                    throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
-                }
-            }while(!this.chunksACKObject[i]);
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
+    // async sendDataChunksWithACK() {
+    //     this.logMessage('Step 5: Sending data chunks...', 'INFO');
+    //     for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
+    //         const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
+    //         const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
+    //         this.lastChunkSendIndex = i;
+    //         await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
+    //         this.progress = Math.round((i/this.NUM_CHUNKS)*100);
+    //         this.startTime = Date.now();
+    //         do{
+    //             await delayu(this.delayUs);
+    //             if (Date.now() - this.startTime > this.timeout) {
+    //                 throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
+    //             }
+    //         }while(!this.chunksACKObject[i]);
+    //     }
+    //     this.logMessage('All data chunks (except the last) sent.', 'INFO');
+    // }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
         this.lastChunkId = this.formatChunkNumber(this.NUM_CHUNKS - 1);
@@ -354,10 +359,8 @@ class FwUpdater {
             if(this.readyIdSent.includes('4000')){
                 await this.sendFirstChunk();
                 await delayu(this.delayUs);
-                await this.sendDataChunks();
             }
-            else
-                await this.sendDataChunksWithACK();
+            await this.sendDataChunks();
             await delayu(this.delayUs);
             await this.sendLastPackageAndEndTransfer();
             await delay(20);
