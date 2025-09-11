@@ -193,6 +193,7 @@
             ctrlSwVersionValue: document.getElementById('infoCtrlSwVersionValue'),
             ctrlModelNumberValue: document.getElementById('infoCtrlModelNumberValue'),
             ctrlSnValue: document.getElementById('infoCtrlSnValue'),
+			ctrlProductionDateValue: document.getElementById('infoCtrlProductionDateValue'), // Added Production Date
             ctrlMfgValue: document.getElementById('infoCtrlMfgValue'),
             ctrlMfgInput: document.getElementById('infoCtrlMfgInput'), // Added Input
             ctrlPlaceholder: document.getElementById('infoCtrlPlaceholder'),
@@ -202,6 +203,7 @@
             displayModelNumberValue: document.getElementById('infoDisplayModelNumberValue'),
             displayBootloaderVersionValue: document.getElementById('infoDisplayBootloaderVersionValue'),
             displaySnValue: document.getElementById('infoDisplaySnValue'),
+            displayProductionDateValue: document.getElementById('infoDisplayProductionDateValue'),
             displayMfgValue: document.getElementById('infoDisplayMfgValue'),
             displayMfgInput: document.getElementById('infoDisplayMfgInput'), // Added Input
             displayCnValue: document.getElementById('infoDisplayCnValue'),
@@ -212,12 +214,14 @@
             sensorSwVersionValue: document.getElementById('infoSensorSwVersionValue'),
             sensorModelNumberValue: document.getElementById('infoSensorModelNumberValue'),
             sensorSnValue: document.getElementById('infoSensorSnValue'),
+			sensorProductionDateValue: document.getElementById('infoSensorProductionDateValue'),
             sensorPlaceholder: document.getElementById('infoSensorPlaceholder'),
             // Battery Info
             batteryHwVersionValue: document.getElementById('infoBatteryHwVersionValue'),
             batterySwVersionValue: document.getElementById('infoBatterySwVersionValue'),
             batteryModelNumberValue: document.getElementById('infoBatteryModelNumberValue'),
             batterySnValue: document.getElementById('infoBatterySnValue'),
+			batteryProductionDateValue: document.getElementById('infoBatteryProductionDateValue'),
             batteryPlaceholder: document.getElementById('infoBatteryPlaceholder'),
         };
 
@@ -246,15 +250,15 @@
 		let rawParamData = {};
 		
         let displayData1 = null, displayData2 = null, displayRealtime = null, displayErrors = null;
-        let displayOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, manufacturer: null, customerNumber: null };
+        let displayOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, productionDate:null, manufacturer: null, customerNumber: null };
         let sensorRealtime = null;
-        let sensorOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
+        let sensorOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null };
         let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null,batteryCellsStats = null;
-        let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null };
+        let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null };
         // Controller specific stores
         let controllerRealtime0 = null, controllerRealtime1 = null; 
 		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
-        let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, manufacturer: null };
+        let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null, manufacturer: null };
 		let displayShutdownTime = null; // <-- Add storage for shutdown time
 		
 		const START_PULSE_MIN = 1;
@@ -429,6 +433,15 @@
 				]
 			}
 		};
+
+		function getProductionDateFromSerial(serialNumber) {
+			if (!serialNumber) return 'Unknown';
+			let dateCode = serialNumber.substring(serialNumber.length-8,serialNumber.length-4);
+			let y = dateCode[0].charCodeAt(0) - 65 + 2000;
+			let m = isNaN(dateCode[1]) ? dateCode[1].charCodeAt(0) - 65 + 10 : parseInt(dateCode[1]);
+			let d = parseInt(dateCode.substring(2,4));
+			return new Date(y,m-1,d).toISOString().substring(0,10);
+		}
 
 		function calculateStartPulse(angle, signalsPerRotation) {
 		    if (angle === null || angle === undefined || signalsPerRotation === null || signalsPerRotation === undefined || signalsPerRotation <= 0 || angle < 0) {
@@ -1437,6 +1450,7 @@
             infoElements.ctrlSwVersionValue.textContent = getNullableString(controllerOtherInfo.swVersion);
             infoElements.ctrlModelNumberValue.textContent = getNullableString(controllerOtherInfo.modelNumber); // Ensure this line exists
             infoElements.ctrlSnValue.textContent = getNullableString(controllerOtherInfo.serialNumber);
+            infoElements.ctrlProductionDateValue.textContent = getNullableString(controllerOtherInfo.productionDate); // Ensure this line exists
             infoElements.ctrlMfgValue.textContent = getNullableString(controllerOtherInfo.manufacturer); // Ensure this line exists
             if (controllerOtherInfo.manufacturer !== null && infoElements.ctrlMfgInput.value === "") infoElements.ctrlMfgInput.value = controllerOtherInfo.manufacturer;
             infoElements.ctrlPlaceholder.style.display = (controllerOtherInfo.hwVersion || controllerOtherInfo.swVersion || controllerOtherInfo.modelNumber || controllerOtherInfo.serialNumber || controllerOtherInfo.manufacturer) ? 'none' : 'block'; // Added checks
@@ -1447,6 +1461,7 @@
             infoElements.displayModelNumberValue.textContent = getNullableString(displayOtherInfo.modelNumber); // Ensure this line exists
             infoElements.displayBootloaderVersionValue.textContent = getNullableString(displayOtherInfo.bootloaderVersion); // Ensure this line exists
             infoElements.displaySnValue.textContent = getNullableString(displayOtherInfo.serialNumber);
+            infoElements.displayProductionDateValue.textContent = getNullableString(displayOtherInfo.productionDate); // Ensure this line exists
             infoElements.displayMfgValue.textContent = getNullableString(displayOtherInfo.manufacturer); // Ensure this line exists
             if (displayOtherInfo.manufacturer !== null && infoElements.displayMfgInput.value === "") infoElements.displayMfgInput.value = displayOtherInfo.manufacturer;
             infoElements.displayCnValue.textContent = getNullableString(displayOtherInfo.customerNumber); // Ensure this line exists
@@ -1458,6 +1473,7 @@
             infoElements.sensorSwVersionValue.textContent = getNullableString(sensorOtherInfo.swVersion);
             infoElements.sensorModelNumberValue.textContent = getNullableString(sensorOtherInfo.modelNumber); // Ensure this line exists
             infoElements.sensorSnValue.textContent = getNullableString(sensorOtherInfo.serialNumber);
+            infoElements.sensorProductionDateValue.textContent = getNullableString(sensorOtherInfo.productionDate); // Ensure this line exists
             infoElements.sensorPlaceholder.style.display = (sensorOtherInfo.hwVersion || sensorOtherInfo.swVersion || sensorOtherInfo.modelNumber || sensorOtherInfo.serialNumber) ? 'none' : 'block'; // Added checks
 
             // Battery Info
@@ -1465,6 +1481,7 @@
             infoElements.batterySwVersionValue.textContent = getNullableString(batteryOtherInfo.swVersion);
             infoElements.batteryModelNumberValue.textContent = getNullableString(batteryOtherInfo.modelNumber); // Ensure this line exists
             infoElements.batterySnValue.textContent = getNullableString(batteryOtherInfo.serialNumber);
+			infoElements.batteryProductionDateValue.textContent = getNullableString(batteryOtherInfo.productionDate); // Ensure this line exists
             infoElements.batteryPlaceholder.style.display = (batteryOtherInfo.hwVersion || batteryOtherInfo.swVersion || batteryOtherInfo.modelNumber || batteryOtherInfo.serialNumber) ? 'none' : 'block'; // Added checks
         }
 
@@ -2363,14 +2380,14 @@
 						// --- INFO CASES (Ensure these set needsInfoUpdate) ---
                         case 'controller_hw_version': controllerOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
                         case 'controller_sw_version': controllerOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;
-                        case 'controller_sn': controllerOtherInfo.serialNumber = parsedEvent.data?.serial_number; needsInfoUpdate = true; break;
+                        case 'controller_sn': controllerOtherInfo.serialNumber = parsedEvent.data?.serial_number; controllerOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break;
                         case 'controller_mn': controllerOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // Added MN case
                         case 'controller_mfg': controllerOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break; // Added MFG case
 						
 
                         case 'display_hw_version': displayOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
                         case 'display_sw_version': displayOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;
-                        case 'display_sn': displayOtherInfo.serialNumber = parsedEvent.data?.serial_number; needsInfoUpdate = true; break;
+                        case 'display_sn': displayOtherInfo.serialNumber = parsedEvent.data?.serial_number; displayOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break;
                         case 'display_mn': displayOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // Added MN case
                         case 'display_cn': displayOtherInfo.customerNumber = parsedEvent.data?.customer_number; needsInfoUpdate = true; break; // Added CN case
                         case 'display_mfg': displayOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break; // Added MFG case
@@ -2381,7 +2398,7 @@
 						case 'sensor_hw_version': sensorOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;  // DPC18RI added
                         case 'sensor_sw_version': sensorOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;  // DPC18RI added
                         case 'sensor_mn': sensorOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // DPC18RI Added
-                        case 'sensor_sn': sensorOtherInfo.serialNumber = parsedEvent.data?.serial_number; needsInfoUpdate = true; break; // DPC18RI Added
+                        case 'sensor_sn': sensorOtherInfo.serialNumber = parsedEvent.data?.serial_number; sensorOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break; // DPC18RI Added
                          // Battery Data
                         case 'battery_capacity': batteryCapacity = parsedEvent.data; needsBatteryUpdate = true; break;
                         case 'battery_state': batteryState = parsedEvent.data; needsBatteryUpdate = true; break;
@@ -2411,7 +2428,7 @@
                         case 'battery_hw_version': batteryOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsBatteryUpdate = true; break;
                         case 'battery_sw_version': batteryOtherInfo.swVersion = parsedEvent.data?.software_version; needsBatteryUpdate = true; break;
                         case 'battery_mn': batteryOtherInfo.modelNumber = parsedEvent.data?.model_number; needsBatteryUpdate = true; break;
-                        case 'battery_sn': batteryOtherInfo.serialNumber = parsedEvent.data?.serial_number; needsBatteryUpdate = true; break;
+                        case 'battery_sn': batteryOtherInfo.serialNumber = parsedEvent.data?.serial_number; batteryOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsBatteryUpdate = true; break;
                     }
                     // Call UI update functions if needed
                     if (needsDisplayUpdate) updateDisplayUI();
