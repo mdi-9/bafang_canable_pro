@@ -439,8 +439,7 @@
 			let dateCode = serialNumber.substring(serialNumber.length-8,serialNumber.length-4);
 			let y = dateCode[0].charCodeAt(0) - 65 + 2000;
 			let m = isNaN(dateCode[1]) ? dateCode[1].charCodeAt(0) - 65 + 10 : parseInt(dateCode[1]);
-			let d = parseInt(dateCode.substring(2,4));
-			return new Date(y,m-1,d).toISOString().substring(0,10);
+			return `${y}-${String(m).padStart(2, '0')}-${dateCode.substring(2,4)}`;
 		}
 
 		function calculateStartPulse(angle, signalsPerRotation) {
