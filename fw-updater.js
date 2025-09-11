@@ -33,8 +33,7 @@ class FwUpdater {
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {} //
         this.deviceId = '2'; //Controler
-        this.everyIndexAck = 256;
-        this.everyIndexAckStart = 1;
+        this.indexAckCheckFct = (i) => (i - 1) % 256 === 0 && i!==2;
         this.chunk0Prefix = '4';
         this.chunkNPrefix = '5';
         this.chunkEndPrefix = '6';
@@ -54,8 +53,7 @@ class FwUpdater {
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
-        this.everyIndexAck = 256;
-        this.everyIndexAckStart = 1;
+        this.indexAckCheckFct = (i) => (i - 1) % 256 === 0 && i!==2;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
         this.chunkEndPrefix = 'E';
@@ -67,7 +65,16 @@ class FwUpdater {
     }
     setupForDPC18(){
         this.setupForHMI();
-        this.everyIndexAck = 4096;
+        //this.everyIndexAck = 4096;
+        this.indexAckCheckFct = (i) => (i - 1) % 4096 === 0 && i!==2;
+    }
+    setupForDPE160(){
+        this.setupForHMI();
+        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 19) % 256 === 0;
+    }
+    setupForHubControler(){
+        this.setupForNewMotor();
+        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 19) % 256 === 0;
     }
     overallProgress(){
         let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
@@ -248,7 +255,7 @@ class FwUpdater {
             this.lastChunkSendIndex = i;
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-            if ((i - this.everyIndexAckStart) % this.everyIndexAck === 0 && i!==2) {
+            if (this.indexAckCheckFct(i)) {
                 this.startTime = Date.now();
                 do{
                     await delayu(this.delayUs);
@@ -326,6 +333,10 @@ class FwUpdater {
                 this.setupForDPC18()
             else if (mode == "CONTROLER_OLD")
                 this.setupForOldMotor()
+            else if (mode == "DPE160")
+                this.setupForDPE160()
+            else if (mode == "CONTROLER_HUB")
+                this.setupForHubControler()
             else
                 this.setupForNewMotor()
             this.logToFile = await setupLogger();
