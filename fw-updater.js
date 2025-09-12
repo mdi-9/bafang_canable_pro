@@ -74,11 +74,11 @@ class FwUpdater {
     }
     setupForDPE160(){
         this.setupForHMI();
-        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 19) % 256 === 0;
+        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 127) % 256 === 0;
     }
     setupForHubControler(){
         this.setupForNewMotor();
-        this.indexAckCheckFct = (i) => (i % 256 === 0 && i!==2) || (i + 20) % 256 === 0;
+        this.indexAckCheckFct = (i) => (i % 256 === 0 && i!==2) || (i + 128) % 256 === 0;
         this.doWhileAckCheckFct = (i) => this.chunksACKObject[i];
     }
     overallProgress(){
