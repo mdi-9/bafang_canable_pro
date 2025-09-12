@@ -273,24 +273,6 @@ class FwUpdater {
         }
         this.logMessage('All data chunks (except the last) sent.', 'INFO');
     }
-    // async sendDataChunksWithACK() {
-    //     this.logMessage('Step 5: Sending data chunks...', 'INFO');
-    //     for (let i = 0; i < this.NUM_CHUNKS - 1; i++) {
-    //         const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
-    //         const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
-    //         this.lastChunkSendIndex = i;
-    //         await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
-    //         this.progress = Math.round((i/this.NUM_CHUNKS)*100);
-    //         this.startTime = Date.now();
-    //         do{
-    //             await delayu(this.delayUs);
-    //             if (Date.now() - this.startTime > this.timeout) {
-    //                 throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
-    //             }
-    //         }while(!this.chunksACKObject[i]);
-    //     }
-    //     this.logMessage('All data chunks (except the last) sent.', 'INFO');
-    // }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
         this.lastChunkId = this.formatChunkNumber(this.NUM_CHUNKS - 1);
