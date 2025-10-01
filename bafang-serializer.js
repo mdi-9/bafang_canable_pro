@@ -273,10 +273,18 @@ function prepareParameter1WriteData(canbusInstance, value) {
         new_pkg[0] = value.system_voltage ?? 0xFF;
         new_pkg[1] = value.current_limit ?? 0xFF;
         new_pkg[2] = value.overvoltage ?? 0xFF;
-        new_pkg[3] = value.undervoltage_under_load&0xFF ?? 0xFF;
-        new_pkg[4] = value.undervoltage_under_load>>8 ?? 0xFF;
-        new_pkg[5] = value.undervoltage&0xFF ?? 0xFF;
-		new_pkg[6] = value.undervoltage>>8 ?? 0xFF;
+        //new_pkg[3] = value.undervoltage_under_load&0xFF ?? 0xFF;
+        //new_pkg[4] = value.undervoltage_under_load>>8 ?? 0xFF;
+        if (value.undervoltage_under_load !== undefined && value.undervoltage_under_load !== null){
+            const undervoltage_under_loadBytes = intToByteArray(value.undervoltage_under_load, 2);
+            new_pkg[3] = undervoltage_under_loadBytes[0]; new_pkg[4] = undervoltage_under_loadBytes[1];
+        }
+        //new_pkg[5] = value.undervoltage&0xFF ?? 0xFF;
+		//new_pkg[6] = value.undervoltage>>8 ?? 0xFF;
+        if (value.undervoltage !== undefined && value.undervoltage !== null){
+            const undervoltageBytes = intToByteArray(value.undervoltage, 2);
+            new_pkg[5] = undervoltageBytes[0]; new_pkg[6] = undervoltageBytes[1];
+        }
         if (value.battery_capacity !== undefined && value.battery_capacity !== null) {
             const capBytes = intToByteArray(value.battery_capacity, 2); // 2 bytes LE
             new_pkg[7] = capBytes[0]; new_pkg[8] = capBytes[1];
