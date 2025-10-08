@@ -954,7 +954,7 @@
 
 			// Electric P1
             if (controllerParams1) {
-				if(controllerParams1.checksum_mismatch)
+				if(controllerParams1.checksum_missmatch)
 					checksumElements.ctrlP1ChecksumWarning.style.display = 'block';
 				else
 					checksumElements.ctrlP1ChecksumWarning.style.display = 'none';
@@ -1194,7 +1194,7 @@
 				return;
 			}
 
-			if(p2.checksum_mismatch)
+			if(p2.checksum_missmatch)
 				checksumElements.gearsP2ChecksumWarning.style.display = 'block';
 			else
 				checksumElements.gearsP2ChecksumWarning.style.display = 'none';
@@ -1409,7 +1409,7 @@
 				return;
 			}
 
-			if(p2.checksum_mismatch)
+			if(p2.checksum_missmatch)
 				checksumElements.gearsP2ChecksumWarning.style.display = 'block';
 			else
 				checksumElements.gearsP2ChecksumWarning.style.display = 'none';
