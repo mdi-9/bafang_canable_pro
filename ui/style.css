@@ -253,6 +253,7 @@ hex-editor-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 8px;
 }
 .info-message {
     color: #00529B;
