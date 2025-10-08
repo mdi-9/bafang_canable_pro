@@ -29,6 +29,16 @@
             </div>
         </div>
 
+        <!-- Checksum missmatch -->
+        <div id="ctrlP1ChecksumWarning" class="warning-message" style="display: none;">
+            <div><strong>Warning:</strong> Checksum mismatch detected! Controller data (6011) may be corrupted.</div>
+            <button id="ctrlP1ChecksumFixButton" style="margin-left: 10px; padding: 5px 10px;">Fix data</button>
+        </div>
+        <div id="gearsP2ChecksumWarning" class="warning-message" style="display: none;">
+            <div><strong>Warning:</strong> Checksum mismatch detected! Assist data (6012) may be corrupted.</div>
+            <button id="gearsP2ChecksumFixButton" style="margin-left: 10px; padding: 5px 10px;">Fix data</button>
+        </div>
+
         <!-- Tab Buttons -->
         <div class="tab-buttons">
             <button class="tab-button active " data-tab="controller">Controller</button>
@@ -499,7 +509,6 @@
                     <button id="gearsSyncButton">Sync Data</button>
                     <button id="gearsSaveButton">Save Changes</button>
                  </div>
-
 				<h3>Startup Angle</h3>
                  <table class="description-table">
                      <tbody>
@@ -577,7 +586,7 @@
                 </div>
             </div>
 
-            <!-- Gears Tab  -->
+            <!-- Gears limited Tab  -->
             <div class="tab-content" id="tab-gearsM820">
                  <h2>Assist</h2>
                  <div class="general-controls">

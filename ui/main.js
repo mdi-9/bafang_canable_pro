@@ -9,6 +9,14 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const connectCanButton = document.getElementById('connectCanButton'); // New button
         const canDeviceNameElement = document.getElementById('canDeviceName'); // For device name	
+
+		// --- Checksum Elements ---
+		const checksumElements= {
+			ctrlP1ChecksumWarning: document.getElementById('ctrlP1ChecksumWarning'),
+			ctrlP1ChecksumFixButton: document.getElementById('ctrlP1ChecksumFixButton'),
+			gearsP2ChecksumWarning: document.getElementById('gearsP2ChecksumWarning'),
+			gearsP2ChecksumFixButton: document.getElementById('gearsP2ChecksumFixButton'),
+		}
 		
         // --- Display Tab Specific Elements ---
         const displayElements = {
@@ -244,6 +252,8 @@
 		let lastControllerP0 = null
 		let lastControllerP1 = null;
         let lastControllerP2 = null;
+		let lastControllerP1Read = null;
+        let lastControllerP2Read = null;
 		let lastStartupAngle = null; // Store the last read angle
 		
 		let currentRawParamType = null; // e.g., 'controller_params_1'
@@ -944,6 +954,10 @@
 
 			// Electric P1
             if (controllerParams1) {
+				if(controllerParams1.checksum_mismatch)
+					checksumElements.ctrlP1ChecksumWarning.style.display = 'block';
+				else
+					checksumElements.ctrlP1ChecksumWarning.style.display = 'none';
                 // System Voltage - Dropdown and Raw Value
                 const rawVoltage = controllerParams1.system_voltage;
                 safeSetText(controllerElements.p1SysVoltageRawValue, rawVoltage, (val) => `(Raw: ${getNullableNumber(val, 0)}V)`);
@@ -1180,6 +1194,11 @@
 				return;
 			}
 
+			if(p2.checksum_mismatch)
+				checksumElements.gearsP2ChecksumWarning.style.display = 'block';
+			else
+				checksumElements.gearsP2ChecksumWarning.style.display = 'none';
+
 			if (gearsElementsM820.torqueProfilePlaceholder) gearsElementsM820.torqueProfilePlaceholder.style.display = 'none';
 
 			for (let i = 0; i < 6; i++) { // Bafang P2 has 6 torque profiles (0-5)
@@ -1390,6 +1409,11 @@
 				return;
 			}
 
+			if(p2.checksum_mismatch)
+				checksumElements.gearsP2ChecksumWarning.style.display = 'block';
+			else
+				checksumElements.gearsP2ChecksumWarning.style.display = 'none';
+			
 			if (gearsElements.torqueProfilePlaceholder) gearsElements.torqueProfilePlaceholder.style.display = 'none';
 
 			for (let i = 0; i < 6; i++) { // Bafang P2 has 6 torque profiles (0-5)
@@ -2257,6 +2281,7 @@
 						case 'controller_params_1':
                             controllerParams1 = parsedEvent.data;
                             lastControllerP1 = JSON.parse(JSON.stringify(parsedEvent.data || {})); // Deep copy for gears tab editing
+							lastControllerP1Read = JSON.parse(JSON.stringify(parsedEvent.data || {})); // Deep copy for read only
                             // *** Recalculate Start Pulse if P1 changes ***
                             if (lastStartupAngle !== null && lastControllerP1?.pedal_sensor_signals_per_rotation !== undefined && lastControllerP2?.torque_profiles?.[0]) {
                                 try {
@@ -2292,6 +2317,7 @@
                         case 'controller_params_2':
                             controllerParams2 = parsedEvent.data;
                             lastControllerP2 = JSON.parse(JSON.stringify(parsedEvent.data || {})); // Deep copy for gears tab editing
+							lastControllerP2Read = JSON.parse(JSON.stringify(parsedEvent.data || {})); // Deep copy for read only
                             //needsControllerUpdate = true;
 							if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
 							rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
@@ -2885,7 +2911,28 @@
              socket.send('READ:4:100:4'); // Cells 8-11
              socket.send('READ:4:100:5'); // Cells 12-15
         };
-		
+
+		//Checksum mismatch buttons fix
+		checksumElements.ctrlP1ChecksumFixButton.onclick = async () => {
+            if (lastControllerP1Read) { 
+                socket.send(`WRITE_LONG_P1:${JSON.stringify(lastControllerP1Read)}`); // Save unmodified
+                addLog('SAVE_REQ', 'Controller Parameter 1');
+				setTimeout(() => { 
+					socket.send('READ:2:96:17'); // Parameter 1 sync
+				}, 1000); // Wait
+            }
+		};
+
+		checksumElements.gearsP2ChecksumFixButton.onclick = async () => {
+			if (lastControllerP2Read) { 
+				socket.send(`WRITE_LONG_P2:${JSON.stringify(lastControllerP2Read)}`); // Save unmodified
+				addLog('SAVE_REQ', 'Controller Parameter 2');
+				setTimeout(() => { 
+					socket.send('READ:2:96:18'); // Parameter 2 sync
+				}, 1000); // Wait
+			}
+		};
+
 	   // --- Gears Tab Specific Button Listeners ---
 		gearsElements.syncButton.onclick = () => {
           addLog('REQ', 'Syncing Gears data ...');

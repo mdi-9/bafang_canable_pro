@@ -227,6 +227,7 @@ class BafangCanControllerParser {
             lamps_always_on: packet.data[59] === 1,
 			walk_assist_speed: ((packet.data[61] << 8) + packet.data[60]) / 100, // Read bytes 60, 61 (LE), scale back
 			par1_value_offset_62: packet.data[62],
+            checksum_missmatch: packet.data[63] !== calculateChecksum(packet.data.slice(0, 63)),
         };
         // Ensure data length is sufficient before accessing assist levels
         if (packet.data.length >= 63) {
@@ -260,12 +261,13 @@ class BafangCanControllerParser {
         const pkg = {
             torque_profiles: [],
 			unknown_bytes_1: [],
-			unknown_bytes_2: [],			
+			unknown_bytes_2: [],
+            checksum_missmatch: packet.data[63] !== calculateChecksum(packet.data.slice(0, 63)),			
         };
 		
 		if (packet.data.length >= 62){
-		pkg.unknown_bytes_1 = packet.data.slice(30, 36);
-		pkg.unknown_bytes_2 = packet.data.slice(55, 63);
+            pkg.unknown_bytes_1 = packet.data.slice(30, 36);
+            pkg.unknown_bytes_2 = packet.data.slice(55, 63);
 		} else {
             console.warn("Insufficient data length for assist levels in Parameter0");
         }
@@ -335,7 +337,7 @@ class BafangCanControllerParser {
          }
 
 		 return {
-         calories: ((packet.data[1] << 8) + packet.data[0])
+            calories: ((packet.data[1] << 8) + packet.data[0])
 		 }
 
     }
