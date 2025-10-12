@@ -712,7 +712,34 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
             //const result = this.analyseBittimings(bitrate, timing);
             //console.log("Setting timing", bitrate, this.capabilities, timing, result);
             return await this._setTiming(timing);
-        } else {
+        }else if (this.capabilities.fclk_can == 160000000) {
+            const timing = {
+                prop_seg: 1,
+                phase_seg1:12,
+                phase_seg2: 2,
+                sjw: 1,
+                brp: 1000
+            }
+            switch(bitrate) {
+                case 10000: timing.brp = 1000; break;
+                case 20000: timing.brp = 500; break;
+                case 50000: timing.brp = 200; break;
+                case 83333: timing.brp = 120; break;
+                case 100000: timing.brp = 100; break;
+                case 125000: timing.brp = 80; break;
+                case 250000: timing.brp = 40; break;
+                case 500000: timing.brp = 20; break;
+                case 800000:
+                timing.phase_seg1 = 15;
+                timing.phase_seg2 = 3;
+                timing.brp = 10;
+                break;
+                case 1000000: timing.brp = 10; break;
+                default:
+                    console.log("Bitrate not supported ",bitrate);
+                    return false;
+            }
+        }else {
             console.log("Device Clock not supported ",this.capabilities.fclk_can);
             return false;
         }
