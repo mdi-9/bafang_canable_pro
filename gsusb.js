@@ -739,6 +739,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
                     console.log("Bitrate not supported ",bitrate);
                     return false;
             }
+            return await this._setTiming(timing);
         }else {
             console.log("Device Clock not supported ",this.capabilities.fclk_can);
             return false;

@@ -3,7 +3,7 @@
 # Steps to run the software
 
 ## Get hardware 
- - Canable with STM32F072 processor and candlelight firmware ([Ebay](https://www.ebay.com/itm/156316405598),[Aliexpress](https://pl.aliexpress.com/item/1005006029234562.html))
+ - Canable with STM32F072 or STM32G431 processor and candlelight firmware ([Ebay](https://www.ebay.com/itm/156316405598),[Aliexpress](https://pl.aliexpress.com/item/1005006029234562.html))
  - 5 pin Cable with male and famale plugs ([Ebay](https://www.ebay.com/itm/197421023105),[Aliexpress](https://pl.aliexpress.com/item/1005005307670708.html))
 
 ## Wire the Canable (UCAN module example)
@@ -21,8 +21,10 @@
 - Run `node server.js` in terminal
 
 ## Optional: candlelight firmware flashing (in case of wrong module firmware or drivers issues)
-- Download last version of [candlelight firmware](https://github.com/candle-usb/candleLight_fw/releases)
-- [Flash dowloaded firmware to the Canable device](https://canable.io/getting-started.html#flashing-new-firmware)
+- For Canable 2.0 (STM32G431) use [HUD ECU Hacker candlelight firmware and updater](https://www.netcult.ch/elmue/CANable%20Firmware%20Update/)
+- For (STM32F072) download last version of [candlelight firmware](https://github.com/candle-usb/candleLight_fw/releases)
+- And flash dowloaded firmware to the Canable device with one of [this tool](https://canable.io/getting-started.html#flashing-new-firmware)
+or use [HUD ECU Hacker updater](https://www.netcult.ch/elmue/CANable%20Firmware%20Update/)
 - Drivers on windows and linux should be working plug&play
 
 ### License
