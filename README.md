@@ -20,12 +20,13 @@
 - Run `npm install` in terminal to download all dependencies
 - Run `node server.js` in terminal
 
-## Optional: candlelight firmware flashing (in case of wrong module firmware or drivers issues)
+## (STM32G431) Required: candlelight firmware flashing 
 - For Canable 2.0 (STM32G431) use [HUD ECU Hacker candlelight firmware and updater](https://www.netcult.ch/elmue/CANable%20Firmware%20Update/)
+
+## (STM32F072) Optional: candlelight firmware flashing (in case of wrong module firmware or drivers issues)
 - For (STM32F072) download last version of [candlelight firmware](https://github.com/candle-usb/candleLight_fw/releases)
 - And flash dowloaded firmware to the Canable device with one of [this tool](https://canable.io/getting-started.html#flashing-new-firmware)
 or use [HUD ECU Hacker updater](https://www.netcult.ch/elmue/CANable%20Firmware%20Update/)
-- Drivers on windows and linux should be working plug&play
 
 ### License
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
