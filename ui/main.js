@@ -803,10 +803,10 @@
 		errorBody.innerHTML = ''; // Clear previous errors
 		if (Array.isArray(displayErrors) && displayErrors.length > 0) {
 			const errorDescriptions = { 
-			'04':	"Throttle not in correct position",
-			'07':	 "Over voltage protection",
-			'08':	"Hall sensor error",
-			'09':	"Motor phase winding fault",
+			'4':	"Throttle not in correct position",
+			'7':	 "Over voltage protection",
+			'8':	"Hall sensor error",
+			'9':	"Motor phase winding fault",
 			'10':	"Motor overtemperature",
 			'11':	"Motor temperature sensor fault",
 			'12':	"Motor overcurrent",
@@ -824,10 +824,10 @@
 			'37':	"WDT circuit fault Controller",
 			};
 			const errorRecommendations = { 
-			'04': "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
-			'07':	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
-			'08':	"Check hall sensor connections, inspect for damage, replace if necessary",
-			'09':	"Check motor connections, inspect for damage, test with a different controller",
+			'4': "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
+			'7':	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
+			'8':	"Check hall sensor connections, inspect for damage, replace if necessary",
+			'9':	"Check motor connections, inspect for damage, test with a different controller",
 			'10':	"Allow motor to cool down, reduce load, ensure proper ventilation",
 			'11':	"Check sensor connection, inspect for damage, replace if necessary",
 			'12':	"Reduce load, check wiring, inspect motor and controller",
