@@ -69,13 +69,13 @@
                          <tr><th>Remaining Capacity</th><td><span id="ctrlRt0RemainCapValue">N/A</span> %</td></tr>
                          <tr><th>Remaining Distance</th><td><span id="ctrlRt0RemainDistValue">N/A</span> Km</td></tr>
                          <tr><th>Last Trip Distance</th><td><span id="ctrlRt0SingleTripValue">N/A</span> Km</td></tr>
-                         <tr><th>Cadence</th><td><span id="ctrlRt0CadenceValue">N/A</span> RPM</td></tr>
-                         <tr><th>Torque Value</th><td><span id="ctrlRt0TorqueValue">N/A</span> mV</td></tr>
+                        <!-- <tr><th>Cadence</th><td><span id="ctrlRt0CadenceValue">N/A</span> RPM</td></tr> -->
+                         <!-- <tr><th>Torque Value</th><td><span id="ctrlRt0TorqueValue">N/A</span> mV</td></tr>  -->
                          <tr><th>Voltage</th><td><span id="ctrlRt1VoltageValue">N/A</span> V</td></tr>
                          <tr><th>Controller Temperature</th><td><span id="ctrlRt1TempValue">N/A</span> C°</td></tr>
                          <tr><th>Motor Temperature</th><td><span id="ctrlRt1MotorTempValue">N/A</span> C°</td></tr>
-                         <tr><th>Current</th><td><span id="ctrlRt1CurrentValue">N/A</span> A</td></tr>
-                         <tr><th>Speed</th><td><span id="ctrlRt1SpeedValue">N/A</span> Km/H</td></tr>
+                         <!-- <tr><th>Current</th><td><span id="ctrlRt1CurrentValue">N/A</span> A</td></tr> -->
+                         <!-- <tr><th>Speed</th><td><span id="ctrlRt1SpeedValue">N/A</span> Km/H</td></tr> -->
                      </tbody>
                  </table>
                  <div id="ctrlRtPlaceholder" class="placeholder-text">Real-time data not yet received.</div>
@@ -251,6 +251,13 @@
                  <h3>Throttle Parameters</h3>
                   <table class="description-table">
                      <tbody>
+                        <tr>
+                             <th>Speed Limit Enabled</th>
+                             <td>
+                                 <span id="ctrlP1SpeedLimitEnabledValue">N/A</span><br>
+                                 <input type="number" id="ctrlP1SpeedLimitEnabledInput" min="0" max="1" step="1" placeholder="Enter new value (0-1)">
+                             </td>
+                         </tr>
                          <tr>
                              <th>Throttle Start Voltage</th>
                              <td>
@@ -420,7 +427,7 @@
 
            <!-- Sensor -->
             <div class="tab-content" id="tab-sensor">
-                <h2>Sensor</h2>
+                <h2>Torque Sensor</h2>
                 <div class="general-controls">
                     <button id="sensorSyncButton">Sync Sensor Data</button>
                 </div>
@@ -428,8 +435,13 @@
                 <h3>Real-Time Data</h3>
                 <table class="description-table">
                     <tbody>
-                        <tr><th>Torque Value</th><td><span id="sensorTorqueValue">N/A</span> mV</td></tr>
-                        <tr><th>Cadence</th><td><span id="sensorCadenceValue">N/A</span> RPM</td></tr>
+					                      
+						<tr style="font-size: 18px"><th>Torque Sensor Value (RT)</th><td style="font-size: 22px"><span id="sensorTorqueValue">N/A</span> mV</td></tr>
+                        <tr style="font-size: 18px"><th>Cadence Sensor (RT)</th><td style="font-size: 22px"><span id="sensorCadenceValue">N/A</span> RPM</td></tr>
+                        <tr style="font-size: 18px"><th>Cadence</th><td style="font-size: 22px"><span id="ctrlRt0CadenceValue">N/A</span> RPM</td></tr>
+                        <tr style="font-size: 18px"><th>Torque Value</th><td style="font-size: 22px"><span id="ctrlRt0TorqueValue">N/A</span> mV</td></tr>
+						<tr style="font-size: 18px"><th>Speed</th><td style="font-size: 22px"><span id="ctrlRt1SpeedValue">N/A</span> Km/H</td></tr>
+						<tr style="font-size: 18px"><th>Controller Current</th><td style="font-size: 22px"><span id="ctrlRt1CurrentValue">N/A</span> A</td></tr>
                     </tbody>
                  </table>
                  <div id="sensorRealtimePlaceholder" class="placeholder-text" style="display: block;">Real-time data not yet received.</div>
@@ -823,7 +835,7 @@
                                 <select id="fwUpdateModeSelect">
                                     <option value="CONTROLER" selected>Motor controller</option>
                                     <option value="CONTROLER_OLD">Old motor controller</option>
-                                    <option value="CONTROLER_HUB">M410 V2.0 / Hub CRS10F V4.0 Motor Controller</option>
+                                    <option value="CONTROLER_HUB">M410 V2.0 / Hub CRS10F V4.0</option>
                                     <option value="HMI">HMI (DPC245, DPC080CB, DPC010CN)</option>
                                     <option value="DPC18">HMI DPC18 1.4</option>
                                     <option value="DPE160">HMI DPE160</option>

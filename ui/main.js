@@ -149,7 +149,9 @@
              p1FullRangeValue: document.getElementById('ctrlP1FullRangeValue'),
              p1FullRangeInput: document.getElementById('ctrlP1FullRangeInput'),
              batteryPlaceholder: document.getElementById('ctrlBatteryPlaceholder'),
-			 
+			 //Speed P1
+			 p1SpeedLimitEnabledValue: document.getElementById('ctrlP1SpeedLimitEnabledValue'),
+             p1SpeedLimitEnabledInput: document.getElementById('ctrlP1SpeedLimitEnabledInput'),
              // Mechanical P1
              p1GearRatioValue: document.getElementById('ctrlP1GearRatioValue'),
              p1CoasterBrakeValue: document.getElementById('ctrlP1CoasterBrakeValue'),
@@ -989,6 +991,10 @@
 			safeSetText(controllerElements.p1UnderVoltageIdleValue, controllerParams1?.undervoltage);
 			safeSetInput(controllerElements.p1UnderVoltageIdleInput, controllerParams1, 'undervoltage');
 			if (controllerElements.electricPlaceholder) controllerElements.electricPlaceholder.style.display = controllerParams1 ? 'none' : 'block';
+
+			// Speed P1
+			safeSetText(controllerElements.p1SpeedLimitEnabledValue, controllerParams1?.speed_limit_enabled);
+			safeSetInput(controllerElements.p1SpeedLimitEnabledInput, controllerParams1, 'speed_limit_enabled');
 
 			// Battery P1
 			safeSetText(controllerElements.p1BattCapacityValue, controllerParams1?.battery_capacity);
@@ -2706,6 +2712,7 @@
                     }
                 };
                 checkP1('current_limit', controllerElements.p1CurrentLimitInput, parseInt);
+				checkP1('speed_limit_enabled', controllerElements.p1SpeedLimitEnabledInput, parseInt);
 				checkP1('max_current_on_low_charge', controllerElements.p1MaxCurrentLowChargeInput, parseInt);
                 checkP1('overvoltage', controllerElements.p1OverVoltageInput, parseInt);
                 checkP1('undervoltage_under_load', controllerElements.p1UnderVoltageLoadInput, parseInt);
