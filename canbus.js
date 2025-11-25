@@ -356,26 +356,30 @@ class CanBusService extends EventEmitter {
         let parsedData = null; let dataType = 'unknown'; const sourceId = completedParsedFrame.sourceDeviceCode; const cmdCode = completedParsedFrame.canCommandCode; const subCode = completedParsedFrame.canCommandSubCode;
         switch (sourceId) {
              case DeviceNetworkId.DRIVE_UNIT: dataType = 'controller'; 
-			 if (cmdCode === 0x32) { if (subCode === 0x00) { parsedData = BafangCanControllerParser.package0(completedParsedFrame); dataType = 'controller_realtime_0'; } 
-			 else if (subCode === 0x01) { parsedData = BafangCanControllerParser.package1(completedParsedFrame); dataType = 'controller_realtime_1'; } 
-			 else if (subCode === 0x03) { parsedData = BafangCanControllerParser.parameter3(completedParsedFrame); 
-				  dataType = 'controller_speed_params'; 
-				  this.cachedSpeedParams = { ...parsedData }; // Cache it
-				  if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; } 			 
-			 else if (subCode === 0x05) {
-                       parsedData = BafangCanControllerParser.parameter5(completedParsedFrame); dataType = 'controller_calories'; 
-                       //console.log(`>>> RX Controller Calories (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-					   }
-			else if (subCode === 0x06) {
-					   parsedData = { controller_current_assist_level: completedParsedFrame.data[0] };
-                       dataType = 'controller_current_assist_level';
-                       //console.log(`>>> RX Controller Current Level (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-					   }
-			else if (subCode === 0x0C) {
-				       parsedData = { controller_total_assist_levels: completedParsedFrame.data[0] };
-                       dataType = 'controller_total_assist_levels'; parsedData = { raw_data: completedParsedFrame.data };
-                       //console.log(`>>> RX Controller Total levels (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-			 }}					   
+             if (cmdCode === 0x12)
+                if (subCode === 0x00) { parsedData = BafangCanControllerParser.state(completedParsedFrame); dataType = 'controller_state'; }; 
+			 if (cmdCode === 0x32) { 
+                if (subCode === 0x00) { parsedData = BafangCanControllerParser.package0(completedParsedFrame); dataType = 'controller_realtime_0'; } 
+                else if (subCode === 0x01) { parsedData = BafangCanControllerParser.package1(completedParsedFrame); dataType = 'controller_realtime_1'; } 
+                else if (subCode === 0x03) { parsedData = BafangCanControllerParser.parameter3(completedParsedFrame); 
+                    dataType = 'controller_speed_params'; 
+                    this.cachedSpeedParams = { ...parsedData }; // Cache it
+                    if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; } 			 
+                else if (subCode === 0x05) {
+                        parsedData = BafangCanControllerParser.parameter5(completedParsedFrame); dataType = 'controller_calories'; 
+                        //console.log(`>>> RX Controller Calories (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
+                        }
+                else if (subCode === 0x06) {
+                        parsedData = { controller_current_assist_level: completedParsedFrame.data[0] };
+                        dataType = 'controller_current_assist_level';
+                        //console.log(`>>> RX Controller Current Level (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
+                        }
+                else if (subCode === 0x0C) {
+                        parsedData = { controller_total_assist_levels: completedParsedFrame.data[0] };
+                        dataType = 'controller_total_assist_levels'; parsedData = { raw_data: completedParsedFrame.data };
+                        //console.log(`>>> RX Controller Total levels (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
+                }
+             }					   
 			 else if (cmdCode === 0x60) {
 				  if (subCode === 0x10) { parsedData = BafangCanControllerParser.parameter0(completedParsedFrame); 
 				  dataType = 'controller_params_0';

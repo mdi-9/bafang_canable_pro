@@ -120,6 +120,13 @@ class BafangCanControllerParser {
         };
     }
 
+    static state(packet){
+        if (!packet || !Array.isArray(packet.data)) {
+             return { state_number: null };
+        }
+        return { state_number: packet.data[0] };
+    }
+
 	static parameter0(packet) {
          if (!packet || !Array.isArray(packet.data) || packet.data.length < 64) {
              return { parseError: true, error: "Invalid data length for Parameter1" };

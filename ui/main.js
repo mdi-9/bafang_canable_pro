@@ -114,6 +114,8 @@
  		const controllerElements = {
              syncButton: document.getElementById('controllerSyncButton'),
              saveButton: document.getElementById('controllerSaveButton'),
+			 //State
+			 stateNumberValue: document.getElementById('ctrlStateNumberValue'),
              // Realtime 0
              rt0RemainCapValue: document.getElementById('ctrlRt0RemainCapValue'),
              rt0RemainDistValue: document.getElementById('ctrlRt0RemainDistValue'),
@@ -268,7 +270,7 @@
         let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null,batteryCellsStats = null;
         let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null };
         // Controller specific stores
-        let controllerRealtime0 = null, controllerRealtime1 = null; 
+        let controllerRealtime0 = null, controllerRealtime1 = null, controllerState = null; 
 		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
         let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null, manufacturer: null };
 		let displayShutdownTime = null; // <-- Add storage for shutdown time
@@ -936,6 +938,10 @@
 			 }
 
 			 // REMOVED Info update logic - handled by updateInfoUI
+		}
+
+		function updateControllerStateUI(){
+			safeSetText(controllerElements.stateNumberValue, controllerState?.state_number);
 		}
 			
 		function updateControllerUI() {
@@ -2191,6 +2197,7 @@
             let needsSensorUpdate = false;
             let needsBatteryUpdate = false;
             let needsControllerUpdate = false;
+			let needsControllerStateUpdate = false;
             let needsGearsUpdate = false;
             let needsGearsM820Update = false;
             let needsInfoUpdate = false;
@@ -2244,6 +2251,7 @@
 							'battery_capacity',
 							'display_realtime',
 							'controller_realtime_0',
+							'controller_state',
 							'controller_realtime_1',
 							'display_data_1',
 							'display_data_2',
@@ -2268,6 +2276,7 @@
 						case 'display_autoshutdown_time': displayShutdownTime = parsedEvent.data?.display_auto_shutdown_time; needsDisplayUpdate = true; break;
                         // Controller Data
 						case 'controller_realtime_0': controllerRealtime0 = parsedEvent.data; needsControllerUpdate = true; break;
+						case 'controller_state': controllerState = parsedEvent.data; needsControllerStateUpdate = true; break;
                         case 'controller_realtime_1': controllerRealtime1 = parsedEvent.data; needsControllerUpdate = true; break;
                         case 'controller_params_0':
                              controllerParams0 = parsedEvent.data;
@@ -2467,6 +2476,7 @@
                     if (needsSensorUpdate) updateSensorUI();
                     if (needsBatteryUpdate) updateBatteryUI();
 					if (needsControllerUpdate) updateControllerUI();
+					if (needsControllerStateUpdate) updateControllerStateUI();
 					if (needsGearsUpdate) updateGearsUI();
                     if (needsGearsM820Update) updateGearsUIM820();
                     if (needsInfoUpdate) updateInfoUI(); 				

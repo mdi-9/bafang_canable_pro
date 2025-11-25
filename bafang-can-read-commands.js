@@ -131,6 +131,11 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x01,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
     },
+    ControllerState: {
+        canCommandCode: 0x12, // 18
+        canCommandSubCode: 0x00,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
 	SensorRealtime: {
         canCommandCode: 0x31, // 49
         canCommandSubCode: 0x00,

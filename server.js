@@ -633,6 +633,7 @@ const wss = new WebSocket.Server({ server });
 			const typesToSkipInConsoleLog = [
 				'display_realtime',
 				'controller_realtime_0',
+				'controller_state',
 				'controller_realtime_1',
 				'display_data_1',
 				'display_data_2',
