@@ -1258,8 +1258,8 @@
 				createInputCell('start_torque_value', profileData?.start_torque_value, 0, 255, 1, '');
 				createInputCell('max_torque_value', profileData?.max_torque_value, 0, 255, 1, '');
 				createInputCell('return_torque_value', profileData?.return_torque_value, 0, 255, 1, '');
-				createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
 				createInputCell('max_current', profileData?.max_current, 0, 100, 1, '');
+				createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
 
 				let startPulseValue = '';
 				let startPulseReadOnly = false;
@@ -1473,8 +1473,8 @@
 				createInputCell('start_torque_value', profileData?.start_torque_value, 0, 255, 1, '');
 				createInputCell('max_torque_value', profileData?.max_torque_value, 0, 255, 1, '');
 				createInputCell('return_torque_value', profileData?.return_torque_value, 0, 255, 1, '');
-				createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
 				createInputCell('max_current', profileData?.max_current, 0, 100, 1, '');
+				createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
 
 				let startPulseValue = '';
 				let startPulseReadOnly = false;
