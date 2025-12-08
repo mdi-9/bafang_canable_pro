@@ -156,13 +156,21 @@
              p1SpeedLimitEnabledInput: document.getElementById('ctrlP1SpeedLimitEnabledInput'),
              // Mechanical P1
              p1GearRatioValue: document.getElementById('ctrlP1GearRatioValue'),
+			 p1GearRatioInput: document.getElementById('ctrlP1GearRatioInput'),
              p1CoasterBrakeValue: document.getElementById('ctrlP1CoasterBrakeValue'),
+			 p1CoasterBrakeInput: document.getElementById('ctrlP1CoasterBrakeInput'),
              p1MaxRpmValue: document.getElementById('ctrlP1MaxRpmValue'),
+			 p1MaxRpmInput: document.getElementById('ctrlP1MaxRpmInput'),
              p1CadenceSignalsValue: document.getElementById('ctrlP1CadenceSignalsValue'),
+			 p1CadenceSignalsInput: document.getElementById('ctrlP1CadenceSignalsInput'),
              p1MotorTypeValue: document.getElementById('ctrlP1MotorTypeValue'),
+			 p1MotorTypeInput: document.getElementById('ctrlP1MotorTypeInput'),
+			 p1PolePairNumberValue: document.getElementById('ctrlP1PolePairNumberValue'),
+			 p1PolePairNumberInput: document.getElementById('ctrlP1PolePairNumberInput'),
              p1SpeedMagnetsValue: document.getElementById('ctrlP1SpeedMagnetsValue'),
              p1SpeedMagnetsInput: document.getElementById('ctrlP1SpeedMagnetsInput'),
              p1TempSensorValue: document.getElementById('ctrlP1TempSensorValue'),
+			 p1TempSensorInput: document.getElementById('ctrlP1TempSensorInput'),
              p1LampsOnValue: document.getElementById('ctrlP1LampsOnValue'),
              p1LampsOnInput: document.getElementById('ctrlP1LampsOnInput'),
              mechPlaceholder: document.getElementById('ctrlMechPlaceholder'),
@@ -1013,11 +1021,19 @@
 
 			// Mechanical P1
 			safeSetText(controllerElements.p1GearRatioValue, controllerParams1?.deceleration_ratio, (val) => getNullableNumber(val, 2));
+			safeSetInput(controllerElements.p1GearRatioInput, controllerParams1, 'deceleration_ratio');
 			safeSetText(controllerElements.p1CoasterBrakeValue, controllerParams1?.coaster_brake, getNullableBoolean);
+			safeSetSelectBoolean(controllerElements.p1CoasterBrakeInput, controllerParams1, 'coaster_brake');
 			safeSetText(controllerElements.p1MaxRpmValue, controllerParams1?.motor_max_rotor_rpm);
+			safeSetInput(controllerElements.p1MaxRpmInput, controllerParams1, 'motor_max_rotor_rpm');
 			safeSetText(controllerElements.p1CadenceSignalsValue, controllerParams1?.pedal_sensor_signals_per_rotation);
-			safeSetText(controllerElements.p1MotorTypeValue, controllerParams1?.motor_type); // Display number for now
-			safeSetText(controllerElements.p1TempSensorValue, controllerParams1?.temperature_sensor_type); // Display number
+			safeSetInput(controllerElements.p1CadenceSignalsInput, controllerParams1, 'pedal_sensor_signals_per_rotation');
+			safeSetText(controllerElements.p1MotorTypeValue, controllerParams1?.motor_type);
+			safeSetInput(controllerElements.p1MotorTypeInput, controllerParams1, 'motor_type');
+			safeSetText(controllerElements.p1PolePairNumberValue, controllerParams1?.motor_pole_pair_number);
+			safeSetInput(controllerElements.p1PolePairNumberInput, controllerParams1, 'motor_pole_pair_number');
+			safeSetText(controllerElements.p1TempSensorValue, controllerParams1?.temperature_sensor_type);
+			safeSetInput(controllerElements.p1TempSensorInput, controllerParams1, 'temperature_sensor_type');
 			safeSetText(controllerElements.p1SpeedMagnetsValue, controllerParams1?.speedmeter_magnets_number);
 			safeSetInput(controllerElements.p1SpeedMagnetsInput, controllerParams1, 'speedmeter_magnets_number');
 			safeSetText(controllerElements.p1LampsOnValue, controllerParams1?.lamps_always_on, getNullableBoolean);
@@ -2739,6 +2755,13 @@
                 checkP1('throttle_start_voltage', controllerElements.p1ThrottleStartInput, parseFloat, 1);
                 checkP1('throttle_max_voltage', controllerElements.p1ThrottleEndInput, parseFloat, 1); // Corrected key
 				checkP1('walk_assist_speed', controllerElements.p1WalkAssistSpeedInput, parseFloat, 1); // Check with 1 decimal place
+				checkP1('deceleration_ratio', controllerElements.p1GearRatioInput, parseFloat, 2);
+				checkP1('coaster_brake', controllerElements.p1CoasterBrakeInput, val => val === "true");
+				checkP1('motor_max_rotor_rpm', controllerElements.p1MaxRpmInput, parseInt);
+				checkP1('pedal_sensor_signals_per_rotation', controllerElements.p1CadenceSignalsInput, parseInt);
+				checkP1('motor_type', controllerElements.p1MotorTypeInput, parseInt);
+				checkP1('motor_pole_pair_number', controllerElements.p1PolePairNumberInput, parseInt);
+				checkP1('temperature_sensor_type', controllerElements.p1TempSensorInput, parseInt);
 
                 if (p1Changed) {
 					 // If system_voltage wasn't set from dropdown but other P1 params changed,
