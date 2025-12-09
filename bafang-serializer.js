@@ -402,8 +402,8 @@ function prepareParameter2WriteData(canbusInstance, value) {
              new_pkg[18 + i] = profile.max_current ?? 0xFF;
              new_pkg[30 + i] = profile.torque_decay_time ?? 0xFF;
              new_pkg[36 + i] = profile.start_pulse ?? 0xFF;
-             new_pkg[42 + i] = (profile.current_decay_time !== undefined && profile.current_decay_time !== null) ? Math.min(255, Math.max(0, Math.floor(profile.current_decay_time / 5))) : 0xFF; // Clamp 0-255
-             new_pkg[48 + i] = (profile.stop_delay !== undefined && profile.stop_delay !== null)? Math.min(255, Math.max(0, Math.floor(profile.stop_delay / 5))) : 0xFF; // Clamp 0-255
+             new_pkg[42 + i] = profile.current_decay_time ?? 0xFF;
+             new_pkg[48 + i] = profile.stop_delay ?? 0xFF;
 		 }
 		 new_pkg[54] = value.acceleration_level ?? 0xFF;
 

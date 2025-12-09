@@ -291,8 +291,8 @@ class BafangCanControllerParser {
                         max_current: packet.data[18 + i],
                         torque_decay_time: packet.data[30 + i],
                         start_pulse: packet.data[36 + i],
-                        current_decay_time: packet.data[42 + i] * 5,
-                        stop_delay: packet.data[48 + i] * 2,
+                        current_decay_time: packet.data[42 + i],
+                        stop_delay: packet.data[48 + i],
                     });
                  } else {
                      console.warn("Insufficient data length for full torque profiles in Parameter2");
