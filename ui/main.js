@@ -2586,9 +2586,10 @@
 		debugElements.startCustomFrameInterval.onclick = () => {
 			const id = debugElements.canIdInputInterval.value.trim(); 
 			const data = debugElements.canDataInputInterval.value.trim().replace(/\s/g, '');  
+			const seconds = parseInt(debugElements.secondsInterval.value.trim()); 
 			if(!validIdAndData(id,data))
 				return
-			intervalId = setInterval(sendCustomFrame, id, data);
+			intervalId = setInterval(sendCustomFrame,(seconds * 1000),id, data);
 			debugElements.startCustomFrameInterval.disabled = true;
 			debugElements.stopCustomFrameInterval.disabled = false;
 		};
@@ -2603,6 +2604,7 @@
 		function sendCustomFrame(id,data){
 			const command = `${id}#${data}`; 
 			socket.send(command); 
+			console.log("Sending:", command);
 		}
 
 		if (debugElements.rawParamSelect) {
