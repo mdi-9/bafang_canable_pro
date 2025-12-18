@@ -2589,6 +2589,7 @@
 			const seconds = parseInt(debugElements.secondsInterval.value.trim()); 
 			if(!validIdAndData(id,data))
 				return
+			sendCustomFrame(id,data)
 			intervalId = setInterval(sendCustomFrame,(seconds * 1000),id, data);
 			debugElements.startCustomFrameInterval.disabled = true;
 			debugElements.stopCustomFrameInterval.disabled = false;
