@@ -102,6 +102,11 @@
              canIdInput: document.getElementById('canIdInput'),
              canDataInput: document.getElementById('canDataInput'),
              sendCustomFrameButton: document.getElementById('sendCustomFrame'),
+             canIdInputInterval: document.getElementById('canIdInputInterval'),
+             canDataInputInterval: document.getElementById('canDataInputInterval'),
+			 secondsInterval: document.getElementById('secondsInterval'),
+             startCustomFrameInterval: document.getElementById('startCustomFrameInterval'),
+			 stopCustomFrameInterval: document.getElementById('stopCustomFrameInterval'),
 			 logArea: document.getElementById('log'),
              clearLogButton: document.getElementById('clearLogButton'),
 			 rawParamSelect: document.getElementById('rawParamSelect'),
@@ -2554,8 +2559,51 @@
                 else { addLog('ERROR', 'WebSocket not open.'); }
             };
         });
+
+		function validIdAndData(id,data){
+			if (!id) { 
+				alert('CAN ID required.'); return false; 
+			} if (!/^[0-9a-fA-F]+$/.test(id)) { 
+				alert('CAN ID must be hex.'); return false; 
+			} if (data && !/^[0-9a-fA-F]*$/.test(data)) { 
+				alert('Data must be hex.'); return false; 
+			} if (data.length % 2 !== 0) { 
+				alert('Data hex must have even length.'); return false; 
+			} if (data.length > 16) { 
+				alert('Data length max 8 bytes.'); return false; 
+			} 
+			return true
+		}
         
-		document.getElementById('sendCustomFrame').onclick = () => { const id = debugElements.canIdInput.value.trim(); const data = debugElements.canDataInput.value.trim().replace(/\s/g, ''); if (!id) { alert('CAN ID required.'); return; } if (!/^[0-9a-fA-F]+$/.test(id)) { alert('CAN ID must be hex.'); return; } if (data && !/^[0-9a-fA-F]*$/.test(data)) { alert('Data must be hex.'); return; } if (data.length % 2 !== 0) { alert('Data hex must have even length.'); return; } if (data.length > 16) { alert('Data length max 8 bytes.'); return; } const command = `${id}#${data}`; socket.send(command); };
+		debugElements.sendCustomFrameButton.onclick = () => { 
+			const id = debugElements.canIdInput.value.trim(); 
+			const data = debugElements.canDataInput.value.trim().replace(/\s/g, ''); 
+			if(!validIdAndData(id,data))
+				return
+			sendCustomFrame(id,data)
+		};
+		let intervalId = null;
+		debugElements.startCustomFrameInterval.onclick = () => {
+			const id = debugElements.canIdInputInterval.value.trim(); 
+			const data = debugElements.canDataInputInterval.value.trim().replace(/\s/g, '');  
+			if(!validIdAndData(id,data))
+				return
+			intervalId = setInterval(sendCustomFrame, id, data);
+			debugElements.startCustomFrameInterval.disabled = true;
+			debugElements.stopCustomFrameInterval.disabled = false;
+		};
+
+		debugElements.stopCustomFrameInterval.onclick = () => { 
+			clearInterval(intervalId);
+			intervalId = null;
+			debugElements.startCustomFrameInterval.disabled = false;
+			debugElements.stopCustomFrameInterval.disabled = true;
+		};
+
+		function sendCustomFrame(id,data){
+			const command = `${id}#${data}`; 
+			socket.send(command); 
+		}
 
 		if (debugElements.rawParamSelect) {
 			debugElements.rawParamSelect.addEventListener('change', (event) => {

@@ -831,6 +831,13 @@
                      <input type="text" id="canDataInput" placeholder="Data (Hex, e.g., 0100FF)">
                      <button id="sendCustomFrame">Send Custom</button>
                  </div>
+                 <div class="custom-frame-controls-interval">
+                     <input type="text" id="canIdInputInterval" value="03106300" placeholder="CAN ID (Hex, e.g., 05F06002)">
+                     <input type="text" id="canDataInputInterval" value="09000001" placeholder="Data (Hex, e.g., 0100FF)">
+                     <input type="number" id="secondsInterval" value="10">
+                     <button id="startCustomFrameInterval">Start custom interval</button>
+                     <button id="stopCustomFrameInterval" disabled>Stop custom interval</button>
+                 </div>
                  <!-- NEW: Raw Parameter Editor Card -->
                  <div class="card" id="rawParamEditorCard">
                      <h2>Raw Frame Editor</h2>
