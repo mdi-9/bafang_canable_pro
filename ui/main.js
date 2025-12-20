@@ -260,6 +260,13 @@
 			delayInput: document.getElementById('fwUpdateDelayUsInput'),
 		}
 
+		const snifferElements = {
+			startButton: document.getElementById('snifferStartButton'),
+			stopButton: document.getElementById('snifferStopButton'),
+			logArea: document.getElementById('snifferLog'),
+			clearButton: document.getElementById('clearSnifferLogButton'),
+		}
+
         // --- Global state for CAN connection ---
         let isCanDeviceFound = false;
         let isCanConnected = false;
@@ -2526,6 +2533,7 @@
 				tabButtons.forEach(button => button.disabled = false); // Enable all tabs after update
 				connectCanButton.disabled = false; // Enable connect button after update
 			}
+			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
             else { addLog('INFO', message); }
         };
 
@@ -3274,6 +3282,35 @@
 
             fwUpdateElements.logArea.appendChild(entry);
             fwUpdateElements.logArea.scrollTop = fwUpdateElements.logArea.scrollHeight;
+        }
+
+		// --- Sniffer SECTON ---
+
+		snifferElements.startButton.onclick = () => {
+			snifferElements.logArea.innerHTML = '';
+			snifferElements.startButton.disabled = true;
+			snifferElements.stopButton.disabled = false;
+			socket.send(`SNIFFER_START`);
+		}
+		snifferElements.stopButton.onclick = () => {
+			snifferElements.startButton.disabled = false;
+			snifferElements.stopButton.disabled = true;
+			socket.send(`SNIFFER_STOP`);
+		}
+
+		snifferElements.clearButton.onclick = () => { snifferElements.logArea.innerHTML = ''; };
+
+		function addSnifferLog(data) {
+            const entry = document.createElement('div'); entry.classList.add('log-entry');
+            //const timeSpan = document.createElement('span'); timeSpan.classList.add('log-time'); timeSpan.textContent = `[${new Date().toLocaleTimeString()}]`;
+            const dataSpan = document.createElement('span'); dataSpan.classList.add('log-data');
+			dataSpan.textContent = String(data);
+
+            //entry.appendChild(timeSpan);
+            entry.appendChild(dataSpan);
+
+            snifferElements.logArea.appendChild(entry);
+            snifferElements.logArea.scrollTop = snifferElements.logArea.scrollHeight;
         }
 
 

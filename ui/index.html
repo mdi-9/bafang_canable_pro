@@ -8,17 +8,17 @@
   </head>
 <body>
     <div class="container">
-        <h1>Bafang CANable Pro</h1>
 
         <!-- Status Card -->
 		<div class="card">
             <!-- Use a flex container for horizontal alignment -->
             <div class="status-container" style="display: flex; align-items: center; justify-content: space-between; gap: 15px;">
                 <!-- Left part: Indicator and Text -->
-                <div class="status" style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
+                <div class="status" style="display: flex; align-items: center; gap: 10px;">
                     <div id="statusIndicator" class="status-indicator"></div>
                     <span id="statusText">Disconnected</span> <!-- Default text -->
                 </div>
+                <h2>Bafang CANable Pro</h2>
                 <!-- Right part: Button -->
                 <div class="status-controls">
                      <button id="connectCanButton" disabled style="padding: 6px 12px; font-size: 13px;">Connect</button>
@@ -50,6 +50,7 @@
             <button class="tab-button" data-tab="info">Info</button>
             <button class="tab-button" data-tab="debug">Debug</button>
             <button class="tab-button" data-tab="fwUpdate">Firmware update</button>
+            <button class="tab-button" data-tab="sniffer">Sniffer</button>
         </div>
 
         <!-- Tab Content Area -->
@@ -918,6 +919,39 @@
                         <button id="clearFwUpdateLogButton" style="float: right; background-color: #6c757d;">Clear update log</button>
                     </h2>
                     <div id="fwUpdatelog" class="log"></div>
+                </div>
+            </div>
+            <!-- Sniffer Tab -->
+            <div class="tab-content" id="tab-sniffer">
+                <h2>Sniffer</h2>
+                <div class="general-controls">
+                    <button id="snifferStartButton" disabled>Start sniffing</button>
+                    <button id="snifferStopButton" disabled> Stop sniffing</button>
+                </div>
+                <br />
+                <!-- Data -->
+                 <table class="description-table">
+                     <tbody>
+                        <tr>
+                            <th>Filtered Ids:</th>
+                            <td>
+                                TODO
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Log to file enabled:</th>
+                            <td>
+                                TODO
+                            </td>
+                        </tr>
+                     </tbody>
+                 </table>
+
+                <div class="card">
+                    <h2>Log
+                        <button id="clearSnifferLogButton" style="float: right; background-color: #6c757d;">Clear sniffer log</button>
+                    </h2>
+                    <div id="snifferLog" style="height: 700px;" class="log"></div>
                 </div>
             </div>
         </div> <!-- End of main tab content card -->

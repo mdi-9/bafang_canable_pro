@@ -15,6 +15,7 @@ const { CanWriteCommandsList } = require('./bafang-can-write-commands');
 
 const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
 const FwUpdater = require('./fw-updater');
+const Sniffer = require('./sniffer');
 
 // --- Globals ---
 let clients = [];
@@ -546,6 +547,22 @@ const wss = new WebSocket.Server({ server });
 		return false;
 	}
 
+	let sniffer;
+	async function handleStartSniffer(ws,messageString) {
+		if (messageString.startsWith('SNIFFER_START')) {
+			sniffer = new Sniffer(canbus,ws);
+			return true
+		}
+		return false;
+	}
+	async function handleStopSniffer(messageString) {
+		if (messageString.startsWith('SNIFFER_STOP') && sniffer) {
+			sniffer.cleanup()
+			return true
+		}
+		return false;
+	}
+
 
 	wss.on('connection', async (ws) => {
 		clients.push(ws);
@@ -593,6 +610,8 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleStartupAngleCommands(ws, messageString, sendResult);
 				if (!handled) handled = await handleRawCanFrame(ws, messageString);
 				if (!handled) handled = await handleStartFwUpload(ws, messageString);
+				if (!handled) handled = await handleStartSniffer(ws, messageString);
+				if (!handled) handled = await handleStopSniffer(messageString);
 
 				if (!handled) {
 					console.warn("Unknown command received from UI (unhandled):", messageString);
