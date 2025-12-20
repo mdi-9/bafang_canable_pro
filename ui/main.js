@@ -2903,7 +2903,7 @@
 
         controllerElements.calibratePositionButton.onclick = () => {
              if (confirm("WARNING: Motor will spin!\n\nEnsure chain is removed and bike is secure.\n\nProceed with Position Sensor Calibration?")) {
-                 // Target: 2 (Controller), Cmd: 98 (0x61), SubCmd: 0 (0x00)
+                 // Target: 2 (Controller), Cmd: 98 (0x62), SubCmd: 0 (0x00)
                  // Data: 5 zero bytes [00, 00, 00, 00, 00]
                  socket.send("WRITE_SHORT:2:98:0:0000000000");
                  addLog('SAVE_REQ', 'Calibrate Position Sensor');

@@ -65,6 +65,11 @@ const CanWriteCommandsList = Object.freeze({
         canCommandSubCode: 0x00,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
     },
+    CalibrateTorqueSensor: { // Command to Calibrate Torque Sensor on Controller
+        canCommandCode: 0x61, // 97
+        canCommandSubCode: 0x01,
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
 	SetServiceThreshold: { 
         canCommandCode: 0x63,
         canCommandSubCode: 0x0B,
