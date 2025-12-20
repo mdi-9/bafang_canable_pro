@@ -2,7 +2,7 @@ const { setupLogger, formatRawCanFrameData } = require('./utils');
 
 class Sniffer {
 
-    logToFileEnabled = false;
+    logToFile = null;
     filteredIds = new Set([
         '82F83200','82F83201', '82F83202' ,'82F83203','82F83204','82F83205','82F83206','82F83207','82F83208','82F83209','82F8320A','82F8320B', 
         '82F8320A', '82F8320B',
@@ -23,7 +23,7 @@ class Sniffer {
             const timestamp = new Date().toLocaleTimeString();
             if(sendOverWS)
                 console.log(`[${timestamp}] [${type}] ${message}`);
-            if(this.logToFileEnabled)
+            if(this.logToFile)
                 this.logToFile(`[${timestamp}]\t[${type}]\t${message}`);
             if(sendOverWS && this.ws){
                 this.ws.send(`SNIFFER_ENTRY:[${timestamp}]\t[${type}]\t${message}`);
@@ -31,6 +31,10 @@ class Sniffer {
         }catch( e ) {
             console.log(e, 'ERROR');
         }
+    }
+
+    async setupLogger(){
+        this.logToFile = await setupLogger()
     }
 
     rawFrameRecived = (rawFrame)=>{

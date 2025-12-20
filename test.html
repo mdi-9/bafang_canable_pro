@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Kompaktowy Drag & Drop Demo</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --item-bg: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 40px 20px; 
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .widget {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        /* Panel dodawania */
+        .add-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button#addBtn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button#addBtn:hover { background: #1d4ed8; }
+
+        h4 { margin: 20px 0 8px 0; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Kontenery */
+        .drop-zone {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 54px;
+            background: #f1f5f9;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            list-style: none;
+            margin: 0;
+            transition: all 0.2s ease;
+        }
+
+        .drop-zone.drag-over {
+            background: #e0f2fe;
+            border-color: var(--primary);
+        }
+
+        /* Elementy - Tagi */
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--item-bg);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: grab;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: transform 0.1s;
+        }
+
+        .item:active { cursor: grabbing; }
+
+        .item.dragging {
+            opacity: 0.4;
+            transform: scale(0.9);
+        }
+
+        /* Przycisk usuwania wewnątrz taga */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .delete-btn:hover { color: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <div class="widget">
+        <div class="add-box">
+            <input type="text" id="newItemInput" placeholder="Nazwa taga..." maxlength="25">
+            <button id="addBtn">Dodaj</button>
+        </div>
+
+        <h4>Dostępne komponenty</h4>
+        <ul id="list-a" class="drop-zone">
+            </ul>
+
+        <h4>Moja konfiguracja</h4>
+        <ul id="list-b" class="drop-zone">
+        </ul>
+    </div>
+
+    <script>
+        const input = document.getElementById('newItemInput');
+        const addBtn = document.getElementById('addBtn');
+        const zones = document.querySelectorAll('.drop-zone');
+
+        // Funkcja tworząca nowy element z pełną funkcjonalnością
+        function createItem(text) {
+            const li = document.createElement('li');
+            li.className = 'item';
+            li.draggable = true;
+            li.innerHTML = `
+                <span>${text}</span>
+                <button class="delete-btn">&times;</button>
+            `;
+
+            // Eventy Drag & Drop
+            li.addEventListener('dragstart', () => li.classList.add('dragging'));
+            li.addEventListener('dragend', () => {
+                li.classList.remove('dragging');
+                zones.forEach(z => z.classList.remove('drag-over'));
+            });
+
+            // Event usuwania
+            li.querySelector('.delete-btn').addEventListener('click', () => li.remove());
+
+            return li;
+        }
+
+        // Dodawanie elementów
+        function handleAdd() {
+            const val = input.value.trim();
+            if (val) {
+                document.getElementById('list-a').appendChild(createItem(val));
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        addBtn.addEventListener('click', handleAdd);
+        input.addEventListener('keypress', (e) => e.key === 'Enter' && handleAdd());
+
+        // Obsługa stref upuszczania
+        zones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+                
+                const draggingItem = document.querySelector('.dragging');
+                if (!draggingItem) return;
+
+                const afterElement = getDragAfterElement(zone, e.clientX);
+                
+                if (afterElement == null) {
+                    zone.appendChild(draggingItem);
+                } else {
+                    zone.insertBefore(draggingItem, afterElement);
+                }
+            });
+
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            zone.addEventListener('drop', () => zone.classList.remove('drag-over'));
+        });
+
+        // Logika sortowania poziomego (sprawdzanie pozycji X względem środka elementów)
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // Startowe dane
+        ['React', 'Vue', 'Svelte'].forEach(t => document.getElementById('list-a').appendChild(createItem(t)));
+    </script>
+
+</body>
+</html>

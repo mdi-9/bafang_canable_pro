@@ -271,3 +271,43 @@ hex-editor-container {
     color: #D8000C;
     background-color: #FFBABA;
 }
+.drop-zone {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 54px;
+    background: #f1f5f9;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    list-style: none;
+    margin: 0;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    background: #e0f2fe;
+}
+
+/* Elementy - Tagi */
+.item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: grab;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: transform 0.1s;
+}
+
+.item:active { cursor: grabbing; }
+
+.item.dragging {
+    opacity: 0.4;
+    transform: scale(0.9);
+}

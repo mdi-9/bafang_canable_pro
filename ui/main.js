@@ -265,6 +265,12 @@
 			stopButton: document.getElementById('snifferStopButton'),
 			logArea: document.getElementById('snifferLog'),
 			clearButton: document.getElementById('clearSnifferLogButton'),
+			newFilteredIdInput: document.getElementById('newFilteredIdInput'),
+			addFilteredIdButton: document.getElementById('addFilteredIdButton'),
+			filteredIdsListOff: document.getElementById('filteredIdsListOff'),
+			filteredIdsListOn: document.getElementById('filteredIdsListOn'),
+			snifferLogToFileCheckbox: document.getElementById('snifferLogToFileCheckbox'),
+			zones: document.querySelectorAll('.drop-zone')
 		}
 
         // --- Global state for CAN connection ---
@@ -3290,7 +3296,9 @@
 			snifferElements.logArea.innerHTML = '';
 			snifferElements.startButton.disabled = true;
 			snifferElements.stopButton.disabled = false;
-			socket.send(`SNIFFER_START`);
+    		const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
+    		const itemsJoined = Array.from(items).map(item => item.textContent).join(';');
+			socket.send(`SNIFFER_START:${snifferElements.snifferLogToFileCheckbox.checked}:${itemsJoined}`);
 		}
 		snifferElements.stopButton.onclick = () => {
 			snifferElements.startButton.disabled = false;
@@ -3312,6 +3320,80 @@
             snifferElements.logArea.appendChild(entry);
             snifferElements.logArea.scrollTop = snifferElements.logArea.scrollHeight;
         }
+
+		function createFilteredIdItem(text) {
+            const li = document.createElement('li');
+            li.className = 'item';
+            li.draggable = true;
+            li.innerHTML = `<span>${text}</span>`;
+
+            // Eventy Drag & Drop
+            li.addEventListener('dragstart', () => li.classList.add('dragging'));
+            li.addEventListener('dragend', () => {
+                li.classList.remove('dragging');
+                snifferElements.zones.forEach(z => z.classList.remove('drag-over'));
+            });
+
+            return li;
+        }
+
+		snifferElements.addFilteredIdButton.onclick = () => { 
+
+            const id = snifferElements.newFilteredIdInput.value.trim();
+            if (id && /^[0-9a-fA-F]+$/.test(id)) {
+                snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(id));
+                snifferElements.newFilteredIdInput.value = '';
+                snifferElements.newFilteredIdInput.focus();
+            } else
+				alert('CAN ID must be hex.');
+		};
+
+		snifferElements.zones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+                
+                const draggingItem = document.querySelector('.dragging');
+                if (!draggingItem) return;
+
+                const afterElement = getDragAfterElement(zone, e.clientX);
+                
+                if (afterElement == null) {
+                    zone.appendChild(draggingItem);
+                } else {
+                    zone.insertBefore(draggingItem, afterElement);
+                }
+            });
+
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            zone.addEventListener('drop', () => {
+				zone.classList.remove('drag-over')
+				const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
+				const itemsJoined = Array.from(items).map(item => item.textContent).join(';');
+				socket.send(`SNIFFER_FILTEREDIDS_SET:${itemsJoined}`);
+			});
+        });
+
+		function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+		snifferElements.snifferLogToFileCheckbox.addEventListener('change', (e) => {
+			socket.send(`SNIFFER_LOG_ENABLE:${e.target.checked}`);
+		});
+
+		['82F83200','82F83201', '82F83202' ,'82F83203','82F83204','82F83205','82F83206','82F83207','82F83208','82F83209','82F8320A','82F8320B', 
+        '82F8320A', '82F8320B'].forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
 
 
 		
