@@ -355,7 +355,9 @@ class CanBusService extends EventEmitter {
         // --- End ACK Check ---
         let parsedData = null; let dataType = 'unknown'; const sourceId = completedParsedFrame.sourceDeviceCode; const cmdCode = completedParsedFrame.canCommandCode; const subCode = completedParsedFrame.canCommandSubCode;
         switch (sourceId) {
-             case DeviceNetworkId.DRIVE_UNIT: dataType = 'controller'; 
+             case DeviceNetworkId.DRIVE_UNIT: 
+             dataType = 'controller'; 
+             parsedData = { _rawBytes: [...completedParsedFrame.data] };
              if (cmdCode === 0x12)
                 if (subCode === 0x00) { parsedData = BafangCanControllerParser.state(completedParsedFrame); dataType = 'controller_state'; }; 
 			 if (cmdCode === 0x32) { 
@@ -419,93 +421,105 @@ class CanBusService extends EventEmitter {
 			     parsedData = { controller_auto_shutdown_time: completedParsedFrame.data[0] };
                  dataType = 'controller_system_auto_off'; 
 				 //console.log(`>>> RX Controller Auto Off (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-             }			 
+             }
              break; 
 			 
-			 case DeviceNetworkId.DISPLAY: dataType = 'display'; 
+			 case DeviceNetworkId.DISPLAY: 
+                dataType = 'display'; 
+                parsedData = { _rawBytes: [...completedParsedFrame.data] };
 					if (cmdCode === 0x63) { 
-					if (subCode === 0x00) { 
-                             const rawAssistCode = (completedParsedFrame.data && completedParsedFrame.data.length > 1)
-                                                   ? completedParsedFrame.data[1] // Get raw code from byte 1
-                                                   : null; // Handle cases where data might be missing/short
-                             parsedData = BafangCanDisplayParser.package0(completedParsedFrame);
-                             dataType = 'display_realtime';
-                             // Add the raw code to the parsed data object if parsing succeeded
-                             if (parsedData && !parsedData.parseError && rawAssistCode !== null) {
-                                 parsedData.current_assist_level_code = rawAssistCode;
-                             } else if (rawAssistCode === null && !(parsedData && parsedData.parseError)) {
-                                 // Log if raw code couldn't be read but parsing didn't report an error
-                                 console.warn("Could not extract raw assist code for display_realtime, data length insufficient.");
-                             }
-					} 
-					else if (subCode === 0x01) { parsedData = BafangCanDisplayParser.package1(completedParsedFrame); dataType = 'display_data_1'; } 
-					else if (subCode === 0x02) { parsedData = BafangCanDisplayParser.package2(completedParsedFrame); dataType = 'display_data_2'; } 
-					else if (subCode === 0x03) {
-                             // Time settings: Bike autoshutdown (0x63/0x03)
-                             if (completedParsedFrame.data && completedParsedFrame.data.length >= 1) {
-                                  // Value is minutes, 255 means OFF
-                                  parsedData = { display_auto_shutdown_time: completedParsedFrame.data[0] };
-                                  dataType = 'display_autoshutdown_time';
-                             } else {
-                                  parsedData = { parseError: true, error: "Invalid data length for Display Auto Shutdown" };
-                                  dataType = 'display_autoshutdown_time_error';
-                             }
-					} else if (subCode === 0x04) { 
-						parsedData = BafangCanDisplayParser.package3(completedParsedFrame);
-                        dataType = 'display_data_lightsensor';  //00 LightSensNum,  01 LightSensLevel,02 BacklightNum, 03 BacklightLevel 
-                        //console.log(`>>> RX Display Data lighsensor (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);//
-					}}
+                        if (subCode === 0x00) { 
+                                const rawAssistCode = (completedParsedFrame.data && completedParsedFrame.data.length > 1)
+                                                    ? completedParsedFrame.data[1] // Get raw code from byte 1
+                                                    : null; // Handle cases where data might be missing/short
+                                parsedData = BafangCanDisplayParser.package0(completedParsedFrame);
+                                dataType = 'display_realtime';
+                                // Add the raw code to the parsed data object if parsing succeeded
+                                if (parsedData && !parsedData.parseError && rawAssistCode !== null) {
+                                    parsedData.current_assist_level_code = rawAssistCode;
+                                } else if (rawAssistCode === null && !(parsedData && parsedData.parseError)) {
+                                    // Log if raw code couldn't be read but parsing didn't report an error
+                                    console.warn("Could not extract raw assist code for display_realtime, data length insufficient.");
+                                }
+                        } 
+                        else if (subCode === 0x01) { parsedData = BafangCanDisplayParser.package1(completedParsedFrame); dataType = 'display_data_1'; } 
+                        else if (subCode === 0x02) { parsedData = BafangCanDisplayParser.package2(completedParsedFrame); dataType = 'display_data_2'; } 
+                        else if (subCode === 0x03) {
+                                // Time settings: Bike autoshutdown (0x63/0x03)
+                                if (completedParsedFrame.data && completedParsedFrame.data.length >= 1) {
+                                    // Value is minutes, 255 means OFF
+                                    parsedData = { display_auto_shutdown_time: completedParsedFrame.data[0] };
+                                    dataType = 'display_autoshutdown_time';
+                                } else {
+                                    parsedData = { parseError: true, error: "Invalid data length for Display Auto Shutdown" };
+                                    dataType = 'display_autoshutdown_time_error';
+                                }
+                        } else if (subCode === 0x04) { 
+                            parsedData = BafangCanDisplayParser.package3(completedParsedFrame);
+                            dataType = 'display_data_lightsensor';  //00 LightSensNum,  01 LightSensLevel,02 BacklightNum, 03 BacklightLevel 
+                            //console.log(`>>> RX Display Data lighsensor (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);//
+                        }
+                    }
 					else if (cmdCode === 0x60) { 
-					if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'display_errors'; } 
-					else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'display_hw_version'; } 
-					else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'display_sw_version'; } 
-					else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'display_sn'; } 
-					else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'display_mn'; } 
-					else if (subCode === 0x04) { parsedData = { customer_number: charsToString(completedParsedFrame.data) }; dataType = 'display_cn'; } 
-					else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'display_mfg'; } 
-					else if (subCode === 0x08) { parsedData = { bootloader_version: charsToString(completedParsedFrame.data) }; dataType = 'display_bootloader_version'; } }
+                        if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'display_errors'; } 
+                        else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'display_hw_version'; } 
+                        else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'display_sw_version'; } 
+                        else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'display_sn'; } 
+                        else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'display_mn'; } 
+                        else if (subCode === 0x04) { parsedData = { customer_number: charsToString(completedParsedFrame.data) }; dataType = 'display_cn'; } 
+                        else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'display_mfg'; } 
+                        else if (subCode === 0x08) { parsedData = { bootloader_version: charsToString(completedParsedFrame.data) }; dataType = 'display_bootloader_version'; } 
+                    }
 					else if (cmdCode === 0x21 && subCode === 0x64) 
-					{ parsedData = { ack_display_2164: true }; dataType = 'display_ack_2164'; } 
+					    { parsedData = { ack_display_2164: true }; dataType = 'display_ack_2164'; } 
 					break; 
              
-			 case DeviceNetworkId.BATTERY: dataType = 'battery'; 
-			 if (cmdCode === 0x34) { 
-                if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(completedParsedFrame); dataType = 'battery_capacity'; } 
-                else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(completedParsedFrame); dataType = 'battery_state'; } 
-             } 
-			 else if (cmdCode === 0x64) { 
-                if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(completedParsedFrame); dataType = 'battery_design'; } 
-                else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(completedParsedFrame); dataType = 'battery_charging_info'; } 
-                else {
-                    parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
-                }
-             }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
-			 else if (cmdCode === 0x60) { 
-                if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 
-                else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_sw_version'; } 
-                else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_sn'; } 
-                else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_mn'; } 
-             } 
-			 break; // Added mn
-             case DeviceNetworkId.TORQUE_SENSOR: dataType = 'sensor'; 
-			 if (cmdCode === 0x31 && subCode === 0x00) { parsedData = BafangCanSensorParser.package0(completedParsedFrame); dataType = 'sensor_realtime'; } 
-			 else if (cmdCode === 0x60) { if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_hw_version'; } 
-			 else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sw_version'; } 
-			 else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sn'; } 
-			 else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_mn'; } } 
-			 break; // Added mn
+			 case DeviceNetworkId.BATTERY: 
+                dataType = 'battery'; 
+                parsedData = { _rawBytes: [...completedParsedFrame.data] };
+                if (cmdCode === 0x34) { 
+                    if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(completedParsedFrame); dataType = 'battery_capacity'; } 
+                    else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(completedParsedFrame); dataType = 'battery_state'; } 
+                } 
+                else if (cmdCode === 0x64) { 
+                    if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(completedParsedFrame); dataType = 'battery_design'; } 
+                    else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(completedParsedFrame); dataType = 'battery_charging_info'; } 
+                    else {
+                        parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
+                    }
+                }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
+                else if (cmdCode === 0x60) { 
+                    if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 
+                    else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_sw_version'; } 
+                    else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_sn'; } 
+                    else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_mn'; } 
+                } 
+                break; // Added mn
+             case DeviceNetworkId.TORQUE_SENSOR: 
+                dataType = 'sensor'; 
+                parsedData = { _rawBytes: [...completedParsedFrame.data] };
+                if (cmdCode === 0x31 && subCode === 0x00) { parsedData = BafangCanSensorParser.package0(completedParsedFrame); dataType = 'sensor_realtime'; } 
+                else if (cmdCode === 0x60) { if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_hw_version'; } 
+                else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sw_version'; } 
+                else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sn'; } 
+                else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_mn'; } } 
+                break; // Added mn
              case DeviceNetworkId.BESST: dataType = 'besst'; 
-			 if (cmdCode === 0x35 && subCode === 0x01) 
-			 { parsedData = { besst_status_3501: completedParsedFrame.data }; 
-			 dataType = 'besst_status_3501'; } 
-			 break;
-             default: dataType = `unknown_source_0x${sourceId.toString(16)}`; 
-			 parsedData = { original_frame: completedParsedFrame }; 
+                parsedData = { _rawBytes: [...completedParsedFrame.data] };
+                if (cmdCode === 0x35 && subCode === 0x01) 
+                { parsedData = { besst_status_3501: completedParsedFrame.data }; 
+                dataType = 'besst_status_3501'; } 
+                break;
+             default: 
+                dataType = `unknown_source_0x${sourceId.toString(16)}`; 
+                parsedData = { original_frame: completedParsedFrame }; 
 			 break;
         }
         if (parsedData && !parsedData.parseError) {
-            this.emit('bafang_data_received', { type: dataType, source: sourceId, data: parsedData, timestamp_us: timestamp_us || Date.now() * 1000 });
-        } else if (dataType !== 'unknown' && parsedData && parsedData.parseError) { console.warn(`Parsing error for ${dataType}:`, parsedData.error || "Unknown error", "Original Frame:", completedParsedFrame); }
+            this.emit('bafang_data_received', { type: dataType, source: sourceId, cmdCode, subCode, data: parsedData, timestamp_us: timestamp_us || Date.now() * 1000 });
+        } else if (dataType !== 'unknown' && parsedData && parsedData.parseError) { 
+            console.warn(`Parsing error for ${dataType}:`, parsedData.error || "Unknown error", "Original Frame:", completedParsedFrame); 
+        } 
         // No need to emit unhandled ACKs as they were handled earlier
         // else if (dataType === 'unknown' && completedParsedFrame.canOperationCode !== CanOperation.NORMAL_ACK) { /* Potentially emit unhandled non-ACK frames */ }
     }

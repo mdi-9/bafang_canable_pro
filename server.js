@@ -270,6 +270,40 @@ const wss = new WebSocket.Server({ server });
 		return true; // Command was handled (or failed validation within this handler)
 	}
 
+	async function handleReadRawCommand(ws, messageString, sendResult) {
+		if (!messageString.startsWith('READ_RAW:')) return false;
+
+		const parts = messageString.substring('READ_RAW:'.length).split(':');
+		if (parts.length !== 3) {
+			ws.send('ERROR: Invalid READ format. Use READ_RAW:TARGET:CMD:SUB');
+			return true;
+		}
+		const targetId = parseInt(parts[0], 10);
+		const cmdCode = parseInt(parts[1], 10);
+		const subCode = parseInt(parts[2], 10);
+		let cmdInfo = { 
+			canCommandCode: cmdCode,
+			canCommandSubCode: subCode,
+			applicableDevices: [targetId],
+		};
+		let cmdKey = `${cmdCode}/${subCode}`;
+		let parseError = false;
+		const validTargets = Object.values(DeviceNetworkId);
+
+		if (isNaN(targetId) || !validTargets.includes(targetId)) { ws.send(`ERROR: Invalid Target ID ${parts[0]}.`); parseError = true; }
+
+		if (!parseError) {
+			const source = DeviceNetworkId.BESST;
+			const bafangIdArr = generateCanFrameId(source, targetId, CanOperation.READ_CMD, cmdCode, subCode);
+			const canId32bit = bafangIdArrayTo32Bit(bafangIdArr);
+			console.log(`>>> Initiating Read ${cmdKey} | Target: ${targetId} | 32bit ID: ${canId32bit.toString(16).toUpperCase().padStart(8, '0')}`);
+			ws.send(`INFO: Initiating Read ${cmdKey} from ${targetId}...`);
+			const result = await canbus.readParameter(targetId, cmdInfo);
+			sendResult(`Read ${cmdKey}`, result);
+		}
+		return true; // Command was handled (or failed validation within this handler)
+	}
+
 	async function handleWriteShortCommands(ws, messageString, sendResult) {
 		if (!messageString.startsWith('WRITE_SHORT:')) return false;
 
@@ -307,6 +341,52 @@ const wss = new WebSocket.Server({ server });
 			}
 			if (!cmdInfo) { ws.send(`ERROR: Command ${cmdCode}/${subCode} not found in write list.`); parseError = true; }
 		}
+		if (cmdInfo && !parseError && (!cmdInfo.applicableDevices || !cmdInfo.applicableDevices.includes(targetId))) {
+			ws.send(`ERROR: Command ${cmdKey} is not applicable to target device ${targetId}.`); parseError = true;
+		}
+		if (!parseError) {
+			console.log(`>>> Initiating Short Write ${cmdKey} | Target: ${targetId} | Data: ${dataHex}`);
+			ws.send(`INFO: Initiating Short Write ${cmdKey} to ${targetId}...`);
+			const result = await canbus.writeShortParameterWithAck(targetId, cmdInfo, dataBytes);
+			sendResult(`Short Write ${cmdKey}`, result);
+		}
+		return true;
+	}
+
+	async function handleWriteShortRawCommand(ws, messageString, sendResult) {
+		if (!messageString.startsWith('WRITE_SHORT_RAW:')) return false;
+
+		const parts = messageString.substring('WRITE_SHORT_RAW:'.length).split(':', 4);
+		if (parts.length < 3) {
+			ws.send('ERROR: Invalid WRITE_SHORT_RAW format. Use WRITE_SHORT_RAW:TARGET:CMD:SUB[:DATAHEX]');
+			return true;
+		}
+		const targetId = parseInt(parts[0], 10);
+		const cmdCode = parseInt(parts[1], 10);
+		const subCode = parseInt(parts[2], 10);
+		const dataHex = (parts.length === 4) ? (parts[3] || "") : "";
+		const dataBytes = [];
+		let parseError = false;
+		let cmdInfo = {
+			canCommandCode: cmdCode,
+			canCommandSubCode: subCode, // 
+			applicableDevices: [targetId],
+		};
+		let cmdKey = `${cmdCode}/${subCode}`;
+		const validTargets = Object.values(DeviceNetworkId);
+
+		if (dataHex) {
+			if (dataHex.length % 2 !== 0) { ws.send('ERROR: Data Hex must have even length.'); parseError = true; }
+			if (!parseError) {
+				for (let i = 0; i < dataHex.length; i += 2) {
+					const byte = parseInt(dataHex.substring(i, i + 2), 16);
+					if (isNaN(byte)) { ws.send('ERROR: Data Hex contains invalid characters.'); parseError = true; break; }
+					dataBytes.push(byte);
+				}
+			}
+			if (!parseError && dataBytes.length > 8) { ws.send('ERROR: Data payload too long (max 8 bytes).'); parseError = true; }
+		}
+		if (!parseError && (isNaN(targetId) || !validTargets.includes(targetId))) { ws.send(`ERROR: Invalid Target ID ${parts[0]}.`); parseError = true; }
 		if (cmdInfo && !parseError && (!cmdInfo.applicableDevices || !cmdInfo.applicableDevices.includes(targetId))) {
 			ws.send(`ERROR: Command ${cmdKey} is not applicable to target device ${targetId}.`); parseError = true;
 		}
@@ -631,7 +711,9 @@ const wss = new WebSocket.Server({ server });
 				let handled = false;
 				if (!handled) handled = await handleConnectionCommands(ws, messageString);
 				if (!handled) handled = await handleReadCommands(ws, messageString, sendResult);
+				if (!handled) handled = await handleReadRawCommand(ws, messageString, sendResult);
 				if (!handled) handled = await handleWriteShortCommands(ws, messageString, sendResult);
+				if (!handled) handled = await handleWriteShortRawCommand(ws, messageString, sendResult);
 				if (!handled) handled = await handleWriteLongRawParams(ws, messageString, sendRawWriteStatus); // Check RAW before parsed P
 				if (!handled) handled = await handleWriteLongParsedParams(ws, messageString);
 				if (!handled) handled = await handleWriteLongSpeedParams(ws, messageString);
@@ -696,6 +778,10 @@ const wss = new WebSocket.Server({ server });
 				'sensor_realtime',
 				'battery_state',
 				'battery_capacity',
+				'sensor',
+				'battery',
+				'display',
+				'controller'
 				// Add any other types you want to omit from the console here
 			];
 

@@ -855,6 +855,20 @@
                          <button id="rawParamSyncButton">Sync Selected</button>
                          <button id="rawParamSaveButton">Save Selected</button>
                      </div>
+                     <div class="raw-param-controls">
+                         <select id="rawDestSelect">
+                             <option value="1">Torque sensor</option>
+                             <option value="2" selected>Controller</option>
+                             <option value="3">HMI</option>
+                             <option value="4">Battery</option>
+                         </select>
+                        <input type="text" id="rawParamCodeInput" value="32" placeholder="Code (Example: 32)" minlength="2" maxlength="2">
+                        <input type="text" id="rawParamSubCodeInput" value="07"  placeholder="Subcode (Example: 07)" minlength="2" maxlength="2">
+                        <button id="rawParamCustomSyncButton" style="white-space: nowrap;">Sync Custom</button>
+                        <button id="rawParamCustomSyncIntervalStartButton" style="white-space: nowrap;">Sync Interval Start (1sec)</button>
+                        <button id="rawParamCustomSyncIntervalStopButton" style="white-space: nowrap;">Interval Stop</button>
+                        <button id="rawParamCustomSaveButton" style="white-space: nowrap;">Save Custom</button>
+                     </div>
                      <div class="hex-editor-container">
                          <table id="hexEditorTable">
                              <tbody id="hexEditorTableBody">
@@ -936,7 +950,7 @@
                             <th>New filtered id</th>
                             <td>
                                 <div style="display: flex;">
-                                    <input type="text" id="newFilteredIdInput" placeholder="CAN ID (Hex, e.g., 05F06002)" maxlength="8">
+                                    <input type="text" id="newFilteredIdInput" placeholder="CAN ID (Hex, e.g., 05F06002)" minlength="8" maxlength="8">
                                     <button id="addFilteredIdButton">Add</button>
                                 </div>
                             </td>

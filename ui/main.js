@@ -114,6 +114,13 @@
 			 rawParamSaveButton: document.getElementById('rawParamSaveButton'),
 			 hexEditorTableBody: document.getElementById('hexEditorTableBody'),
 			 hexEditorPlaceholder: document.getElementById('hexEditorPlaceholder'),
+			 rawDestSelect: document.getElementById('rawDestSelect'),
+			 rawParamCodeInput: document.getElementById('rawParamCodeInput'),
+			 rawParamSubCodeInput:document.getElementById('rawParamSubCodeInput'),
+			 rawParamCustomSyncButton:document.getElementById('rawParamCustomSyncButton'),
+			 rawParamCustomSaveButton:document.getElementById('rawParamCustomSaveButton'),
+			 rawParamCustomSyncIntervalStartButton:document.getElementById('rawParamCustomSyncIntervalStartButton'),
+			 rawParamCustomSyncIntervalStopButton:document.getElementById('rawParamCustomSyncIntervalStopButton'),
         };
 		
  		const controllerElements = {
@@ -2293,14 +2300,18 @@
 							'display_autoshutdown_time',
 							'controller_current_assist_level',
 							'controller_calories',
-							'controller_speed_params'
+							'controller_speed_params',
+							'sensor',
+							'battery',
+							'display',
+							'controller'
 						];
 
-				if (!typesToSkipInUILog.includes(parsedEvent.type)) {
+					if (!typesToSkipInUILog.includes(parsedEvent.type)) {
 						addLog(`RX (${parsedEvent.type || 'unknown'})`, parsedEvent.data || parsedEvent);
 					}					
         
-				// Update local data stores based on type
+					// Update local data stores based on type
                     switch (parsedEvent.type) {
                         // Display Data
                         case 'display_data_1': displayData1 = parsedEvent.data; needsDisplayUpdate = true; break;
@@ -2422,11 +2433,11 @@
 									controllerSpeedParams = parsedEvent.data; // Store raw parsed data
 								}
 								if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
-								rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
-								needsHexEditorUpdate = true;
+									rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
+									needsHexEditorUpdate = true;
 								} else if (parsedEvent.data && parsedEvent.data.raw_data && Array.isArray(parsedEvent.data.raw_data)) {
-								rawParamData[parsedEvent.type] = [...parsedEvent.data.raw_data];
-								needsHexEditorUpdate = true;
+									rawParamData[parsedEvent.type] = [...parsedEvent.data.raw_data];
+									needsHexEditorUpdate = true;
 								}
 								needsControllerUpdate = true;
 								break;
@@ -2504,7 +2515,10 @@
                         case 'battery_sw_version': batteryOtherInfo.swVersion = parsedEvent.data?.software_version; needsBatteryUpdate = true; break;
                         case 'battery_mn': batteryOtherInfo.modelNumber = parsedEvent.data?.model_number; needsBatteryUpdate = true; break;
                         case 'battery_sn': batteryOtherInfo.serialNumber = parsedEvent.data?.serial_number; batteryOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsBatteryUpdate = true; break;
+						// default:
+						// 	needsHexEditorUpdate = handleCustomRaw(parsedEvent);
                     }
+					needsHexEditorUpdate = handleCustomRaw(parsedEvent);
                     // Call UI update functions if needed
                     if (needsDisplayUpdate) updateDisplayUI();
                     if (needsSensorUpdate) updateSensorUI();
@@ -2656,6 +2670,105 @@
 				}
 			};
 		}
+
+		function handleCustomRaw(parsedEvent){
+			const destCode = debugElements.rawDestSelect.value;
+			const cmdCode = debugElements.rawParamCodeInput.value;
+			const subCode = debugElements.rawParamSubCodeInput.value;
+			if(cmdCode.length !=2 || subCode.length != 2 )
+				return false;
+			const cmdCode0x = parseInt('0x'+cmdCode);
+			const subCode0x = parseInt('0x'+subCode);
+			if(destCode != parsedEvent.source || cmdCode0x != parsedEvent.cmdCode || subCode0x != parsedEvent.subCode)
+				return false
+			rawParamData[`${destCode}:${cmdCode0x}:${subCode0x}`] = [...parsedEvent.data._rawBytes];
+			addLog(`RX (${parsedEvent.type || 'unknown'})`, parsedEvent);
+			return true
+		}
+
+		debugElements.rawParamCustomSyncButton.onclick = () =>{
+			const destCode = debugElements.rawDestSelect.value;
+			const cmdCode = debugElements.rawParamCodeInput.value;
+			const subCode = debugElements.rawParamSubCodeInput.value;
+			if(cmdCode.length !=2 || subCode.length != 2){
+				alert('Wrong code || subcode')
+				return
+			}
+			const cmdCode0x = parseInt('0x'+cmdCode);
+			const subCode0x = parseInt('0x'+subCode);
+			currentRawParamType = `${destCode}:${cmdCode0x}:${subCode0x}`
+			if (socket.readyState === WebSocket.OPEN) {
+				socket.send(`READ_RAW:${destCode}:${cmdCode0x}:${subCode0x}`);
+			} else {
+				addLog('ERROR', 'WebSocket not open for raw param sync.');
+			}
+		}
+
+		function triggerClick(elem){
+			elem.click()
+		}
+
+		let intervalSyncId = null;
+		debugElements.rawParamCustomSyncIntervalStartButton.onclick = () => {
+
+			intervalSyncId = setInterval(triggerClick,1000,debugElements.rawParamCustomSyncButton);
+			debugElements.rawParamCustomSyncIntervalStartButton.disabled = true;
+			debugElements.rawParamCustomSaveButton.disabled = true;
+			debugElements.rawParamCustomSyncIntervalStopButton.disabled = false;
+		};
+
+		debugElements.rawParamCustomSyncIntervalStopButton.onclick = () => { 
+			clearInterval(intervalSyncId);
+			intervalSyncId = null;
+			debugElements.rawParamCustomSyncIntervalStartButton.disabled = false;
+			debugElements.rawParamCustomSaveButton.disabled = false;
+			debugElements.rawParamCustomSyncIntervalStopButton.disabled = true;
+		};
+		debugElements.rawParamCustomSaveButton.onclick = () => {
+			if (!currentRawParamType || !rawParamData[currentRawParamType]) {
+				alert('Please select a parameter block and ensure data is loaded before saving.');
+				return;
+			}
+
+			// Make a copy of the bytes to send so we don't modify the UI's underlying data directly here
+			let bytesToSend = [...rawParamData[currentRawParamType]]; // Shallow copy
+
+			if (!bytesToSend || !Array.isArray(bytesToSend)) {
+				addLog('ERROR', `No byte data available to save for ${currentRawParamType}`);
+				return;
+			}
+
+			if (!confirm(`Are you sure you want to write the raw bytes for ${currentRawParamType} to the selected destination? This can be risky!`)) {
+				return;
+			}
+			addLog('SAVE_REQ', `Saving raw parameter: ${currentRawParamType}`);
+
+			const destCode = debugElements.rawDestSelect.value;
+			const cmdCode = debugElements.rawParamCodeInput.value;
+			const subCode = debugElements.rawParamSubCodeInput.value;
+			if(cmdCode.length !=2 || subCode.length != 2){
+				alert('Wrong code || subcode')
+				return
+			}
+			const cmdCode0x = parseInt('0x'+cmdCode);
+			const subCode0x = parseInt('0x'+subCode);
+
+			const dataHex = bytesToSend.map(b => b.toString(16).padStart(2, '0')).join('');
+			let commandToSend = `WRITE_SHORT_RAW:${destCode}:${cmdCode0x}:${subCode0x}:${dataHex}`;
+
+			if (socket.readyState === WebSocket.OPEN) {
+				try {
+					socket.send(commandToSend);
+					// Log the first few bytes to confirm checksum inclusion if it's a long param
+					const logDataPreview = bytesToSend.map(b => '0x'+b.toString(16)).join(',');
+					addLog('INFO', `Raw data command for ${currentRawParamType} sent to server. Data preview: [${logDataPreview}]`);
+				} catch (e) {
+					addLog('ERROR', `Failed to send raw data command for ${currentRawParamType}: ${e.message}`);
+				}
+			} else {
+				addLog('ERROR', 'WebSocket not open for raw param save.');
+			}
+		};
 
 		if (debugElements.rawParamSaveButton) {
 			debugElements.rawParamSaveButton.onclick = () => {
