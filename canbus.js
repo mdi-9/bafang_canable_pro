@@ -516,6 +516,8 @@ class CanBusService extends EventEmitter {
 			 break;
         }
         if (parsedData && !parsedData.parseError) {
+            if(!parsedData._rawBytes)
+                parsedData._rawBytes = [...completedParsedFrame.data]
             this.emit('bafang_data_received', { type: dataType, source: sourceId, cmdCode, subCode, data: parsedData, timestamp_us: timestamp_us || Date.now() * 1000 });
         } else if (dataType !== 'unknown' && parsedData && parsedData.parseError) { 
             console.warn(`Parsing error for ${dataType}:`, parsedData.error || "Unknown error", "Original Frame:", completedParsedFrame); 
