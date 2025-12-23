@@ -62,6 +62,11 @@ class Sniffer {
                 // Data is the same as the last one for this ID, increment count
                 currentEntry.count++;
                 currentEntry.lastTimestamp = timestamp; // Update timestamp of last seen identical frame
+                // Log the every 100 repeat same data
+                if (currentEntry.count % 100 == 0) {
+                    const logMessage = `${currentEntry.lastTimestamp}\tID:${idHex}\tDLC:${currentEntry.dlc}\tData:${currentEntry.lastDataHex}\t(Repeated ${currentEntry.count} times - same data)`;
+                    this.logMessage(logMessage);
+                }
             } else {
                 // Data has changed for this ID
                 // Log the summary of the previous sequence if it repeated
