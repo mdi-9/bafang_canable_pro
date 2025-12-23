@@ -355,13 +355,11 @@ class BafangCanDisplayParser {
         // Simplified lookup, as original depends on specific table values
         const assistLevelMap = {
             // Example mappings, replace with actual values if known
-			0: 0, 12: 1, 2: 2, 3: 3, 6: 'walk',
-            // eslint-disable-next-line no-dupe-keys
-            0: 0, 11: 1, 13: 2, 21: 3, 23: 4, 3: 5, 6: 'walk',
-            // eslint-disable-next-line no-dupe-keys
-            0: 0, 1: 1, 11: 2, 12: 3, 13: 4, 2: 5, 21: 6, 22: 7, 23: 8, 3: 9, 6: 'walk' 
+			3:{0: 0, 12: 1, 2: 2, 3: 3, 6: 'walk'},
+            5:{0: 0, 11: 1, 13: 2, 21: 3, 23: 4, 3: 5, 6: 'walk'},
+            9:{0: 0, 1: 1, 11: 2, 12: 3, 13: 4, 2: 5, 21: 6, 22: 7, 23: 8, 3: 9, 6: 'walk'}
         };
-        return assistLevelMap[currentAssistLevelCode] !== undefined ? assistLevelMap[currentAssistLevelCode] : 'unknown';
+        return assistLevelMap[totalAssistLevels][currentAssistLevelCode] !== undefined ? assistLevelMap[totalAssistLevels][currentAssistLevelCode] : 'unknown';
     }
 
     static errorCodes(data) {
