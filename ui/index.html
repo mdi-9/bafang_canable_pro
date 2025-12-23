@@ -407,7 +407,7 @@
                         <tr><th>Boost</th><td><span id="displayBoostValue">N/A</span></td></tr>
                         <tr><th>Current Assist Level</th><td><span id="displayCurrentAssistValue">N/A</span></td></tr>
                         <tr><th>Light Status</th><td><span id="displayLightValue">N/A</span></td></tr>
-                        <tr><th>Button Status</th><td><span id="displayButtonValue">N/A</span></td></tr>
+                        <tr><th>Up Button Status</th><td><span id="displayButtonValue">N/A</span></td></tr>
                     </tbody>
                 </table>
                 <!-- Records Section -->
@@ -443,23 +443,23 @@
                                 <button id="displayClearServiceButton">Clear Service Record</button>
                             </td>
                         </tr>
-                         <tr>
-                            <th>Set Current Time</th>
-                            <td>
-                                <button id="displaySetTimeButton">Set Display Clock to Now</button>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
                    <h3>Time settings</h3>
                  <table class="description-table">
                  <tbody>
-                      <tr>
-                          <th>Bike Auto shutdown</th>
-                          <td>
-                              <span id="displayShutdownTimeValue">N/A</span>minutes<br>
-                          </td>
-                      </tr>
+                    <tr>
+                        <th>Bike Auto shutdown</th>
+                        <td>
+                            <span id="displayShutdownTimeValue">N/A</span>minutes<br>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Set Current Time</th>
+                        <td>
+                            <button id="displaySetTimeButton">Set Display Clock to Now</button>
+                        </td>
+                    </tr>
                  </tbody>
                 </table>
                 <h3>Error Codes</h3>
@@ -845,12 +845,12 @@
                      <div class="raw-param-controls">
                          <select id="rawParamSelect">
                              <option value="">-- Select Parameter Block --</option>
-                             <option value="controller_params_0">Controller Params 0 (Acceleration)</option>
-                             <option value="controller_params_1">Controller Params 1 (General)</option>
-                             <option value="controller_params_2">Controller Params 2 (Torque)</option>
-                             <option value="controller_speed_params">Controller Speed Params</option>
-							 <option value="controller_params_6017">Controller Block 6017</option>
-                             <option value="controller_params_6018">Controller Block 6018</option>
+                             <option value="controller_params_0">Controller Params 0 (Assist ratio / Acceleration 6010)</option>
+                             <option value="controller_params_1">Controller Params 1 (General 6011)</option>
+                             <option value="controller_params_2">Controller Params 2 (Torque 6012)</option>
+                             <option value="controller_speed_params">Controller Speed Params (3203)</option>
+							 <option value="controller_params_6017">Controller Block (6017)</option>
+                             <option value="controller_params_6018">Controller Block (6018)</option>
                          </select>
                          <button id="rawParamSyncButton">Sync Selected</button>
                          <button id="rawParamSaveButton">Save Selected</button>
