@@ -34,7 +34,8 @@
             boostValue: document.getElementById('displayBoostValue'),
             currentAssistValue: document.getElementById('displayCurrentAssistValue'),
             lightValue: document.getElementById('displayLightValue'),
-            buttonValue: document.getElementById('displayButtonValue'),
+            upButtonValue: document.getElementById('displayUpButtonValue'),
+			downButtonValue: document.getElementById('displayDownButtonValue'),
             errorTableBody: document.getElementById('displayErrorTableBody'),
 			displayShutdownTimeValue: document.getElementById('displayShutdownTimeValue'),
             syncButton: document.getElementById('displaySyncButton'),
@@ -825,7 +826,8 @@
 		safeSetText(displayElements.currentAssistValue, decodedAssist);
 
 		safeSetText(displayElements.lightValue, displayRealtime?.light, (val) => getNullableBoolean(val, 'ON', 'OFF'));
-		safeSetText(displayElements.buttonValue, displayRealtime?.button, (val) => getNullableBoolean(val, 'Pressed', 'Not Pressed'));
+		safeSetText(displayElements.upButtonValue, displayRealtime?.button_up, (val) => getNullableBoolean(val, 'Pressed', 'Not Pressed'));
+		safeSetText(displayElements.downButtonValue, displayRealtime?.button_down, (val) => getNullableBoolean(val, 'Pressed', 'Not Pressed'));
 
 		// Shutdown Time
 		const shutdownVal = displayShutdownTime;

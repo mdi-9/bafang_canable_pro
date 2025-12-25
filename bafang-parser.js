@@ -393,7 +393,8 @@ class BafangCanDisplayParser {
                 packet.data[0] & 0b1111,
             ),
             light: (packet.data[2] & 1) === 1,
-            button: (packet.data[2] & 0b10) >> 1 === 1,
+            button_up: (packet.data[2] & 0b10) >> 1 === 1,
+            button_down: (packet.data[2] & 0b100000) >> 5 === 1,
         };
     }
 
