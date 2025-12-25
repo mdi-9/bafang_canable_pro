@@ -221,9 +221,9 @@ class CanBusService extends EventEmitter {
                 this.multiFrameBuffers[bufferKey] = {
                     expectedLength: expectedLength,
                     buffer:[],
-                    //buffer: Array(expectedLength).fill(null),
+                    arrBuffer: Array(Math.ceil(expectedLength/8)).fill(null),
                     originalFrameInfo: { ...parsedFrame }, // Store context of START
-                    nextSequence: 0
+                    //nextSequence: 0
                 };
                 this.multiFrameTimeouts[bufferKey] = setTimeout(() => { /* ... cleanup ... */ }, this.MULTIFRAME_TIMEOUT);
                 this._sendAck(parsedFrame); // ACK the START
@@ -250,16 +250,16 @@ class CanBusService extends EventEmitter {
                     return;
                 }
 
-                const sequenceNumber = parsedFrame.canCommandSubCode; // Sequence from MULTI/END frame
+                const sequenceNumber = parseInt(parsedFrame.canCommandSubCode,16); // Sequence from MULTI/END frame
 
-                if (sequenceNumber !== bufferInfo.nextSequence) {
-                    console.error(`>>> ${opCode === CanOperation.MULTIFRAME ? 'MF' : 'MF_END'} Sequence Error | Key: ${activeBufferKey} | Expected: ${bufferInfo.nextSequence}, Got: ${sequenceNumber}. Discarding.`);
-                    if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
-                    delete this.multiFrameBuffers[activeBufferKey];
-                    delete this.multiFrameTimeouts[activeBufferKey];
-                    this.requestManager.resolveRequest({ ...bufferInfo.originalFrameInfo, canOperationCode: CanOperation.ERROR_ACK, data:[] });
-                    return;
-                }
+                // if (sequenceNumber !== bufferInfo.nextSequence) {
+                //     console.error(`>>> ${opCode === CanOperation.MULTIFRAME ? 'MF' : 'MF_END'} Sequence Error | Key: ${activeBufferKey} | Expected: ${bufferInfo.nextSequence}, Got: ${sequenceNumber}. Discarding.`);
+                //     if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
+                //     delete this.multiFrameBuffers[activeBufferKey];
+                //     delete this.multiFrameTimeouts[activeBufferKey];
+                //     this.requestManager.resolveRequest({ ...bufferInfo.originalFrameInfo, canOperationCode: CanOperation.ERROR_ACK, data:[] });
+                //     return;
+                // }
 
                 console.log(`>>> ${opCode === CanOperation.MULTIFRAME ? 'MF' : 'MF_END'} | Key: ${activeBufferKey} | Seq: ${sequenceNumber} | Data: ${formatBufferForLog(frameData)}`);
 
@@ -267,9 +267,9 @@ class CanBusService extends EventEmitter {
                 if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
                  this.multiFrameTimeouts[activeBufferKey] = setTimeout(() => { /* ... cleanup ... */ }, this.MULTIFRAME_TIMEOUT);
 
-                //bufferInfo.buffer[sequenceNumber] = {...frameData};
-                bufferInfo.buffer.push(...frameData);
-                bufferInfo.nextSequence++;
+                bufferInfo.arrBuffer[sequenceNumber] = frameData;
+                //bufferInfo.buffer.push(...frameData);
+                //bufferInfo.nextSequence++;
 
                 // Send ACK referencing the original command context stored in bufferInfo
                 this._sendAck(bufferInfo.originalFrameInfo);
@@ -280,7 +280,11 @@ class CanBusService extends EventEmitter {
                     isComplete = true; // END frame always triggers final check
                 } else if (opCode === CanOperation.MULTIFRAME) {
                     // Check if buffer length now matches expected length
-                    if (bufferInfo.buffer.length >= bufferInfo.expectedLength) {
+                    // if (bufferInfo.buffer.length >= bufferInfo.expectedLength) {
+                    //     console.log(`>>> MF Completion Check Passed | Key: ${activeBufferKey} | Received: ${bufferInfo.buffer.length}, Expected: ${bufferInfo.expectedLength}`);
+                    //     isComplete = true;
+                    // }
+                    if (!bufferInfo.arrBuffer.filter(x => x === null).length) {
                         console.log(`>>> MF Completion Check Passed | Key: ${activeBufferKey} | Received: ${bufferInfo.buffer.length}, Expected: ${bufferInfo.expectedLength}`);
                         isComplete = true;
                     }
@@ -291,7 +295,8 @@ class CanBusService extends EventEmitter {
                     if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]); // Clear timeout on completion
                     delete this.multiFrameTimeouts[activeBufferKey];
 
-                    const assembledData = bufferInfo.buffer;
+                    //const assembledData = bufferInfo.buffer;
+                    const assembledData = bufferInfo.arrBuffer.flat(1);
                     const expected = bufferInfo.expectedLength;
                     const received = assembledData.length;
 
