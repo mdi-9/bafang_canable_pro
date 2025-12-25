@@ -2757,6 +2757,9 @@
 
 			const dataHex = bytesToSend.map(b => b.toString(16).padStart(2, '0')).join('');
 			let commandToSend = `WRITE_SHORT_RAW:${destCode}:${cmdCode0x}:${subCode0x}:${dataHex}`;
+			if(bytesToSend.length > 8){
+				commandToSend = `WRITE_LONG_RAW:${destCode}:${cmdCode0x}:${subCode0x}:${JSON.stringify(bytesToSend)}`;
+			}
 
 			if (socket.readyState === WebSocket.OPEN) {
 				try {

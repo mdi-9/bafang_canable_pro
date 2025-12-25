@@ -460,6 +460,33 @@ const wss = new WebSocket.Server({ server });
 		return true;
 	}
 
+	async function handleWriteLongRawCustomParams(ws, messageString, sendRawWriteStatus) {
+		if (!messageString.startsWith('WRITE_LONG_RAW:')) return false;
+		const parts = messageString.substring('WRITE_LONG_RAW:'.length).split(':', 4);
+		if (parts.length < 4) {
+			ws.send('ERROR: Invalid WRITE_LONG_RAW: format. Use WRITE_LONG_RAW:TARGET:CMD:SUB:DATAHEX');
+			return true;
+		}
+		const targetId = parseInt(parts[0], 10);
+		const cmdCode = parseInt(parts[1], 10);
+		const subCode = parseInt(parts[2], 10);
+		const jsonData = parts[3];
+		let targetCommandInfo = {
+			canCommandCode: cmdCode,
+			canCommandSubCode: subCode,
+			applicableDevices: [targetId]
+		};
+		try {
+			const bytesArray = JSON.parse(jsonData);
+			if (Array.isArray(bytesArray) && bytesArray.every(b => typeof b === 'number' && b >= 0 && b <= 255)) {
+				ws.send(`INFO: Writing raw long custom...`);
+				const success = await canbus.writeRawBytesParameter(targetId, targetCommandInfo, bytesArray);
+				sendRawWriteStatus('raw long custom', success);
+			} else { ws.send(`ERROR: Invalid byte array for raw long custom.`); }
+		} catch (e) { ws.send(`ERROR: Failed to parse JSON byte array for raw long custom: ${e.message}`); }
+		return true;
+	}
+
 	async function handleWriteLongSpeedParams(ws, messageString) {
 		if (!messageString.startsWith('WRITE_LONG_SPEED:')) return false;
 
@@ -715,6 +742,7 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleWriteShortCommands(ws, messageString, sendResult);
 				if (!handled) handled = await handleWriteShortRawCommand(ws, messageString, sendResult);
 				if (!handled) handled = await handleWriteLongRawParams(ws, messageString, sendRawWriteStatus); // Check RAW before parsed P
+				if (!handled) handled = await handleWriteLongRawCustomParams(ws, messageString, sendRawWriteStatus);
 				if (!handled) handled = await handleWriteLongParsedParams(ws, messageString);
 				if (!handled) handled = await handleWriteLongSpeedParams(ws, messageString);
 				if (!handled) handled = await handleWriteLongStringParams(ws, messageString);
