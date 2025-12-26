@@ -234,18 +234,18 @@ class CanBusService extends EventEmitter {
                 // We need to find the buffer based on source/target, but the cmd/sub might be 0/sequence#
                 // Let's iterate active buffers for this source/target pair
                 let activeBufferKey = null;
-                let bufferInfo = null;
+                //let bufferInfo = null;
                 for (const key in this.multiFrameBuffers) {
                     if (key.startsWith(`${sourceId}-${targetId}-`)) {
                          // Assume the first active buffer for this source/target is the one we're continuing
                          // THIS IS A HEURISTIC AND MIGHT FAIL IF MULTIPLE SEQUENCES ARE TRULY INTERLEAVED
                          activeBufferKey = key;
-                         bufferInfo = this.multiFrameBuffers[key];
+                         //bufferInfo = this.multiFrameBuffers[key];
                          break;
                     }
                 }
 
-                if (!bufferInfo || !activeBufferKey) {
+                if (!activeBufferKey) {
                     console.warn(`>>> ${opCode === CanOperation.MULTIFRAME ? 'MF' : 'MF_END'} | Ignored | Src: ${sourceId} | Seq: ${subCode} (No active buffer found for Src/Tgt ${sourceId}-${targetId})`);
                     return;
                 }
@@ -267,12 +267,12 @@ class CanBusService extends EventEmitter {
                 if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
                  this.multiFrameTimeouts[activeBufferKey] = setTimeout(() => { /* ... cleanup ... */ }, this.MULTIFRAME_TIMEOUT);
 
-                bufferInfo.arrBuffer[sequenceNumber] = frameData;
+                this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
                 //bufferInfo.buffer.push(...frameData);
                 //bufferInfo.nextSequence++;
 
                 // Send ACK referencing the original command context stored in bufferInfo
-                this._sendAck(bufferInfo.originalFrameInfo);
+                this._sendAck(this.multiFrameBuffers[activeBufferKey].originalFrameInfo);
 
                 // --- Author's Suggestion: Check for completion after MULTIFRAME too ---
                 let isComplete = false;
@@ -284,8 +284,8 @@ class CanBusService extends EventEmitter {
                     //     console.log(`>>> MF Completion Check Passed | Key: ${activeBufferKey} | Received: ${bufferInfo.buffer.length}, Expected: ${bufferInfo.expectedLength}`);
                     //     isComplete = true;
                     // }
-                    if (!bufferInfo.arrBuffer.filter(x => x === null).length) {
-                        console.log(`>>> MF Completion Check Passed | Key: ${activeBufferKey} | Received: ${bufferInfo.buffer.length}, Expected: ${bufferInfo.expectedLength}`);
+                    if (!this.multiFrameBuffers[activeBufferKey].arrBuffer.filter(x => x === null).length) {
+                        //console.log(`>>> MF Completion Check Passed | Key: ${activeBufferKey} | Received: ${bufferInfo.buffer.length}, Expected: ${bufferInfo.expectedLength}`);
                         isComplete = true;
                     }
                 }
@@ -296,8 +296,8 @@ class CanBusService extends EventEmitter {
                     delete this.multiFrameTimeouts[activeBufferKey];
 
                     //const assembledData = bufferInfo.buffer;
-                    const assembledData = bufferInfo.arrBuffer.flat(1);
-                    const expected = bufferInfo.expectedLength;
+                    const assembledData = this.multiFrameBuffers[activeBufferKey].arrBuffer.flat(1);
+                    const expected = this.multiFrameBuffers[activeBufferKey].expectedLength;
                     const received = assembledData.length;
 
                     console.log(`>>> MF Final Check | Key: ${activeBufferKey} | Expected: ${expected} bytes | Received: ${received} bytes`);
@@ -307,10 +307,10 @@ class CanBusService extends EventEmitter {
                         // Construct the final frame using original context, but ensure
                         // the operation code allows it to pass the ACK filter in the parser.
                         const completedFrame = {
-                            canCommandCode: bufferInfo.originalFrameInfo.canCommandCode,
-                            canCommandSubCode: bufferInfo.originalFrameInfo.canCommandSubCode,
-                            sourceDeviceCode: bufferInfo.originalFrameInfo.sourceDeviceCode,
-                            targetDeviceCode: bufferInfo.originalFrameInfo.targetDeviceCode,
+                            canCommandCode: this.multiFrameBuffers[activeBufferKey].originalFrameInfo.canCommandCode,
+                            canCommandSubCode: this.multiFrameBuffers[activeBufferKey].originalFrameInfo.canCommandSubCode,
+                            sourceDeviceCode: this.multiFrameBuffers[activeBufferKey].originalFrameInfo.sourceDeviceCode,
+                            targetDeviceCode: this.multiFrameBuffers[activeBufferKey].originalFrameInfo.targetDeviceCode,
                             // Use an operation code that signifies data, not just ACK
                             // For example, use WRITE_CMD (0x00) or keep the original START op code (0x04)
                             // Using WRITE_CMD is simple and won't be filtered.
@@ -322,13 +322,13 @@ class CanBusService extends EventEmitter {
                         console.log(`>>> MF Success | Key: ${activeBufferKey} | Passing data to parser.`);
                         this._parseAndEmitCompletedFrame(completedFrame, rawFrame.timestamp_us);
                         this.requestManager.resolveRequest({
-                            ...bufferInfo.originalFrameInfo, // Original IDs/Cmds
+                            ...this.multiFrameBuffers[activeBufferKey].originalFrameInfo, // Original IDs/Cmds
                             canOperationCode: CanOperation.NORMAL_ACK, // Signal success status
                             data: assembledData // Include data in resolution if needed elsewhere
                         });
                     } else {
                         console.error(`>>> MF Length Mismatch | Key: ${activeBufferKey} | Expected: ${expected}, Got: ${received}. Discarding.`);
-                        this.requestManager.resolveRequest({ ...bufferInfo.originalFrameInfo, canOperationCode: CanOperation.ERROR_ACK, data: [] });
+                        this.requestManager.resolveRequest({ ...this.multiFrameBuffers[activeBufferKey].originalFrameInfo, canOperationCode: CanOperation.ERROR_ACK, data: [] });
                     }
                     // Clean up buffer
                     delete this.multiFrameBuffers[activeBufferKey];
