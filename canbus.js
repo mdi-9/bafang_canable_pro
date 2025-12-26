@@ -253,7 +253,7 @@ class CanBusService extends EventEmitter {
                     return;
                 }
 
-                const sequenceNumber = parseInt(parsedFrame.canCommandSubCode,16); // Sequence from MULTI/END frame
+                const sequenceNumber = parseInt(parsedFrame.canCommandSubCode,10); // Sequence from MULTI/END frame
 
                 // if (sequenceNumber !== bufferInfo.nextSequence) {
                 //     console.error(`>>> ${opCode === CanOperation.MULTIFRAME ? 'MF' : 'MF_END'} Sequence Error | Key: ${activeBufferKey} | Expected: ${bufferInfo.nextSequence}, Got: ${sequenceNumber}. Discarding.`);
