@@ -270,7 +270,10 @@ class CanBusService extends EventEmitter {
                 if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
                  this.multiFrameTimeouts[activeBufferKey] = setTimeout((abk) => { delete this.multiFrameTimeouts[abk]; }, this.MULTIFRAME_TIMEOUT, activeBufferKey);
 
-                this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
+                if(!this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber])
+                    this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
+                else if(this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber].length < frameData.length)
+                    this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
                 //bufferInfo.buffer.push(...frameData);
                 //bufferInfo.nextSequence++;
 
