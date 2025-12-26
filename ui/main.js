@@ -9,9 +9,14 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const connectCanButton = document.getElementById('connectCanButton'); // New button
         const canDeviceNameElement = document.getElementById('canDeviceName'); // For device name	
-		const delayMs = 1000;
-		function delay(ms) {
-			return new Promise((resolve) => setTimeout(resolve, ms));
+
+		async function waitFor(predicate, delayMs = 1000, interval = 50) {
+			const startTime = Date.now();
+			while (Date.now() - startTime < delayMs) {
+				if (predicate()) return true;
+				await new Promise(resolve => setTimeout(resolve, interval));
+			}
+			return false; // Timed out
 		}
 
 		// --- Checksum Elements ---
@@ -2871,8 +2876,9 @@
             addLog('REQ', 'Syncing all Controller data...');
             //socket.send('READ:2:50:0'); // Realtime 0
             //socket.send('READ:2:50:1'); // Realtime 1
+			controllerParams1 = null; // Reset before read
             socket.send('READ:2:96:17'); // Parameter 1
-			await delay(delayMs);
+			await waitFor(() => controllerParams1 !== null);
             //socket.send('READ:2:96:18'); // Parameter 2
             socket.send('READ:2:50:3'); // Speed Params
         };
@@ -3056,11 +3062,13 @@
         displayElements.syncButton.onclick = async () => {
             addLog('REQ', 'Syncing all Display data...');
             //Send read requests for all display parameters
+			displayErrors = null; // Reset before read
             socket.send('READ:3:96:7'); // Errors
-			await delay(delayMs);
+			await waitFor(() => displayErrors !== null);
             //socket.send('READ:3:99:0'); // Realtime
+			displayData1 = null; // Reset before read
             socket.send('READ:3:99:1'); // Data1
-			await delay(delayMs);
+			await waitFor(() => displayData1 !== null);
             socket.send('READ:3:99:2'); // Data2
 			//socket.send('READ:3:99:3'); // Auto Shutdown Time
 
@@ -3166,21 +3174,26 @@
 	   // --- Gears Tab Specific Button Listeners ---
 		gearsElements.syncButton.onclick = async() => {
           addLog('REQ', 'Syncing Gears data ...');
+		  lastControllerP0 = null; // Reset before read
 		  socket.send('READ:2:96:16'); // Request Controller P0
-		  await delay(delayMs);
+		  await waitFor(() => lastControllerP0 !== null);
+		  lastControllerP1 = null; // Reset before read
           socket.send('READ:2:96:17'); // Request Controller P1
-		  await delay(delayMs);
+		  await waitFor(() => lastControllerP1 !== null);
+		  lastControllerP2 = null; // Reset before read
           socket.send('READ:2:96:18'); // Request Controller P2
-		  await delay(delayMs);
+		  await waitFor(() => lastControllerP2 !== null);
 		  socket.send('READ_STARTUP_ANGLE'); //startup angle
 		};
 
         gearsElementsM820.syncButton.onclick = async () => {
           addLog('REQ', 'Syncing Gears data ...');
+		  lastControllerP1 = null; // Reset before read
           socket.send('READ:2:96:17'); // Request Controller P1
-		  await delay(delayMs);
+		  await waitFor(() => lastControllerP1 !== null);
+		  lastControllerP2 = null; // Reset before read
           socket.send('READ:2:96:18'); // Request Controller P2
-		  await delay(delayMs);
+		  await waitFor(() => lastControllerP2 !== null);
 		  socket.send('READ_STARTUP_ANGLE'); //startup angle
 		};
 
@@ -3318,24 +3331,67 @@
 
 		async function controllerInfoSend(){
              // Controller
-             socket.send('READ:2:96:0'); await delay(delayMs); socket.send('READ:2:96:1'); await delay(delayMs); socket.send('READ:2:96:3');
-             await delay(delayMs); socket.send('READ:2:96:2'); await delay(delayMs); socket.send('READ:2:96:5');
+			controllerOtherInfo.hwVersion = null; // Reset before read
+            socket.send('READ:2:96:0');
+			await waitFor(() => controllerOtherInfo.hwVersion !== null);
+			controllerOtherInfo.swVersion = null; // Reset before read
+			socket.send('READ:2:96:1'); 
+			await waitFor(() => controllerOtherInfo.swVersion !== null);
+			controllerOtherInfo.serialNumber = null; // Reset before read
+			socket.send('READ:2:96:3');
+            await waitFor(() => controllerOtherInfo.serialNumber !== null);
+			controllerOtherInfo.manufacturer = null; // Reset before read
+			socket.send('READ:2:96:2'); 
+			await waitFor(() => controllerOtherInfo.manufacturer !== null);
+			socket.send('READ:2:96:5');
 		}
 		async function displayInfoSend(){
              // Display
-             socket.send('READ:3:96:0'); await delay(delayMs); socket.send('READ:3:96:1'); await delay(delayMs); socket.send('READ:3:96:3');
-             await delay(delayMs); socket.send('READ:3:96:8'); await delay(delayMs); socket.send('READ:3:96:5'); await delay(delayMs); socket.send('READ:3:96:4');
-             await delay(delayMs); socket.send('READ:3:96:2');
+			 displayOtherInfo.hwVersion = null; // Reset before read
+			 socket.send('READ:3:96:0'); 
+			 await waitFor(() => displayOtherInfo.hwVersion !== null);
+			 displayOtherInfo.swVersion = null;
+			 socket.send('READ:3:96:1'); 
+			 await waitFor(() => displayOtherInfo.swVersion !== null);
+			 displayOtherInfo.serialNumber = null;
+			 socket.send('READ:3:96:3');
+             await waitFor(() => displayOtherInfo.serialNumber !== null);
+			 controllerOtherInfo.bootloaderVersion = null;
+			 socket.send('READ:3:96:8'); 
+			 await waitFor(() => controllerOtherInfo.bootloaderVersion !== null);
+			 controllerOtherInfo.manufacturer = null;
+			 socket.send('READ:3:96:5'); 
+			 await waitFor(() => controllerOtherInfo.manufacturer !== null);
+			 controllerOtherInfo.customerNumber = null;
+			 socket.send('READ:3:96:4');
+			 await waitFor(() => controllerOtherInfo.customerNumber !== null);
+			 socket.send('READ:3:96:2');
 		}
 		async function sensorInfoSend(){
              // Sensor
-             socket.send('READ:1:96:0'); await delay(delayMs); socket.send('READ:1:96:1'); await delay(delayMs); socket.send('READ:1:96:3');
-             await delay(delayMs); socket.send('READ:1:96:2');
+			 sensorOtherInfo.hwVersion = null; // Reset before read
+             socket.send('READ:1:96:0'); 
+			 await waitFor(() => sensorOtherInfo.hwVersion !== null);
+			 sensorOtherInfo.swVersion = null;
+			 socket.send('READ:1:96:1'); 
+			 await waitFor(() => sensorOtherInfo.swVersion !== null);
+			 sensorOtherInfo.serialNumber = null;
+			 socket.send('READ:1:96:3');
+			 await waitFor(() => sensorOtherInfo.serialNumber !== null);
+			 socket.send('READ:1:96:2');
 		}
 		async function batteryInfoSend(){
              // Battery
-             socket.send('READ:4:96:0'); await delay(delayMs); socket.send('READ:4:96:1'); await delay(delayMs); socket.send('READ:4:96:3');
-             await delay(delayMs); socket.send('READ:4:96:2');
+			 batteryOtherInfo.hwVersion = null; // Reset before read
+             socket.send('READ:4:96:0'); 
+			 await waitFor(() => batteryOtherInfo.hwVersion !== null);
+			 batteryOtherInfo.swVersion = null; 
+			 socket.send('READ:4:96:1'); 
+			 await waitFor(() => batteryOtherInfo.swVersion !== null);
+			 batteryOtherInfo.serialNumber = null;
+			 socket.send('READ:4:96:3');
+             await waitFor(() => batteryOtherInfo.serialNumber !== null);
+			 socket.send('READ:4:96:2');
 		}
 		
 	      // --- Info Tab Button Listeners ---
