@@ -9,6 +9,10 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const connectCanButton = document.getElementById('connectCanButton'); // New button
         const canDeviceNameElement = document.getElementById('canDeviceName'); // For device name	
+		const delayMs = 1000;
+		function delay(ms) {
+			return new Promise((resolve) => setTimeout(resolve, ms));
+		}
 
 		// --- Checksum Elements ---
 		const checksumElements= {
@@ -2863,11 +2867,12 @@
 			};
 		}
 		
-        controllerElements.syncButton.onclick = () => {
+        controllerElements.syncButton.onclick = async () => {
             addLog('REQ', 'Syncing all Controller data...');
             //socket.send('READ:2:50:0'); // Realtime 0
             //socket.send('READ:2:50:1'); // Realtime 1
             socket.send('READ:2:96:17'); // Parameter 1
+			await delay(delayMs);
             //socket.send('READ:2:96:18'); // Parameter 2
             socket.send('READ:2:50:3'); // Speed Params
         };
@@ -3048,12 +3053,14 @@
 			addLog('SAVE_REQ', 'Calibrate Torque Sensor');
 		}
 		
-        displayElements.syncButton.onclick = () => {
+        displayElements.syncButton.onclick = async () => {
             addLog('REQ', 'Syncing all Display data...');
             //Send read requests for all display parameters
             socket.send('READ:3:96:7'); // Errors
+			await delay(delayMs);
             //socket.send('READ:3:99:0'); // Realtime
             socket.send('READ:3:99:1'); // Data1
+			await delay(delayMs);
             socket.send('READ:3:99:2'); // Data2
 			//socket.send('READ:3:99:3'); // Auto Shutdown Time
 
@@ -3157,18 +3164,23 @@
 		};
 
 	   // --- Gears Tab Specific Button Listeners ---
-		gearsElements.syncButton.onclick = () => {
+		gearsElements.syncButton.onclick = async() => {
           addLog('REQ', 'Syncing Gears data ...');
 		  socket.send('READ:2:96:16'); // Request Controller P0
+		  await delay(delayMs);
           socket.send('READ:2:96:17'); // Request Controller P1
+		  await delay(delayMs);
           socket.send('READ:2:96:18'); // Request Controller P2
+		  await delay(delayMs);
 		  socket.send('READ_STARTUP_ANGLE'); //startup angle
 		};
 
-        gearsElementsM820.syncButton.onclick = () => {
+        gearsElementsM820.syncButton.onclick = async () => {
           addLog('REQ', 'Syncing Gears data ...');
           socket.send('READ:2:96:17'); // Request Controller P1
+		  await delay(delayMs);
           socket.send('READ:2:96:18'); // Request Controller P2
+		  await delay(delayMs);
 		  socket.send('READ_STARTUP_ANGLE'); //startup angle
 		};
 
@@ -3303,24 +3315,37 @@
                 addLog('INFO', 'No P1 or P2 data available to save.');
             }
         };
+
+		async function controllerInfoSend(){
+             // Controller
+             socket.send('READ:2:96:0'); await delay(delayMs); socket.send('READ:2:96:1'); await delay(delayMs); socket.send('READ:2:96:3');
+             await delay(delayMs); socket.send('READ:2:96:2'); await delay(delayMs); socket.send('READ:2:96:5');
+		}
+		async function displayInfoSend(){
+             // Display
+             socket.send('READ:3:96:0'); await delay(delayMs); socket.send('READ:3:96:1'); await delay(delayMs); socket.send('READ:3:96:3');
+             await delay(delayMs); socket.send('READ:3:96:8'); await delay(delayMs); socket.send('READ:3:96:5'); await delay(delayMs); socket.send('READ:3:96:4');
+             await delay(delayMs); socket.send('READ:3:96:2');
+		}
+		async function sensorInfoSend(){
+             // Sensor
+             socket.send('READ:1:96:0'); await delay(delayMs); socket.send('READ:1:96:1'); await delay(delayMs); socket.send('READ:1:96:3');
+             await delay(delayMs); socket.send('READ:1:96:2');
+		}
+		async function batteryInfoSend(){
+             // Battery
+             socket.send('READ:4:96:0'); await delay(delayMs); socket.send('READ:4:96:1'); await delay(delayMs); socket.send('READ:4:96:3');
+             await delay(delayMs); socket.send('READ:4:96:2');
+		}
 		
 	      // --- Info Tab Button Listeners ---
         infoElements.syncButton.onclick = () => {
              addLog('REQ', 'Syncing all Device Info...');
              // Send all info read commands (same as before)
-             // Controller
-             socket.send('READ:2:96:0'); socket.send('READ:2:96:1'); socket.send('READ:2:96:3');
-             socket.send('READ:2:96:2'); socket.send('READ:2:96:5');
-             // Display
-             socket.send('READ:3:96:0'); socket.send('READ:3:96:1'); socket.send('READ:3:96:3');
-             socket.send('READ:3:96:8'); socket.send('READ:3:96:5'); socket.send('READ:3:96:4');
-             socket.send('READ:3:96:2');
-             // Sensor
-             socket.send('READ:1:96:0'); socket.send('READ:1:96:1'); socket.send('READ:1:96:3');
-             socket.send('READ:1:96:2');
-             // Battery
-             socket.send('READ:4:96:0'); socket.send('READ:4:96:1'); socket.send('READ:4:96:3');
-             socket.send('READ:4:96:2');
+             controllerInfoSend();
+			 displayInfoSend();
+			 sensorInfoSend();
+			 batteryInfoSend();
         };
 
         infoElements.saveButton.onclick = () => {
