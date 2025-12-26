@@ -471,6 +471,7 @@ class CanBusService extends EventEmitter {
                     }
 					else if (cmdCode === 0x60) { 
                         if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'display_errors'; } 
+                        else if(!charsToString(completedParsedFrame.data)) return;
                         else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'display_hw_version'; } 
                         else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'display_sw_version'; } 
                         else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'display_sn'; } 
