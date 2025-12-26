@@ -41,7 +41,7 @@ class CanBusService extends EventEmitter {
         // Still need timeouts, keyed the same way
         this.multiFrameTimeouts = {};
         this.requestManager = new RequestManager(this);
-        this.MULTIFRAME_TIMEOUT = 10000; // 10 seconds timeout
+        this.MULTIFRAME_TIMEOUT = 3000; // 3 seconds timeout
 		this.connectedDeviceName = null;
 		this.cachedParameter0 = null;
         this.cachedParameter1 = null;
@@ -215,17 +215,20 @@ class CanBusService extends EventEmitter {
                 const expectedLength = frameData[0];
                 console.log(`>>> MF_START | Key: ${bufferKey} | ExpLen: ${expectedLength}`);
 
+                if (this.multiFrameBuffers[bufferKey]) {
+                    console.warn(`>>> MF buffer for key ${bufferKey} already exists. skipping.`);
+                    return;
+                }
                 if (this.multiFrameTimeouts[bufferKey]) clearTimeout(this.multiFrameTimeouts[bufferKey]);
-                if (this.multiFrameBuffers[bufferKey]) console.warn(`>>> Overwriting MF buffer for key ${bufferKey}.`);
 
                 this.multiFrameBuffers[bufferKey] = {
                     expectedLength: expectedLength,
-                    buffer:[],
+                    //buffer:[],
                     arrBuffer: Array(Math.ceil(expectedLength/8)).fill(null),
                     originalFrameInfo: { ...parsedFrame }, // Store context of START
                     //nextSequence: 0
                 };
-                this.multiFrameTimeouts[bufferKey] = setTimeout(() => { /* ... cleanup ... */ }, this.MULTIFRAME_TIMEOUT);
+                this.multiFrameTimeouts[bufferKey] = setTimeout((abk) => { delete this.multiFrameTimeouts[abk]; }, this.MULTIFRAME_TIMEOUT, bufferKey);
                 this._sendAck(parsedFrame); // ACK the START
                 return;
 
@@ -265,7 +268,7 @@ class CanBusService extends EventEmitter {
 
                 // Reset timeout, append data, increment sequence
                 if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
-                 this.multiFrameTimeouts[activeBufferKey] = setTimeout(() => { /* ... cleanup ... */ }, this.MULTIFRAME_TIMEOUT);
+                 this.multiFrameTimeouts[activeBufferKey] = setTimeout((abk) => { delete this.multiFrameTimeouts[abk]; }, this.MULTIFRAME_TIMEOUT, activeBufferKey);
 
                 this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
                 //bufferInfo.buffer.push(...frameData);
