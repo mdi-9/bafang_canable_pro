@@ -3340,9 +3340,9 @@
 			controllerOtherInfo.serialNumber = null; // Reset before read
 			socket.send('READ:2:96:3');
             await waitFor(() => controllerOtherInfo.serialNumber !== null);
-			controllerOtherInfo.manufacturer = null; // Reset before read
+			controllerOtherInfo.modelNumber = null; // Reset before read
 			socket.send('READ:2:96:2'); 
-			await waitFor(() => controllerOtherInfo.manufacturer !== null);
+			await waitFor(() => controllerOtherInfo.modelNumber !== null);
 			socket.send('READ:2:96:5');
 		}
 		async function displayInfoSend(){
@@ -3356,15 +3356,15 @@
 			 displayOtherInfo.serialNumber = null;
 			 socket.send('READ:3:96:3');
              await waitFor(() => displayOtherInfo.serialNumber !== null);
-			 controllerOtherInfo.bootloaderVersion = null;
+			 displayOtherInfo.bootloaderVersion = null;
 			 socket.send('READ:3:96:8'); 
-			 await waitFor(() => controllerOtherInfo.bootloaderVersion !== null);
-			 controllerOtherInfo.manufacturer = null;
+			 await waitFor(() => displayOtherInfo.bootloaderVersion !== null);
+			 displayOtherInfo.manufacturer = null;
 			 socket.send('READ:3:96:5'); 
-			 await waitFor(() => controllerOtherInfo.manufacturer !== null);
-			 controllerOtherInfo.customerNumber = null;
+			 await waitFor(() => displayOtherInfo.manufacturer !== null);
+			 displayOtherInfo.customerNumber = null;
 			 socket.send('READ:3:96:4');
-			 await waitFor(() => controllerOtherInfo.customerNumber !== null);
+			 await waitFor(() => displayOtherInfo.customerNumber !== null);
 			 socket.send('READ:3:96:2');
 		}
 		async function sensorInfoSend(){
