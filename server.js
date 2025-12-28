@@ -548,6 +548,12 @@ const wss = new WebSocket.Server({ server });
 	}
 
 	async function handleDisplaySpecificWrites(ws, messageString,sendResult) {
+		if (messageString.startsWith('WRITE_DISP_TIME:')) {
+			const parts = messageString.substring('WRITE_DISP_TIME:'.length).split(':', 3);
+			await canbus.saveDisplayTime(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2])); 
+			ws.send(`INFO: Time changed.`);
+			return true;
+		}
 		if (messageString.startsWith('WRITE_DISP_TOTAL_MILEAGE:')) {
 			const value = parseFloat(messageString.substring('WRITE_DISP_TOTAL_MILEAGE:'.length));
 			if (!isNaN(value)) {

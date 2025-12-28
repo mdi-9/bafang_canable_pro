@@ -3125,7 +3125,7 @@
         displayElements.setTimeButton.onclick = () => {
              if (confirm("Are you sure you want to set the display clock to the current time?")) {
                  const now = new Date(); const h = now.getHours(); const m = now.getMinutes(); const s = now.getSeconds();
-                 socket.send(`WRITE_DISP_TIME:${h},${m},${s}`);
+                 socket.send(`WRITE_DISP_TIME:${h}:${m}:${s}`);
                  addLog('SAVE_REQ', 'Display Time (Now)');
              }
         };
