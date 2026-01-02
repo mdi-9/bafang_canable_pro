@@ -3541,6 +3541,8 @@
             const id = snifferElements.newFilteredIdInput.value.trim();
             if (id && /^[0-9a-fA-F]+$/.test(id)) {
                 snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(id));
+				const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
+				document.cookie = `FilteredIdsOn=${Array.from(items).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
                 snifferElements.newFilteredIdInput.value = '';
                 snifferElements.newFilteredIdInput.focus();
             } else
@@ -3569,6 +3571,9 @@
 				zone.classList.remove('drag-over')
 				const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
 				const itemsJoined = Array.from(items).map(item => item.textContent).join(';');
+				document.cookie = `FilteredIdsOn=${Array.from(items).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
+				const itemsOff = snifferElements.filteredIdsListOff.querySelectorAll('.item span');
+				document.cookie = `FilteredIdsOff=${Array.from(itemsOff).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
 				socket.send(`SNIFFER_FILTEREDIDS_SET:${itemsJoined}`);
 			});
         });
@@ -3591,8 +3596,20 @@
 			socket.send(`SNIFFER_LOG_ENABLE:${e.target.checked}`);
 		});
 
-		['82F83200','82F83201', '82F83202' ,'82F83203','82F83204','82F83205','82F83206','82F83207','82F83208','82F83209','82F8320A','82F8320B', 
-        '82F8320A', '82F8320B'].forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
+		const getCookie = (name) => {
+			return document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')?.pop() || null;
+		}
+
+		const savedFilteredIdsOn = getCookie('FilteredIdsOn');
+		if (savedFilteredIdsOn) 
+			savedFilteredIdsOn.split(',').forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
+		else
+			['82F83200','82F83201', '82F83202' ,'82F83203','82F83204','82F83205','82F83206','82F83207','82F83208','82F83209','82F8320A','82F8320B', 
+			'82F8320A', '82F8320B'].forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
+
+		const savedFilteredIdsOff = getCookie('FilteredIdsOff');
+		if (savedFilteredIdsOff) 
+			savedFilteredIdsOff.split(',').forEach(t => snifferElements.filteredIdsListOff.appendChild(createFilteredIdItem(t)));
 
 
 		
