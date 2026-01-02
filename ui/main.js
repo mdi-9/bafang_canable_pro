@@ -2657,6 +2657,7 @@
 
 		if (debugElements.rawParamSyncButton) {
 			debugElements.rawParamSyncButton.onclick = () => {
+				currentRawParamType = debugElements.rawParamSelect.value;
 				if (!currentRawParamType) {
 					alert('Please select a parameter block from the dropdown first.');
 					return;
