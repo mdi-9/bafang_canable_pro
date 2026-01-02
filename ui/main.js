@@ -3605,7 +3605,7 @@
 			savedFilteredIdsOn.split(',').forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
 		else
 			['82F83200','82F83201', '82F83202' ,'82F83203','82F83204','82F83205','82F83206','82F83207','82F83208','82F83209','82F8320A','82F8320B', 
-			'82F8320A', '82F8320B'].forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
+			].forEach(t => snifferElements.filteredIdsListOn.appendChild(createFilteredIdItem(t)));
 
 		const savedFilteredIdsOff = getCookie('FilteredIdsOff');
 		if (savedFilteredIdsOff) 
