@@ -2526,10 +2526,9 @@
                         case 'battery_sw_version': batteryOtherInfo.swVersion = parsedEvent.data?.software_version; needsBatteryUpdate = true; break;
                         case 'battery_mn': batteryOtherInfo.modelNumber = parsedEvent.data?.model_number; needsBatteryUpdate = true; break;
                         case 'battery_sn': batteryOtherInfo.serialNumber = parsedEvent.data?.serial_number; batteryOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsBatteryUpdate = true; break;
-						// default:
-						// 	needsHexEditorUpdate = handleCustomRaw(parsedEvent);
+
                     }
-					needsHexEditorUpdate = handleCustomRaw(parsedEvent);
+					let needsHexEditorUpdateC = handleCustomRaw(parsedEvent);
                     // Call UI update functions if needed
                     if (needsDisplayUpdate) updateDisplayUI();
                     if (needsSensorUpdate) updateSensorUI();
@@ -2539,7 +2538,7 @@
 					if (needsGearsUpdate) updateGearsUI();
                     if (needsGearsM820Update) updateGearsUIM820();
                     if (needsInfoUpdate) updateInfoUI(); 				
-					if (needsHexEditorUpdate) populateHexEditor(); 
+					if (needsHexEditorUpdate || needsHexEditorUpdateC) populateHexEditor(); 
 			        if (needsPasChartUpdate) updatePasCurvesChart();
 					if (needsStartRampChartUpdate) updateStartRampChart();
                     if (needsPasChartUpdateM820) updatePasCurvesChartM820();
