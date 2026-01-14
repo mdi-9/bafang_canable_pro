@@ -2981,15 +2981,15 @@
                 const speedLimitInputVal = controllerElements.p3SpeedLimitInput.value;
                 if (speedLimitInputVal !== "") {
                     const parsedSpeedLimit = parseFloat(speedLimitInputVal);
-                    if (!isNaN(parsedSpeedLimit) && parsedSpeedLimit.toFixed(2) !== controllerSpeedParams.speed_limit?.toFixed(2)) {
+                    if (!isNaN(parsedSpeedLimit)) {
                         speedToSend.speed_limit = parsedSpeedLimit;
                         speedChanged = true;
-                    } else if (isNaN(parsedSpeedLimit)) { addLog('ERROR', `Invalid number format for speed_limit: ${speedLimitInputVal}`); }
+                    } else { addLog('ERROR', `Invalid number format for speed_limit: ${speedLimitInputVal}`); }
                 }
 
                 // Wheel Diameter
                 const selectedWheelText = controllerElements.p3WheelDiameterInput.value;
-                if (selectedWheelText !== "" && selectedWheelText !== controllerSpeedParams.wheel_diameter?.text) {
+                if (selectedWheelText !== "") {
                     const selectedOption = controllerElements.p3WheelDiameterInput.options[controllerElements.p3WheelDiameterInput.selectedIndex];
                     if (selectedOption && selectedOption.dataset.code0 && selectedOption.dataset.code1) {
                         speedToSend.wheel_diameter = { // Send the whole wheel object as expected by server
@@ -3005,10 +3005,10 @@
                 const circumferenceInputVal = controllerElements.p3CircumferenceInput.value;
                 if (circumferenceInputVal !== "") {
                     const parsedCircumference = parseInt(circumferenceInputVal, 10);
-                    if (!isNaN(parsedCircumference) && parsedCircumference !== controllerSpeedParams.circumference) {
+                    if (!isNaN(parsedCircumference)) {
                         speedToSend.circumference = parsedCircumference; // MAKE SURE THIS IS ADDED
                         speedChanged = true;
-                    } else if (isNaN(parsedCircumference)) { addLog('ERROR', `Invalid number format for circumference: ${circumferenceInputVal}`); }
+                    } else { addLog('ERROR', `Invalid number format for circumference: ${circumferenceInputVal}`); }
                 }
 
 
