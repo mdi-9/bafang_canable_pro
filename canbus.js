@@ -424,7 +424,9 @@ class CanBusService extends EventEmitter {
 			 else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'controller_sw_version'; } 
 			 else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'controller_sn'; } 
 			 else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'controller_mn'; }  
-			 else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'controller_mfg'; } } 
+			 else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'controller_mfg'; } 
+             else if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'controller_errors'; }
+            } 
 			 else if (cmdCode === 0x62 && subCode === 0xD9) { // Handle Startup Angle Read Response
                  parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
                  dataType = 'controller_startup_angle';

@@ -39,7 +39,7 @@ const CanReadCommandsList = Object.freeze({
     ErrorCode: { // Read Error Codes from Display
         canCommandCode: 0x60, // 96
         canCommandSubCode: 0x07,
-        applicableDevices: [DeviceNetworkId.DISPLAY],
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT,DeviceNetworkId.DISPLAY],
     },
     BootloaderVersion: { // Read Bootloader Version from Display
         canCommandCode: 0x60, // 96

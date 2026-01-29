@@ -19,6 +19,77 @@
 			return false; // Timed out
 		}
 
+		const errorDescriptions = { 
+			'1':    "Throttle fault",
+			'2': 	"Brake sensor malfunction",
+			'3':    "Brake Fault",
+			'4':	"Throttle not in correct position",
+			'7':	"Over voltage protection",
+			'8':	"Hall sensor error",
+			'9':	"Motor phase winding fault",
+			'10':	"Motor overtemperature",
+			'11':	"Motor temperature sensor fault",
+			'12':	"Motor overcurrent",
+			'13':	"Battery temperature sensor fault",
+			'14':	"Controller overtemperature",
+			'15':	"Controller temperature sensor fault",			
+			'21':   "Speed sensor error",
+			'25':   "Torque signal fault",
+			'26':	"Torque sensor speed signal fault",
+			'27':	"Controller overcurrent",
+			'30':	"Communication failed",	
+			'33':	"Brake detection circuit fault",
+			'35':	"15V detection circuit error",	
+			'36':	"Keypad detection circuit error",
+			'37':	"WDT circuit fault Controller",
+			'41':   "Total voltage from the battery is too high.",
+    		'42':   "Total voltage from the battery is too low.",
+    		'43':   "Total power from the battery cells is too high.",
+    		'45':   "Temperature from the battery is too high.",
+    		'46':   "The temperature of the battery is too low.",
+    		'47':   "SOC of the battery is too high.",
+    		'48':   "SOC of the battery is too low.",
+    		'61':   "Switching detection defect.",
+    		'62':   "Electronic derailleur cannot release.",
+    		'71':   "Electronic lock is jammed.",
+    		'81':   "Bluetooth module has an error."
+		};
+		const errorRecommendations = { 
+			'1': 	"Inspect the wire from the throttle to the controller for cuts or kinks",
+			'2': 	"Look for pinched, cut, or damaged cables leading from the brake levers to the main wiring harness",
+			'3': 	"Brake sensor is active or stuck; check brake levers",
+			'4':    "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
+			'7':	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
+			'8':	"Check hall sensor connections, inspect for damage, replace if necessary",
+			'9':	"Check motor connections, inspect for damage, test with a different controller",
+			'10':	"Allow motor to cool down, reduce load, ensure proper ventilation",
+			'11':	"Check sensor connection, inspect for damage, replace if necessary",
+			'12':	"Reduce load, check wiring, inspect motor and controller",
+			'13':	"Check sensor connection, inspect for damage, replace if necessary",
+			'14':	"Allow controller to cool down, reduce load, ensure proper ventilation",
+			'15':	"Check sensor connection, inspect for damage, replace if necessary",
+			'21':	"Check sensor connection, inspect for damage, realign magnets",
+			'25':   "Check sensor connection, inspect for damage, replace if necessary",
+			'26':	"Check sensor connection, inspect for damage, replace if necessary",
+			'27':	"Reduce load, check wiring, inspect motor and controller",
+			'30':	"Check connections, update firmware, replace faulty components",
+			'33':	"Check sensor connection, inspect wiring, replace sensor if needed",
+			'35':	"Check power supply and connections, replace damaged components",
+			'36':	"Check keypad connection, inspect wiring, replace keypad if needed",
+			'37':	"Consult a professional for diagnosis and repair",
+			'41':   "Check battery",
+    		'42':   "Check battery",
+    		'43':   "Check battery",
+    		'45':   "Check battery",
+    		'46':   "Check battery",
+    		'47':   "Check battery",
+    		'48':   "Check battery",
+    		'61':   "-",
+    		'62':   "-",
+    		'71':   "-",
+    		'81':   "-"
+		};
+
 		// --- Checksum Elements ---
 		const checksumElements= {
 			ctrlP1ChecksumWarning: document.getElementById('ctrlP1ChecksumWarning'),
@@ -225,6 +296,8 @@
              // Calibration
              calibratePositionButton: document.getElementById('ctrlCalibratePositionButton'),
 			 calibrateTorqueButton: document.getElementById('ctrlCalibrateTorqueButton'),
+			 //Errors
+			 errorTableBody: document.getElementById('controllerErrorTableBody'),
           };
 		 //Selectors for Info Tab
  		const infoElements = {
@@ -313,7 +386,7 @@
         let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null,batteryCellsStats = null;
         let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null };
         // Controller specific stores
-        let controllerRealtime0 = null, controllerRealtime1 = null, controllerState = null; 
+        let controllerRealtime0 = null, controllerRealtime1 = null, controllerState = null; controllerErrors = null;
 		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
         let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null, manufacturer: null };
 		let displayShutdownTime = null; // <-- Add storage for shutdown time
@@ -811,8 +884,8 @@
 		const startRampPlaceholderM820 = document.getElementById('startRampPlaceholderM820');
 		const startRampContainerM820 = document.getElementById('startRampContainerM820');
 			
-		function updateDisplayUI() {
-    // Records
+	function updateDisplayUI() {
+    	// Records
 		safeSetText(displayElements.totalMileageValue, displayData1?.total_mileage);
 		safeSetInput(displayElements.totalMileageInput, displayData1, 'total_mileage', Math.round); // Use safeSetInput
 
@@ -843,66 +916,23 @@
 		safeSetText(displayElements.displayShutdownTimeValue, shutdownVal, (val) =>
 		 (val === 255) ? "OFF" : (val === null || val === undefined ? na : `${val} min`)
 		);
+	}
 
-		// Error Codes Table
-		const errorBody = displayElements.errorTableBody;
+	function createErrorsTable(errorBody,errors){
 		errorBody.innerHTML = ''; // Clear previous errors
-		if (Array.isArray(displayErrors) && displayErrors.length > 0) {
-			const errorDescriptions = { 
-			'4':	"Throttle not in correct position",
-			'7':	 "Over voltage protection",
-			'8':	"Hall sensor error",
-			'9':	"Motor phase winding fault",
-			'10':	"Motor overtemperature",
-			'11':	"Motor temperature sensor fault",
-			'12':	"Motor overcurrent",
-			'13':	"Battery temperature sensor fault",
-			'14':	"Controller overtemperature",
-			'15':	"Controller temperature sensor fault",			
-			'21': "Speed sensor error",
-			'25': "Torque signal fault",
-			'26':	"Torque sensor speed signal fault",
-			'27':	"Controller overcurrent",
-			'30':	"Communication failed",	
-			'33':	"Brake detection circuit fault",
-			'35':	"15V detection circuit error",	
-			'36':	"Keypad detection circuit error",
-			'37':	"WDT circuit fault Controller",
-			};
-			const errorRecommendations = { 
-			'4': "Check and adjust throttle position, inspect wiring, replace throttle if needed", 
-			'7':	"Check battery and charger compatibility, inspect battery, discharge if overcharged",
-			'8':	"Check hall sensor connections, inspect for damage, replace if necessary",
-			'9':	"Check motor connections, inspect for damage, test with a different controller",
-			'10':	"Allow motor to cool down, reduce load, ensure proper ventilation",
-			'11':	"Check sensor connection, inspect for damage, replace if necessary",
-			'12':	"Reduce load, check wiring, inspect motor and controller",
-			'13':	"Check sensor connection, inspect for damage, replace if necessary",
-			'14':	"Allow controller to cool down, reduce load, ensure proper ventilation",
-			'15':	"Check sensor connection, inspect for damage, replace if necessary",
-			'21':	"Check sensor connection, inspect for damage, realign magnets",
-			'25': "Check sensor connection, inspect for damage, replace if necessary",
-			'26':	"Check sensor connection, inspect for damage, replace if necessary",
-			'27':	"Reduce load, check wiring, inspect motor and controller",
-			'30':	"Check connections, update firmware, replace faulty components",
-			'33':	"Check sensor connection, inspect wiring, replace sensor if needed",
-			'35':	"Check power supply and connections, replace damaged components",
-			'36':	"Check keypad connection, inspect wiring, replace keypad if needed",
-			'37':	"Consult a professional for diagnosis and repair",
-			};
-			displayErrors.forEach(code => {
+		if (Array.isArray(errors) && errors.length > 0) {
+			errors.forEach(code => {
 				const row = errorBody.insertRow();
 				row.insertCell(0).textContent = code;
 				row.insertCell(1).textContent = errorDescriptions[code] || "Unknown Description";
 				row.insertCell(2).textContent = errorRecommendations[code] || "-";
 			});
-		} else if (displayErrors === null) {
+		} else if (errors === null) {
 			 errorBody.innerHTML = '<tr><td colspan="3">Data not yet received.</td></tr>';
-		}
-		 else {
+		} else {
 			 errorBody.innerHTML = '<tr><td colspan="3">No errors reported.</td></tr>';
 		}
-}
+	}
 		
 		function updateSensorUI() {
 			 // Update only realtime data using corrected selectors
@@ -2328,7 +2358,8 @@
                         case 'display_data_1': displayData1 = parsedEvent.data; needsDisplayUpdate = true; break;
                         case 'display_data_2': displayData2 = parsedEvent.data; needsDisplayUpdate = true; break;
                         case 'display_realtime': displayRealtime = parsedEvent.data; needsDisplayUpdate = true; break;
-                        case 'display_errors': displayErrors = parsedEvent.data?.error_codes ?? []; needsDisplayUpdate = true; break;
+                        case 'display_errors': displayErrors = parsedEvent.data?.error_codes ?? []; createErrorsTable(displayElements.errorTableBody,displayErrors); break;
+						case 'controller_errors': controllerErrors = parsedEvent.data?.error_codes ?? []; createErrorsTable(controllerElements.errorTableBody,controllerErrors); break;
 						case 'display_autoshutdown_time': displayShutdownTime = parsedEvent.data?.display_auto_shutdown_time; needsDisplayUpdate = true; break;
                         // Controller Data
 						case 'controller_realtime_0': controllerRealtime0 = parsedEvent.data; needsControllerUpdate = true; break;
@@ -2876,6 +2907,9 @@
             addLog('REQ', 'Syncing all Controller data...');
             //socket.send('READ:2:50:0'); // Realtime 0
             //socket.send('READ:2:50:1'); // Realtime 1
+			controllerErrors = null; // Reset before read
+            socket.send('READ:2:96:7'); // Errors
+			await waitFor(() => controllerErrors !== null);
 			controllerParams1 = null; // Reset before read
             socket.send('READ:2:96:17'); // Parameter 1
 			await waitFor(() => controllerParams1 !== null);
