@@ -55,10 +55,10 @@ const CanWriteCommandsList = Object.freeze({
         canCommandSubCode: 0x02,
         applicableDevices: [DeviceNetworkId.DISPLAY],
     },
-    ClearErrorCodes: { // Command to Clear Error Codes on Display
+    ClearErrorCodes: { // Command to Clear Error Codes
         canCommandCode: 0x60, // 96
         canCommandSubCode: 0x07,
-        applicableDevices: [DeviceNetworkId.DISPLAY],
+        applicableDevices: [DeviceNetworkId.DISPLAY,DeviceNetworkId.DRIVE_UNIT],
     },
     MotorSpeedParameters: { // Write Speed Limit, Wheel Diameter Code, Circumference
         canCommandCode: 0x32, // 50
