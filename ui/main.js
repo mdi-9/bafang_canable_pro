@@ -120,6 +120,7 @@
 			displayShutdownTimeValue: document.getElementById('displayShutdownTimeValue'),
             syncButton: document.getElementById('displaySyncButton'),
             saveButton: document.getElementById('displaySaveButton'),
+			displayClearErrorsButton: document.getElementById('displayClearErrorsButton'),
         };
         const sensorElements = {
             syncButton: document.getElementById('sensorSyncButton'),
@@ -386,7 +387,7 @@
         let batteryCapacity = null, batteryState = null, batteryCells = {}, batteryDesign = null, batteryChargingInfo = null,batteryCellsStats = null;
         let batteryOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null };
         // Controller specific stores
-        let controllerRealtime0 = null, controllerRealtime1 = null, controllerState = null; controllerErrors = null;
+        let controllerRealtime0 = null, controllerRealtime1 = null, controllerState = null, controllerErrors = null;
 		let controllerParams0 = null, controllerParams1 = null, controllerParams2 = null, controllerSpeedParams = null;
         let controllerOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, serialNumber: null, productionDate:null, manufacturer: null };
 		let displayShutdownTime = null; // <-- Add storage for shutdown time
@@ -3092,6 +3093,15 @@
 			socket.send("WRITE_SHORT:2:97:1");
 			addLog('SAVE_REQ', 'Calibrate Torque Sensor');
 		}
+
+		displayElements.displayClearErrorsButton.onclick = () => {
+			socket.send("WRITE_SHORT:3:96:7:01");
+			setTimeout(() => { 
+				displayErrors = null; // Reset before read
+				socket.send('READ:3:96:7'); // Errors re-read
+			}, 1000); 
+			addLog('SAVE_REQ', 'Clear Display Errors');
+		}
 		
         displayElements.syncButton.onclick = async () => {
             addLog('REQ', 'Syncing all Display data...');
@@ -3105,7 +3115,6 @@
 			await waitFor(() => displayData1 !== null);
             socket.send('READ:3:99:2'); // Data2
 			//socket.send('READ:3:99:3'); // Auto Shutdown Time
-
         };
 
         displayElements.saveButton.onclick = () => {
