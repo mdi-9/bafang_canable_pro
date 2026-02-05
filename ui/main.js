@@ -1,5 +1,4 @@
-        const { delay } = require('./utils');
-		// --- WebSocket and Globals ---
+        // --- WebSocket and Globals ---
         const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
@@ -18,6 +17,10 @@
 				await new Promise(resolve => setTimeout(resolve, interval));
 			}
 			return false; // Timed out
+		}
+
+		function delay(ms) {
+			return new Promise((resolve) => setTimeout(resolve, ms));
 		}
 
 		const errorDescriptions = { 
@@ -3096,22 +3099,22 @@
 			addLog('SAVE_REQ', 'Calibrate Torque Sensor');
 		}
 
-		controllerElements.controllerClearErrorsButton.onclick = () => {
-			socket.send("WRITE_SHORT:2:96:7:00");
-			setTimeout(() => { 
-				controllerErrors = null; // Reset before read
-				socket.send('READ:2:96:7'); // Errors re-read
-			}, 2000); 
-			addLog('SAVE_REQ', 'Clear Controller Errors');
-		}
+		// controllerElements.controllerClearErrorsButton.onclick = () => {
+		// 	socket.send("WRITE_SHORT:2:96:7:00");
+		// 	setTimeout(() => { 
+		// 		controllerErrors = null; // Reset before read
+		// 		socket.send('READ:2:96:7'); // Errors re-read
+		// 	}, 2000); 
+		// 	addLog('SAVE_REQ', 'Clear Controller Errors');
+		// }
 
 		displayElements.displayClearErrorsButton.onclick = async () => {
 			socket.send("WRITE_SHORT:3:96:7:01");
-			await delay(1000);
+			await delay(500);
 			sendCustomFrame('051C6007','00');
-			await delay(1000);
-			sendCustomFrame('051E0000');
-			await delay(1000);
+			await delay(500);
+			sendCustomFrame('051E0000','');
+			await delay(500);
 			socket.send('READ:3:96:7'); // Errors re-read
 			addLog('SAVE_REQ', 'Clear Display Errors');
 		}
