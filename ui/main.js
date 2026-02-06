@@ -3099,14 +3099,16 @@
 			addLog('SAVE_REQ', 'Calibrate Torque Sensor');
 		}
 
-		// controllerElements.controllerClearErrorsButton.onclick = () => {
-		// 	socket.send("WRITE_SHORT:2:96:7:00");
-		// 	setTimeout(() => { 
-		// 		controllerErrors = null; // Reset before read
-		// 		socket.send('READ:2:96:7'); // Errors re-read
-		// 	}, 2000); 
-		// 	addLog('SAVE_REQ', 'Clear Controller Errors');
-		// }
+		controllerElements.controllerClearErrorsButton.onclick = async () => {
+			socket.send("WRITE_SHORT:2:96:7:01");
+			await delay(500);
+			sendCustomFrame('05146007','00');
+			await delay(500);
+			sendCustomFrame('05160000','');
+			await delay(500);
+			socket.send('READ:2:96:7'); // Errors re-read
+			addLog('SAVE_REQ', 'Clear Controller Errors');
+		}
 
 		displayElements.displayClearErrorsButton.onclick = async () => {
 			socket.send("WRITE_SHORT:3:96:7:01");
