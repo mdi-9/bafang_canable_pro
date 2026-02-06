@@ -188,6 +188,7 @@
              canIdInput: document.getElementById('canIdInput'),
              canDataInput: document.getElementById('canDataInput'),
              sendCustomFrameButton: document.getElementById('sendCustomFrame'),
+			 decodeCustomFrameButton: document.getElementById('decodeCustomFrame'),
              canIdInputInterval: document.getElementById('canIdInputInterval'),
              canDataInputInterval: document.getElementById('canDataInputInterval'),
 			 secondsInterval: document.getElementById('secondsInterval'),
@@ -2683,6 +2684,73 @@
 			console.log("Sending:", command);
 		}
 
+		function encodeToHex(source, target, operation, commandStr) {
+			const commandNum = parseInt(commandStr, 16);
+			if (isNaN(commandNum)) {
+				throw new Error("Wrong command format expected hex (ex. '6007')");
+			}
+			const c = (commandNum & 0xFFFF);
+			const o = (operation & 0x07) << 16;
+			const t = (target & 0x1F) << 19;
+			const s = (source & 0x1F) << 24;
+			const frameID = (s | t | o | c) >>> 0;
+
+			return frameID.toString(16).padStart(8, '0').toUpperCase();
+		}
+
+		function decodeFrame(hexInput) {
+			if (!hexInput){
+				addLog('ERROR', 'CAN ID required for decoding.');
+				return;
+			}
+			const frameID = parseInt(hexInput, 16);
+
+			if (isNaN(frameID)) {
+				addLog('ERROR', 'Invalid hex input for decoding.');
+				return;
+			}
+
+			const command = frameID & 0xFFFF;
+			const operation = (frameID >> 16) & 0x07;
+			const target = (frameID >> 19) & 0x1F;
+			const source = (frameID >> 24) & 0x1F;
+
+			const operations = {
+				0: "Write",
+				1: "Read",
+				2: "Acknoledge OK",
+				3: "Acknoledge NOK",
+				4: "Start Multiframe",
+				5: "Multiframe ongoing",
+				6: "End Multiframe",
+				7: "Multiframe warning"
+			};
+
+			const components = {
+				1: "Torquesensor",
+				2: "Controller",
+				3: "Display",
+				4: "Battery",
+				5: "BESST",
+				0x1F: "Broadcast to all listeners on the bus"
+			};
+
+			addLog('INFO', `Decoded Frame ID: ${frameID.toString(16).padStart(8, '0')}`);
+			addLog('INFO', `Command: ${command.toString(16).padStart(2, '0')}`);
+			addLog('INFO', `Operation: ${operations[operation] || "Unknown"} (${operation})`);
+			
+			if (components[target]) 
+				addLog('INFO', `Target: ${components[target]} (${target})`);
+			
+			if (components[source]) 
+				addLog('INFO', `Source: ${components[source]} (${source})`);
+		}
+
+		debugElements.decodeCustomFrameButton.onclick = () => {
+			const hexInput = debugElements.canIdInput.value.trim().replace(/\s/g, '');
+			decodeFrame(hexInput);
+		}
+
 		if (debugElements.rawParamSelect) {
 			debugElements.rawParamSelect.addEventListener('change', (event) => {
 				currentRawParamType = event.target.value;
@@ -3102,9 +3170,9 @@
 		controllerElements.controllerClearErrorsButton.onclick = async () => {
 			socket.send("WRITE_SHORT:2:96:7:01");
 			await delay(500);
-			sendCustomFrame('05146007','00');
+			sendCustomFrame(encodeToHex(5,2,4,'6007'),'00');
 			await delay(500);
-			sendCustomFrame('05160000','');
+			sendCustomFrame(encodeToHex(5,2,6,'0000'),'');
 			await delay(500);
 			socket.send('READ:2:96:7'); // Errors re-read
 			addLog('SAVE_REQ', 'Clear Controller Errors');
@@ -3113,9 +3181,9 @@
 		displayElements.displayClearErrorsButton.onclick = async () => {
 			socket.send("WRITE_SHORT:3:96:7:01");
 			await delay(500);
-			sendCustomFrame('051C6007','00');
+			sendCustomFrame(encodeToHex(5,3,4,'6007'),'00');
 			await delay(500);
-			sendCustomFrame('051E0000','');
+			sendCustomFrame(encodeToHex(5,3,6,'0000'),'');
 			await delay(500);
 			socket.send('READ:3:96:7'); // Errors re-read
 			addLog('SAVE_REQ', 'Clear Display Errors');
