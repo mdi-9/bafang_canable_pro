@@ -64,7 +64,7 @@ function formatRawCanFrameData(frame) {
 }
 
 // Run this at the start of your script to set up the directory and filename
-async function setupLogger() {
+async function setupLogger(fileExt = 'log') {
   // Ensure the logs directory exists
   try {
     await fsp.mkdir(logsDir, { recursive: true });
@@ -77,7 +77,7 @@ async function setupLogger() {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
   const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "-");
-  const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}.log`);
+  const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}.${fileExt}`);
   console.log("Log file created at:", logFilePath);
   // Return the logging function
   return async function logToFile(message) {

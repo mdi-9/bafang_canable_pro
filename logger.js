@@ -3,23 +3,25 @@ const { setupLogger } = require('./utils');
 class Logger {
 
     logToFile = null;
+    timestamp_start = new Date().getTime()
+    intervalTime = 500 //ms
     logObject = {
-        timestamp: 0,
+        timestamp: null,
         //controller_realtime_0
-        remaining_capacity: 0,
-        cadence: 0,
-        torque: 0,
+        remaining_capacity: null,
+        cadence: null,
+        torque: null,
         //controller_realtime_0
-        speed: 0,
-        current: 0,
-        voltage: 0,
-        temperature: 0,
-        motor_temperature: 0,
+        speed: null,
+        current: null,
+        voltage: null,
+        temperature: null,
+        motor_temperature: null,
         //display_realtime
-        current_assist_level: 0,
+        current_assist_level: null,
         //custom
-        power: 0,
-        human_power: 0
+        power: null,
+        human_power: null
     }
     logObjectHeader = {
         timestamp: "Timestamp (s)",
@@ -56,7 +58,7 @@ class Logger {
     }
 
     async setupLogger(){
-        this.logToFile = await setupLogger()
+        this.logToFile = await setupLogger('csv');
     }
     async setupHeader(){
         const rowKeys = Object.values(this.logObjectHeader);
@@ -71,8 +73,9 @@ class Logger {
         }
         this.logIntervalId = setInterval(() => {
             const rowValues = Object.values(this.logObject);
-            this.logCsvRow(rowValues);
-        }, 1000);
+            if(!rowValues.some(x=>x==null))
+                this.logCsvRow(rowValues);
+        }, intervalTime);
     }
 
     stopLogging = () => {
@@ -84,25 +87,26 @@ class Logger {
 
     bafangDataReceived = (parsedEvent)=>{
         const { type, source, cmdCode, subCode, data, timestamp_us} = parsedEvent
+        const timestamp_ms = new Date().getTime() - this.timestamp_start;
         switch(type){
             case 'controller_realtime_0':
-                this.logObject.timestamp = timestamp_us;
+                this.logObject.timestamp = timestamp_ms;
                 this.logObject.remaining_capacity = data.remaining_capacity;
                 this.logObject.cadence = data.cadence;
                 this.logObject.torque = data.torque;
                 this.logObject.human_power = this.calculateHumanPower(data.cadence,data.torque,17)
                 break;
             case 'controller_realtime_1':
-                this.logObject.timestamp = timestamp_us;
+                this.logObject.timestamp = timestamp_ms;
                 this.logObject.speed = data.speed;
                 this.logObject.current = data.current;
                 this.logObject.voltage = data.voltage;
                 this.logObject.temperature = data.temperature;
                 this.logObject.motor_temperature = data.motor_temperature;
-                this.logObject.power = data.voltage * data.current;
+                this.logObject.power = Number((data.voltage * data.current).toFixed(2));
                 break;
             case 'display_realtime':
-                this.logObject.timestamp = timestamp_us;
+                this.logObject.timestamp = timestamp_ms;
                 this.logObject.current_assist_level = data.current_assist_level
                 break
         }
