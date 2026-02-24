@@ -6,25 +6,25 @@ class Logger {
     timestamp_start = new Date().getTime()
     intervalTime = 500 //ms
     logObject = {
-        timestamp: null,
+        timestamp: -1,
         //controller_realtime_0
-        remaining_capacity: null,
-        cadence: null,
-        torque: null,
+        remaining_capacity: -1,
+        cadence: -1,
+        torque: -1,
         //controller_realtime_0
-        speed: null,
-        current: null,
-        voltage: null,
-        temperature: null,
-        motor_temperature: null,
+        speed: -1,
+        current: -1,
+        voltage: -1,
+        temperature: -1,
+        motor_temperature: -1,
         //display_realtime
-        current_assist_level: null,
+        current_assist_level: -1,
         //custom
-        power: null,
-        human_power: null
+        power: -1,
+        human_power: -1
     }
     logObjectHeader = {
-        timestamp: "Timestamp (s)",
+        timestamp: "Timestamp (ms)",
         remaining_capacity: "SOC (%)",
         cadence: "Cadence (rpm)",
         torque: "Torque (mV)",
@@ -73,9 +73,9 @@ class Logger {
         }
         this.logIntervalId = setInterval(() => {
             const rowValues = Object.values(this.logObject);
-            if(!rowValues.some(x=>x==null))
+            if(!rowValues.some(x=>x===-1))
                 this.logCsvRow(rowValues);
-        }, intervalTime);
+        }, this.intervalTime);
     }
 
     stopLogging = () => {
