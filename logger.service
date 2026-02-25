@@ -1,0 +1,15 @@
+[Unit]
+Description=Bafang canable logger service
+After=network.target udev-settle.service
+Wants=udev-settle.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node logger-cli.js
+WorkingDirectory=/home/pi/bafang_canable_pro
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

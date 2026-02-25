@@ -4,7 +4,7 @@ class Logger {
 
     logToFile = null;
     timestamp_start = new Date().getTime()
-    intervalTime = 500 //ms
+    intervalTime = 100 //ms
     logObject = {
         timestamp: -1,
         //controller_realtime_0
