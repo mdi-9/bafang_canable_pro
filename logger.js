@@ -73,7 +73,7 @@ class Logger {
         }
         this.logIntervalId = setInterval(() => {
             const rowValues = Object.values(this.logObject);
-            if(!rowValues.some(x=>x===-1))
+            if(!rowValues.some(x=>x===-1) && this.logObject.speed)
                 this.logCsvRow(rowValues);
         }, this.intervalTime);
     }
@@ -87,7 +87,7 @@ class Logger {
 
     bafangDataReceived = (parsedEvent)=>{
         const { type, source, cmdCode, subCode, data, timestamp_us} = parsedEvent
-        const timestamp_ms = new Date().getTime() - this.timestamp_start;
+        const timestamp_ms = timestamp_us / 1000;
         switch(type){
             case 'controller_realtime_0':
                 this.logObject.timestamp = timestamp_ms;
