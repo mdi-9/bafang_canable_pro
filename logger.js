@@ -87,7 +87,7 @@ class Logger {
 
     bafangDataReceived = (parsedEvent)=>{
         const { type, source, cmdCode, subCode, data, timestamp_us} = parsedEvent
-        const timestamp_ms = timestamp_us / 1000;
+        const timestamp_ms = timestamp_us / 1000n;
         switch(type){
             case 'controller_realtime_0':
                 this.logObject.timestamp = timestamp_ms;
