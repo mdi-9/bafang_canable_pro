@@ -2046,6 +2046,12 @@
                 }
 				targetObject[targetArrayName][internalIndex][targetParamName] = value;
 				console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
+				for(let i = (internalIndex+1);i<9;i++){
+					if(targetObject[targetArrayName][i][targetParamName] < value){
+						targetObject[targetArrayName][i][targetParamName] = value;
+						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
+					}
+				}
 			} else {
 				console.warn(`Could not update assist level - data structure missing for ${internalType.toUpperCase()} internalIndex ${internalIndex} or array ${targetArrayName}.`, targetObject);
 			}
