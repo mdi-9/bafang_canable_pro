@@ -2055,6 +2055,15 @@
 						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
 					}
 				}
+				for(let i = (internalIndex-1);i>=0;i--){
+					if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value){
+						targetObject[targetArrayName][i][targetParamName] = value;
+						const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
+						if(nInput)
+							nInput.value = value;
+						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+					}
+				}
 			} else {
 				console.warn(`Could not update assist level - data structure missing for ${internalType.toUpperCase()} internalIndex ${internalIndex} or array ${targetArrayName}.`, targetObject);
 			}
