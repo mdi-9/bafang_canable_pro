@@ -4,7 +4,8 @@ class Logger {
 
     logToFile = null;
     timestamp_start = new Date().getTime()
-    intervalTime = 100 //ms
+    intervalTime = 50 //ms
+    leadingIdNum = "8";
     logObject = {
         timestamp: -1,
         //controller_realtime_0
@@ -21,7 +22,8 @@ class Logger {
         current_assist_level: -1,
         //custom
         power: -1,
-        human_power: -1
+        human_power: -1,
+        single_trip: -1
     }
     logObjectHeader = {
         timestamp: "Timestamp (ms)",
@@ -35,7 +37,8 @@ class Logger {
         motor_temperature: "Motor Temp (°C)",
         current_assist_level: "Assist Level",
         power: "Power (W)",
-        human_power: "Human Power (W)"
+        human_power: "Human Power (W)",
+        single_trip: "Distance (km)"
     }
 
     constructor(canbus, ws=null){
@@ -71,10 +74,12 @@ class Logger {
         if (this.logIntervalId) {
             clearInterval(this.logIntervalId);
         }
-        this.logIntervalId = setInterval(() => {
+        this.logIntervalId = setInterval(async () => {
             const rowValues = Object.values(this.logObject);
             if(!rowValues.some(x=>x===-1) && this.logObject.speed)
                 this.logCsvRow(rowValues);
+            await this.sendRawFrameWithRetry("5113200","")
+            await this.sendRawFrameWithRetry("5113201","")
         }, this.intervalTime);
     }
 
@@ -84,19 +89,38 @@ class Logger {
             this.logIntervalId = null;
         }
     }
-
+    async sendRawFrameWithRetry(id,data,retries = 3){
+        let sent = false;
+        let tryCount = 0;
+        //this.logMessage(`Sending ID:${this.leadingIdNum+id}`, 'SENT');
+        do{
+            sent = await this.canbus.sendRawFrame(this.leadingIdNum+id,data);
+            if (!sent) {
+                this.logMessage(`sendFrame returned false for ID${this.leadingIdNum+id}`, 'ERROR');
+                await delay(delayMs);
+            }
+            tryCount++;
+        }while(!sent && tryCount < retries);
+    }
+    //timestamp0 = 0n
+    //timestamp1 = 0n
     bafangDataReceived = (parsedEvent)=>{
         const { type, source, cmdCode, subCode, data, timestamp_us} = parsedEvent
         const timestamp_ms = timestamp_us / 1000n;
         switch(type){
             case 'controller_realtime_0':
+                //console.log('p0:',this.timestamp0 - timestamp_ms)
+                //this.timestamp0 = timestamp_ms;
                 this.logObject.timestamp = timestamp_ms;
                 this.logObject.remaining_capacity = data.remaining_capacity;
                 this.logObject.cadence = data.cadence;
                 this.logObject.torque = data.torque;
-                this.logObject.human_power = this.calculateHumanPower(data.cadence,data.torque,17)
+                this.logObject.single_trip = data.single_trip;
+                this.logObject.human_power = this.calculateHumanPower(data.cadence,data.torque,17);
                 break;
             case 'controller_realtime_1':
+                //console.log('p1:',this.timestamp1 - timestamp_ms)
+                //this.timestamp1 = timestamp_ms;
                 this.logObject.timestamp = timestamp_ms;
                 this.logObject.speed = data.speed;
                 this.logObject.current = data.current;
