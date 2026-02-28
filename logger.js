@@ -76,7 +76,7 @@ class Logger {
         }
         this.logIntervalId = setInterval(async () => {
             const rowValues = Object.values(this.logObject);
-            if(!rowValues.some(x=>x===-1) && this.logObject.speed)
+            if(!rowValues.some(x=>x===-1) && (this.logObject.speed || this.logObject.cadence))
                 this.logCsvRow(rowValues);
             await this.sendRawFrameWithRetry("5113200","")
             await this.sendRawFrameWithRetry("5113201","")
