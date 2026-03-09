@@ -77,10 +77,11 @@ class Logger {
             clearInterval(this.logIntervalId);
         }
         this.logIntervalId = setInterval(async () => {
-            this.logObject.lp++;
             const rowValues = Object.values(this.logObject);
-            if(!rowValues.some(x=>x===-1) && (this.logObject.speed || this.logObject.cadence))
+            if(!rowValues.some(x=>x===-1) && (this.logObject.speed || this.logObject.cadence)){
+                this.logObject.lp++;
                 this.logCsvRow(rowValues);
+            }
             await this.sendRawFrameWithRetry("5113200","")
             await this.sendRawFrameWithRetry("5113201","")
         }, this.intervalTime);
