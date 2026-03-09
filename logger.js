@@ -7,6 +7,7 @@ class Logger {
     intervalTime = 50 //ms
     leadingIdNum = "8";
     logObject = {
+        lp: 0,
         timestamp: -1,
         //controller_realtime_0
         remaining_capacity: -1,
@@ -26,6 +27,7 @@ class Logger {
         single_trip: -1
     }
     logObjectHeader = {
+        lp: "Log Point",
         timestamp: "Timestamp (ms)",
         remaining_capacity: "SOC (%)",
         cadence: "Cadence (rpm)",
@@ -75,6 +77,7 @@ class Logger {
             clearInterval(this.logIntervalId);
         }
         this.logIntervalId = setInterval(async () => {
+            this.logObject.lp++;
             const rowValues = Object.values(this.logObject);
             if(!rowValues.some(x=>x===-1) && (this.logObject.speed || this.logObject.cadence))
                 this.logCsvRow(rowValues);

@@ -77,7 +77,8 @@ async function setupLogger(fileExt = 'log') {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10);
   const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "-");
-  const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}.${fileExt}`);
+  const randomNumber = Math.floor(Math.random() * 10000001);
+  const logFilePath = path.join(logsDir, `log-${dateStr}-${timeStr}-${randomNumber}.${fileExt}`);
   console.log("Log file created at:", logFilePath);
   // Return the logging function
   return async function logToFile(message) {
