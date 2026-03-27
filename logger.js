@@ -1,4 +1,5 @@
-const { setupLogger } = require('./utils');
+const { charsToString } = require('./bafang-parser');
+const { setupLogger, formatRawCanFrameData2 } = require('./utils');
 
 class Logger {
 
@@ -6,6 +7,7 @@ class Logger {
     timestamp_start = new Date().getTime()
     intervalTime = 50 //ms
     leadingIdNum = "8";
+    debugId = "1020304";
     logObject = {
         lp: 0,
         timestamp: -1,
@@ -24,7 +26,8 @@ class Logger {
         //custom
         power: -1,
         human_power: -1,
-        single_trip: -1
+        single_trip: -1,
+        debug: ""
     }
     logObjectHeader = {
         lp: "Log Point",
@@ -40,13 +43,15 @@ class Logger {
         current_assist_level: "Assist Level",
         power: "Power (W)",
         human_power: "Human Power (W)",
-        single_trip: "Distance (km)"
+        single_trip: "Distance (km)",
+        debug: "Debug"
     }
 
     constructor(canbus, ws=null){
         this.canbus = canbus;
         this.ws = ws;
         this.canbus.on('bafang_data_received',this.bafangDataReceived);
+        this.canbus.on('raw_frame_received',this.rawFrameRecived);
     }
 
     async logCsvRow(row,sendOverWS = true){
@@ -139,7 +144,15 @@ class Logger {
                 break
         }
     }
-
+    rawFrameRecived = (rawFrame)=>{
+        const { idHex, data } = formatRawCanFrameData2(rawFrame);
+        if (idHex === "INVALID") {
+            return;
+        }
+        if(idHex.includes(this.debugId)){
+            this.logObject.debug = charsToString(data);
+        }
+    }
     /**
      * Calculates human power output on an e-bike based on sensor data.
      * * @param {number} cadence - Cadence in RPM (revolutions per minute).
@@ -186,6 +199,7 @@ class Logger {
 
     cleanup(){
         this.canbus.removeListener('bafang_data_received', this.bafangDataReceived);
+        this.canbus.removeListener('raw_frame_received', this.rawFrameRecived);
         this.startLogging()
     }
 }

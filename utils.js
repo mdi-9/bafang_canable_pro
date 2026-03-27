@@ -63,6 +63,34 @@ function formatRawCanFrameData(frame) {
   return { idHex, dataHex, dlc, timestamp };
 }
 
+function formatRawCanFrameData2(frame) {
+  if (
+    !frame ||
+    typeof frame.can_id !== "number" ||
+    typeof frame.can_dlc !== "number" ||
+    !(frame.data instanceof DataView)
+  ) {
+    return {
+      idHex: "INVALID",
+      data: [],
+      dlc: 0,
+      timestamp: Date.now() * 1000,
+    };
+  }
+
+  const idHex = frame.can_id.toString(16).toUpperCase().padStart(8, "0");
+  const dlc = frame.can_dlc;
+  const dataArray = []; 
+  // Safely read data bytes up to DLC length
+  for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
+    dataArray.push(dataView.getUint8(i));
+  }
+  // Use frame timestamp if available, otherwise use current time
+  const timestamp = frame.timestamp_us || Date.now() * 1000;
+
+  return { idHex, dlc, timestamp, data: dataArray };
+}
+
 async function setupLogger(fileExt = 'log') {
   try {
     // 1. Ensure directory exists
@@ -110,6 +138,7 @@ function delayu(ms) {
 module.exports = {
   setupLogger,
   formatRawCanFrameData,
+  formatRawCanFrameData2,
   delay,
   delayu
 };
