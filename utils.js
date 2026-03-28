@@ -83,7 +83,7 @@ function formatRawCanFrameData2(frame) {
   const dataArray = []; 
   // Safely read data bytes up to DLC length
   for (let i = 0; i < dlc && i < frame.data.byteLength; i++) {
-    dataArray.push(dataView.getUint8(i));
+    dataArray.push(frame.data.getUint8(i));
   }
   // Use frame timestamp if available, otherwise use current time
   const timestamp = frame.timestamp_us || Date.now() * 1000;
