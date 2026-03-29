@@ -7,7 +7,7 @@ class Logger {
     timestamp_start = new Date().getTime()
     intervalTime = 50 //ms
     leadingIdNum = "8";
-    debugId = "1020304";
+    debugId = "10203";
     logObject = {
         lp: 0,
         timestamp: -1,
