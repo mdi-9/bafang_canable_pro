@@ -27,7 +27,10 @@ class Logger {
         power: -1,
         human_power: -1,
         single_trip: -1,
-        debug: ""
+        data1: null,
+        data2: null,
+        data3: null,
+        data4: null,
     }
     logObjectHeader = {
         lp: "Log Point",
@@ -44,7 +47,11 @@ class Logger {
         power: "Power (W)",
         human_power: "Human Power (W)",
         single_trip: "Distance (km)",
-        debug: "Debug"
+        data1: "Data1",
+        data2: "Data2",
+        data3: "Data3",
+        data4: "Data4"
+
     }
 
     constructor(canbus, ws=null){
@@ -150,7 +157,10 @@ class Logger {
             return;
         }
         if(idHex.includes(this.debugId)){
-            this.logObject.debug = charsToString(data);
+            this.logObject.data1 = data.getUint16(0, false); 
+            this.logObject.data2 = data.getUint16(2, false);
+            this.logObject.data3 = data.getUint16(4, false);
+            this.logObject.data4 = data.getUint16(6, false);
         }
     }
     /**
