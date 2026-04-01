@@ -1051,7 +1051,7 @@
                 const rawVoltage = controllerParams1.system_voltage;
                 safeSetText(controllerElements.p1SysVoltageRawValue, rawVoltage, (val) => `(Raw: ${getNullableNumber(val, 0)}V)`);
 
-                if (controllerElements.p1SysVoltageSelect) {
+                if (controllerElements.p1SysVoltageSelect && !controllerElements.p1SysVoltageSelect.value) {
                     let matched = false;
                     const options = controllerElements.p1SysVoltageSelect.options;
                     for (let i = 0; i < options.length; i++) {
@@ -1062,11 +1062,11 @@
                         }
                     }
 				}
-			} else {
-				// Clear or set to N/A if controllerParams1 is null
-				if (controllerElements.p1SysVoltageSelect) controllerElements.p1SysVoltageSelect.value = "";
-				safeSetText(controllerElements.p1SysVoltageRawValue, null, () => "(Raw: N/A)");
-			}
+			} 
+			// else {
+			// 	if (controllerElements.p1SysVoltageSelect) controllerElements.p1SysVoltageSelect.value = "";
+			// 	safeSetText(controllerElements.p1SysVoltageRawValue, null, () => "(Raw: N/A)");
+			// }
 			safeSetText(controllerElements.p1CurrentLimitValue, controllerParams1?.current_limit);
 			safeSetInput(controllerElements.p1CurrentLimitInput, controllerParams1, 'current_limit');
 			safeSetText(controllerElements.p1MaxCurrentLowChargeValue, controllerParams1?.max_current_on_low_charge);
