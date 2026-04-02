@@ -19,6 +19,35 @@
 			return false; // Timed out
 		}
 
+		function autoPopup(text, color = '#333') {
+			const el = document.createElement("div");
+			
+			el.style.cssText = `
+				position: fixed;
+				bottom: 20px;
+				left: 50%;
+				transform: translateX(-50%);
+				background-color: ${color};
+				color: white;
+				padding: 12px 25px;
+				border-radius: 8px;
+				font-family: sans-serif;
+				box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+				z-index: 1000;
+				opacity: 0;
+				transition: opacity 0.3s ease;
+			`;
+			
+			el.innerText = text;
+			document.body.appendChild(el);
+
+			setTimeout(() => el.style.opacity = "1", 10);
+			setTimeout(() => {
+				el.style.opacity = "0";
+				setTimeout(() => el.remove(), 300); 
+			}, 5000);
+		}
+
 		function delay(ms) {
 			return new Promise((resolve) => setTimeout(resolve, ms));
 		}
@@ -2379,6 +2408,9 @@
         
 					// Update local data stores based on type
                     switch (parsedEvent.type) {
+						// Normal ACKs
+						case 'normal_ack': if(parsedEvent.data){addLog("ACK",parsedEvent.data);autoPopup(parsedEvent.data,'green');} break; 
+						case 'error_ack': if(parsedEvent.data){addLog("ACK",parsedEvent.data);autoPopup(parsedEvent.data,'red');} break; 
                         // Display Data
                         case 'display_data_1': displayData1 = parsedEvent.data; needsDisplayUpdate = true; break;
                         case 'display_data_2': displayData2 = parsedEvent.data; needsDisplayUpdate = true; break;
@@ -2536,7 +2568,6 @@
                         case 'controller_sn': controllerOtherInfo.serialNumber = parsedEvent.data?.serial_number; controllerOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break;
                         case 'controller_mn': controllerOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // Added MN case
                         case 'controller_mfg': controllerOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break; // Added MFG case
-						case 'controller_message': if(parsedEvent.data){addLog("ACK",parsedEvent.data);alert(parsedEvent.data);} break; 
 
                         case 'display_hw_version': displayOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
                         case 'display_sw_version': displayOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;

@@ -356,16 +356,26 @@ class CanBusService extends EventEmitter {
 
 
     _parseAndEmitCompletedFrame(completedParsedFrame, timestamp_us) {
-        // --- Skip Data Parsing for Simple ACKs/NACKs ---
-		if ((completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK ||
-             completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK) &&
-            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0)) // No data or just a single 0x00 byte for ACK
-           ) {
-             // console.log(`Received simple ACK/NACK (Op: ${completedParsedFrame.canOperationCode}) from ${completedParsedFrame.sourceDeviceCode.toString(16)} for ${completedParsedFrame.canCommandCode.toString(16)}/${completedParsedFrame.canCommandSubCode.toString(16)} - No data to parse.`);
-             return;
-         }
-        // --- End ACK Check ---
         let parsedData = null; let dataType = 'unknown'; const sourceId = completedParsedFrame.sourceDeviceCode; const cmdCode = completedParsedFrame.canCommandCode; const subCode = completedParsedFrame.canCommandSubCode;
+        if(completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK &&
+            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0)) ){
+            this.emit('bafang_data_received', { type: 'error_ack', source: sourceId, cmdCode, subCode, data: "ERROR ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
+            return;
+        }
+        else if(completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK &&
+            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0))){
+            this.emit('bafang_data_received', { type: 'normal_ack', source: sourceId, cmdCode, subCode, data: "NORMAL ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
+            return;
+        }
+        // --- Skip Data Parsing for Simple ACKs/NACKs ---
+		// if ((completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK ||
+        //      completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK) &&
+        //     (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0)) // No data or just a single 0x00 byte for ACK
+        //    ) {
+        //      // console.log(`Received simple ACK/NACK (Op: ${completedParsedFrame.canOperationCode}) from ${completedParsedFrame.sourceDeviceCode.toString(16)} for ${completedParsedFrame.canCommandCode.toString(16)}/${completedParsedFrame.canCommandSubCode.toString(16)} - No data to parse.`);
+        //      return;
+        //  }
+        // --- End ACK Check ---
         switch (sourceId) {
              case DeviceNetworkId.DRIVE_UNIT: 
              dataType = 'controller'; 
@@ -427,16 +437,8 @@ class CanBusService extends EventEmitter {
 			 else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'controller_mfg'; } 
              else if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'controller_errors'; }
             } 
-             else if (cmdCode === 0x61 && subCode === 0x01){
-                parsedData = "Calibrate torque sensor successful";
-                dataType = 'controller_message';
-             }
 			 else if (cmdCode === 0x62) { 
-                if(subCode === 0x00){
-                    parsedData = "Calibrate position sensor successful";
-                    dataType = 'controller_message';
-                }
-                else if(subCode === 0xD9){
+                if(subCode === 0xD9){
                     // Handle Startup Angle Read Response
                     parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
                     dataType = 'controller_startup_angle';
