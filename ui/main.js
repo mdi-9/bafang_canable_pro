@@ -2536,7 +2536,7 @@
                         case 'controller_sn': controllerOtherInfo.serialNumber = parsedEvent.data?.serial_number; controllerOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break;
                         case 'controller_mn': controllerOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break; // Added MN case
                         case 'controller_mfg': controllerOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break; // Added MFG case
-						
+						case 'controller_message': if(parsedEvent.data){addLog("ACK",parsedEvent.data);alert(parsedEvent.data);} break; 
 
                         case 'display_hw_version': displayOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
                         case 'display_sw_version': displayOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;

@@ -427,9 +427,20 @@ class CanBusService extends EventEmitter {
 			 else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'controller_mfg'; } 
              else if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'controller_errors'; }
             } 
-			 else if (cmdCode === 0x62 && subCode === 0xD9) { // Handle Startup Angle Read Response
-                 parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
-                 dataType = 'controller_startup_angle';
+             else if (cmdCode === 0x61 && subCode === 0x01){
+                parsedData = "Calibrate torque sensor successful";
+                dataType = 'controller_message';
+             }
+			 else if (cmdCode === 0x62) { 
+                if(subCode === 0x00){
+                    parsedData = "Calibrate position sensor successful";
+                    dataType = 'controller_message';
+                }
+                else if(subCode === 0xD9){
+                    // Handle Startup Angle Read Response
+                    parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
+                    dataType = 'controller_startup_angle';
+                }
              }
 			 else if (cmdCode === 0x62 && subCode === 0x07) { // System AutoOff
 			     parsedData = { controller_auto_shutdown_time: completedParsedFrame.data[0] };
