@@ -999,10 +999,49 @@
                     <div id="snifferLog" style="height: 700px;" class="log"></div>
                 </div>
             </div>
+            <!-- Ride Logger Tab -->
+            <div class="tab-content" id="tab-ride-logger">
+                <h2>Ride Logger</h2>
+                <div class="general-controls">
+                    <button id="rideLoggerStartButton" disabled>Start logging</button>
+                    <button id="rideLoggerStopButton" disabled> Stop logging</button>
+                </div>
+                <br />
+                <!-- Data -->
+                 <table class="description-table">
+                     <tbody>
+                        <tr>
+                            <th><label for="rideLoggerLogToFileCheckbox">Log to file</label></th>
+                            <td>
+                                <input type="checkbox" id="rideLoggerLogToFileCheckbox" name="rideLoggerLogToFileCheckbox" /> ==> C:\snapshot\bafang_canable_pro\logs
+                            </td>
+                            <th><label for="rideLoggerLiveDashboardCheckbox">Live dashboard</label></th>
+                            <td>
+                                <input type="checkbox" id="rideLoggerLiveDashboardCheckbox" name="rideLoggerLiveDashboardCheckbox" checked/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Refresh rate (milliseconds)</th>
+                            <td>
+                                <input type="number" id="rideLoggerRefreshRateMsInput" min="50" max="5000" step="10" value="50">
+                                <small>Lower the value = more accurate chart but more data and bigger load.</small>
+                            </td>
+                        </tr>
+                     </tbody>
+                 </table>
+
+                <div class="card">
+                    <h2>Log
+                        <button id="clearRideLoggerChartButton" style="float: right; background-color: #6c757d;">Clear ride logger chart</button>
+                    </h2>
+                    <div id="rideLoggerChart"></div>
+                </div>
+            </div>
         </div> <!-- End of main tab content card -->
 
     </div> <!-- End of container -->
 <script src="chart.umd.js"></script>
+<script src="plotly-2.24.1.min.js"></script>
 <script src="main.js"></script>
 </body>
 </html>

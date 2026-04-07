@@ -399,6 +399,15 @@
 			zones: document.querySelectorAll('.drop-zone')
 		}
 
+		const rideLoggerElements = {
+			startButton: document.getElementById('rideLoggerStartButton'),
+			stopButton: document.getElementById('rideLoggerStopButton'),
+			clearButton: document.getElementById('rideLoggerClearButton'),
+			logToFileCheckbox: document.getElementById('rideLoggerLogToFileCheckbox'),
+			liveViewCheckbox: document.getElementById('rideLoggerLiveViewCheckbox'),
+			refreshRateMsInput: document.getElementById('rideLoggerRefreshRateMsInput')
+		}
+
         // --- Global state for CAN connection ---
         let isCanDeviceFound = false;
         let isCanConnected = false;

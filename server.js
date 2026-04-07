@@ -16,6 +16,7 @@ const { CanWriteCommandsList } = require('./bafang-can-write-commands');
 const { generateCanFrameId, bafangIdArrayTo32Bit } = require('./bafang-parser');
 const FwUpdater = require('./fw-updater');
 const Sniffer = require('./sniffer');
+const RideLogger = require('./logger');
 
 // --- Globals ---
 let clients = [];
@@ -660,6 +661,35 @@ const wss = new WebSocket.Server({ server });
 		return false;
 	}
 
+	let rideLogger;
+	async function handleStartRideLogger(ws,messageString) {
+		if (messageString.startsWith('RIDE_LOGGER_START')) {
+			const messageParts = messageString.split(':');
+			const logToFileEnabled = messageParts[1] === 'true'
+			const liveDashboardEnabled = messageParts[2] === 'true'
+			const intervalTime = parseInt(messageParts[3])
+			if(isNaN(intervalTime) || intervalTime < 50 || (!logToFileEnabled && !liveDashboardEnabled))
+				return false
+			rideLogger = new RideLogger(canbus,liveDashboardEnabled ? ws: null);
+			rideLogger.intervalTime = intervalTime;
+			if(logToFileEnabled){
+				await rideLogger.setupLogger()
+				await rideLogger.setupHeader()
+			}
+			rideLogger.startLogging()
+			return true
+		}
+		return false;
+	}
+	async function handleStopRideLogger(messageString) {
+		if (messageString.startsWith('RIDE_LOGGER_STOP') && rideLogger) {
+			rideLogger.cleanup()
+			rideLogger = null;
+			return true
+		}
+		return false;
+	}
+
 	let sniffer;
 	async function handleStartSniffer(ws,messageString) {
 		if (messageString.startsWith('SNIFFER_START')) {
@@ -760,6 +790,8 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleStopSniffer(messageString);
 				if (!handled) handled = await handleFilteredIdSniffer(messageString);
 				if (!handled) handled = await handleLogEnabledSniffer(messageString);
+				if (!handled) handled = await handleStartRideLogger(ws, messageString);
+				if (!handled) handled = await handleStopRideLogger(messageString);
 
 				if (!handled) {
 					console.warn("Unknown command received from UI (unhandled):", messageString);

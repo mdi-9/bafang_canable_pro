@@ -67,7 +67,7 @@ class Logger {
             if(this.logToFile)
                 await this.logToFile(csvRow);
             if(sendOverWS && this.ws){
-                this.ws.send(csvRow);
+                this.ws.send(`RIDE_LOGGER_ENTRY:${csvRow}`);
             }
         }catch( e ) {
             console.log(e, 'ERROR');
