@@ -405,7 +405,8 @@
 			clearButton: document.getElementById('rideLoggerClearButton'),
 			logToFileCheckbox: document.getElementById('rideLoggerLogToFileCheckbox'),
 			liveViewCheckbox: document.getElementById('rideLoggerLiveViewCheckbox'),
-			refreshRateMsInput: document.getElementById('rideLoggerRefreshRateMsInput')
+			refreshRateMsInput: document.getElementById('rideLoggerRefreshRateMsInput'),
+			liveStats: document.getElementById('rideLoggerLiveStats'),
 		}
 
         // --- Global state for CAN connection ---
@@ -2660,6 +2661,8 @@
 				connectCanButton.disabled = false; // Enable connect button after update
 			}
 			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
+			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
+			else if (message.startsWith('RIDE_LOGGER_ENTRY:')) { updateRideChart(message.substring('RIDE_LOGGER_ENTRY:'.length).trim()); }
             else { addLog('INFO', message); }
         };
 
@@ -3798,6 +3801,126 @@
 		if (savedFilteredIdsOff) 
 			savedFilteredIdsOff.split(',').forEach(t => snifferElements.filteredIdsListOff.appendChild(createFilteredIdItem(t)));
 
+		// Ride Logger Section
+
+		rideLoggerElements.startButton.onclick = () => {
+			rideLoggerElements.startButton.disabled = true;
+			rideLoggerElements.stopButton.disabled = false;
+			socket.send(`RIDE_LOGGER_START:${rideLoggerElements.logToFileCheckbox.checked}:${rideLoggerElements.liveViewCheckbox.checked}:${rideLoggerElements.intervalInput.value}`);
+		}
+
+		rideLoggerElements.stopButton.onclick = () => {
+			rideLoggerElements.startButton.disabled = false;
+			rideLoggerElements.stopButton.disabled = true;
+			socket.send(`RIDE_LOGGER_STOP`);
+		}
+
+		rideLoggerElements.clearButton.onclick = () => {
+			rideLoggerSums.totalDist = 0;
+			rideLoggerSums.totalWhMotor = 0;
+			rideLoggerSums.totalWhHuman = 0;
+			rideLoggerSums.lastTs = null;
+			rideLoggerElements.liveStats.innerText = `Distance: 0.00 km | Motor: 0.00 Wh | Human: 0.00 Wh`;
+			const update = {
+				x: [[], [], [], [], [], []],
+				y: [[], [], [], [], [], []]
+			};
+			Plotly.restyle('rideLoggerChart', update, [0, 1, 2, 3, 4, 5]);
+		}
+
+		const rideLoggerSums = {
+			totalDist: 0,
+			totalWhMotor: 0,
+			totalWhHuman: 0,
+			lastTs: null
+		}
+
+		function updateRideChart(rowCsv){
+			const parts = rowCsv.split(';');
+			//Log Point0;Timestamp (ms)1;SOC (%)2;Cadence (rpm)3;Torque (mV)4;Speed (km/h)5;Current (A)6;Voltage (V)7;Controller Temp (°C)8;Motor Temp (°C)9;Assist Level10;Power (W)11;Human Power (W)12;Distance (km)13
+			const row = {
+				timestamp: parseFloat(parts[1]), 
+				soc: parseFloat(parts[2]),
+				cadence: parseFloat(parts[3]),
+				torque: parseFloat(parts[4]),
+				speed: parseFloat(parts[5]),
+				current: parseFloat(parts[6]),
+				voltage: parseFloat(parts[7]),
+				controllerTemp: parseFloat(parts[8]),
+				motorTemp: parseFloat(parts[9]),
+				assistLevel: parseInt(parts[10], 10),
+				motorPower: parseFloat(parts[11]),
+				humanPower: parseFloat(parts[12]),
+				distance: parseFloat(parts[13])
+			};
+			if (isNaN(row.timestamp)) return; // Zabezpieczenie przed pustymi wierszami
+
+			const timeS = row.timestamp / 1000;
+
+			// Stats
+			if (rideLoggerSums.lastTs !== null) {
+				const dtHours = (row.timestamp - rideLoggerSums.lastTs) / 3600000;
+				if (dtHours > 0) {
+					rideLoggerSums.totalDist += (row.speed || 0) * dtHours;
+					rideLoggerSums.totalWhMotor += (row.motorPower || 0) * dtHours;
+					rideLoggerSums.totalWhHuman += (row.humanPower || 0) * dtHours;
+					rideLoggerElements.liveStats.innerText = 
+						`Distance: ${rideLoggerSums.totalDist.toFixed(2)} km | Motor: ${rideLoggerSums.totalWhMotor.toFixed(2)} Wh | Human: ${rideLoggerSums.totalWhHuman.toFixed(2)} Wh`;
+				}
+			}
+			rideLoggerSums.lastTs = row.timestamp;
+			// Mapowanie wspomagania
+			let assistLabel = row.assist;
+			if (assistLabel === '6' || assistLabel === '-1') assistLabel = 'walk';
+
+			// Dane do Plotly
+			const update = {
+				x: [[timeS], [timeS], [timeS], [timeS], [timeS], [timeS]],
+				y: [
+					[row.motorPower],
+					[row.humanPower],
+					[row.cadence],
+					[row.speed],
+					[row.torque],
+					[assistLabel]
+				]
+			};
+
+			const MAX_POINTS = 12000; // 10 minut przy 50ms (20Hz * 60s * 10m)
+			Plotly.extendTraces('rideLoggerChart', update, [0, 1, 2, 3, 4, 5], MAX_POINTS);
+
+			const windowSize = 600; // Przesunięcie okna wykresu (ostatnie 10 minut = 600 sekund)
+			Plotly.relayout('rideLoggerChart', {
+				'xaxis.range': [timeS - windowSize, timeS]
+			});
+		}
+
+		Plotly.newPlot('rideLoggerChart', [
+			{ x: [], y: [], name: "Motor Power (W)", line: {color: '#ff4d4d'} }, // index 0
+			{ x: [], y: [], name: "Human Power (W)", line: {color: '#00cc66'} }, // index 1
+			{ x: [], y: [], name: "Cadence (rpm)", yaxis: 'y2', line: {color: '#3399ff', width: 1} }, // index 2
+			{ x: [], y: [], name: "Speed (km/h)", yaxis: 'y2', line: {color: '#ffffff', width: 1.5} }, // index 3
+			{ x: [], y: [], name: "Torque (mV)", yaxis: 'y3', line: {color: '#9933ff', dash: 'dot'}, visible: "legendonly" }, // index 4
+			{ x: [], y: [], name: "Assist Level", yaxis: 'y4', line: {color: '#ffa500', width: 2, shape: 'hv'} } // index 5
+    	], 
+		{
+			template: "plotly_dark",
+			paper_bgcolor: '#111',
+			plot_bgcolor: '#111',
+			margin: { t: 50, b: 50, l: 80, r: 80 },
+			xaxis: { title: "Time (s)", domain: [0.12, 0.88] },
+			yaxis: { title: "Power (W)", titlefont: {color: "#ff4d4d"}, tickfont: {color: "#ff4d4d"} },
+			yaxis2: { title: "RPM / km/h", anchor: "x", overlaying: "y", side: "right", titlefont: {color: "#3399ff"}, tickfont: {color: "#3399ff"} },
+			yaxis3: { title: "Torque (mV)", anchor: "free", overlaying: "y", side: "right", position: 0.98, titlefont: {color: "#9933ff"}, tickfont: {color: "#9933ff"} },
+			yaxis4: { 
+				title: "Assist", anchor: "free", overlaying: "y", side: "left", position: 0.02,
+				type: 'category', categoryarray: ['walk', '0', '1', '2', '3', '4', '5'], categoryorder: 'array',
+				titlefont: {color: "#ffa500"}, tickfont: {color: "#ffa500"}
+			},
+			hovermode: "x unified",
+			showlegend: true,
+			legend: { orientation: 'h', y: -0.2 }
+		}, { responsive: true });
 
 		
         // --- Initial State ---
