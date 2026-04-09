@@ -210,7 +210,9 @@ class Logger {
     cleanup(){
         this.canbus.removeListener('bafang_data_received', this.bafangDataReceived);
         this.canbus.removeListener('raw_frame_received', this.rawFrameRecived);
-        this.startLogging()
+        if (this.logIntervalId) {
+            clearInterval(this.logIntervalId);
+        }
     }
 }
 

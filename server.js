@@ -668,6 +668,7 @@ const wss = new WebSocket.Server({ server });
 			const logToFileEnabled = messageParts[1] === 'true'
 			const liveDashboardEnabled = messageParts[2] === 'true'
 			const intervalTime = parseInt(messageParts[3])
+			console.log(logToFileEnabled,liveDashboardEnabled,intervalTime)
 			if(isNaN(intervalTime) || intervalTime < 50 || (!logToFileEnabled && !liveDashboardEnabled))
 				return false
 			rideLogger = new RideLogger(canbus,liveDashboardEnabled ? ws: null);

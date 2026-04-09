@@ -404,9 +404,10 @@
 			stopButton: document.getElementById('rideLoggerStopButton'),
 			clearButton: document.getElementById('rideLoggerClearButton'),
 			logToFileCheckbox: document.getElementById('rideLoggerLogToFileCheckbox'),
-			liveViewCheckbox: document.getElementById('rideLoggerLiveViewCheckbox'),
+			liveViewCheckbox: document.getElementById('rideLoggerLiveDashboardCheckbox'),
 			refreshRateMsInput: document.getElementById('rideLoggerRefreshRateMsInput'),
 			liveStats: document.getElementById('rideLoggerLiveStats'),
+			fullscreenButton: document.getElementById('rideLoggerFullscreenButton'),
 		}
 
         // --- Global state for CAN connection ---
@@ -912,7 +913,16 @@
 			9: { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8 }
 		}; 
 		
-        function switchTab(targetTabId) {tabButtons.forEach(button => { button.classList.toggle('active', button.getAttribute('data-tab') === targetTabId); }); tabContents.forEach(content => { content.classList.toggle('active', content.id === `tab-${targetTabId}`); }); }
+        function switchTab(targetTabId) {
+			tabButtons.forEach(button => {
+				button.classList.toggle('active', button.getAttribute('data-tab') === targetTabId); 
+			}); 
+			tabContents.forEach(content => { 
+				content.classList.toggle('active', content.id === `tab-${targetTabId}`); 
+			}); 
+			if(targetTabId == "ride-logger")
+				Plotly.Plots.resize('rideLoggerChart');
+		}
         function getNullableNumber(value, precision = -1) { return (value === null || value === undefined || isNaN(value)) ? na : (precision >= 0 ? value.toFixed(precision) : value); }
         function getNullableString(value) { return (value === null || value === undefined) ? na : value; }
         function getNullableBoolean(value, trueText = 'Yes', falseText = 'No') { return (value === null || value === undefined) ? na : (value ? trueText : falseText); }
@@ -3806,13 +3816,24 @@
 		rideLoggerElements.startButton.onclick = () => {
 			rideLoggerElements.startButton.disabled = true;
 			rideLoggerElements.stopButton.disabled = false;
-			socket.send(`RIDE_LOGGER_START:${rideLoggerElements.logToFileCheckbox.checked}:${rideLoggerElements.liveViewCheckbox.checked}:${rideLoggerElements.intervalInput.value}`);
+			socket.send(`RIDE_LOGGER_START:${rideLoggerElements.logToFileCheckbox.checked}:${rideLoggerElements.liveViewCheckbox.checked}:${rideLoggerElements.refreshRateMsInput.value}`);
 		}
 
 		rideLoggerElements.stopButton.onclick = () => {
 			rideLoggerElements.startButton.disabled = false;
 			rideLoggerElements.stopButton.disabled = true;
 			socket.send(`RIDE_LOGGER_STOP`);
+		}
+
+		rideLoggerElements.fullscreenButton.onclick = () => {
+			const element = document.getElementById('rideLoggerChart');
+			if (!document.fullscreenElement) {
+				element.requestFullscreen().catch(err => {
+					console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+				});
+			} else {
+				document.exitFullscreen();
+			}
 		}
 
 		rideLoggerElements.clearButton.onclick = () => {
@@ -3870,8 +3891,8 @@
 			}
 			rideLoggerSums.lastTs = row.timestamp;
 			// Mapowanie wspomagania
-			let assistLabel = row.assist;
-			if (assistLabel === '6' || assistLabel === '-1') assistLabel = 'walk';
+			let assistLabel = row.assistLevel;
+			if (assistLabel === '-1') assistLabel = 'walk';
 
 			// Dane do Plotly
 			const update = {
@@ -3919,10 +3940,16 @@
 			},
 			hovermode: "x unified",
 			showlegend: true,
+			//height: 800,
+  			autosize: true, 
 			legend: { orientation: 'h', y: -0.2 }
 		}, { responsive: true });
 
-		
+		document.addEventListener('fullscreenchange', () => {
+			Plotly.Plots.resize('rideLoggerChart');
+		});
+
+	
         // --- Initial State ---
 		populateWheelSelect(); // Populate dropdown on load
         //updateStatus(false);
