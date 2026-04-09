@@ -1411,8 +1411,8 @@
 			safeSetInput(gearsElementsM820.globalAccelerationInputEl, p2, 'acceleration_level');
 
             // --- Charts ---
-			updatePasCurvesChartM820();
-			updateStartRampChartM820();
+			updatePasCurvesChartUnified(true);
+			updateStartRampChartUnified(true);
 		}
 		// --- Gears Tab UI Update Function ---
 		function updateGearsUI() {
@@ -1614,8 +1614,8 @@
                 createInputCell('torque_decay_time', profileData?.torque_decay_time, 5, 1275, 5, '');
 				createInputCell('stop_delay', profileData?.stop_delay, 2, 510, 2, '');
 			}
-			updatePasCurvesChart();
-			updateStartRampChart();
+			updatePasCurvesChartUnified(false);
+			updateStartRampChartUnified(false);
 		}
 
 		function updateInfoUI() {
@@ -1659,379 +1659,263 @@
             infoElements.batteryPlaceholder.style.display = (batteryOtherInfo.hwVersion || batteryOtherInfo.swVersion || batteryOtherInfo.modelNumber || batteryOtherInfo.serialNumber) ? 'none' : 'block'; // Added checks
         }
 
-		function updatePasCurvesChart() {
-			const ctx = document.getElementById('pasCurvesChart')?.getContext('2d');
-			if (!ctx) {
-				console.error("PAS Curves chart canvas not found!");
-				if (pasCurvesContainer) pasCurvesContainer.style.display = 'none';
-				if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'flex'; // Use flex for centering
+		function updatePasCurvesChartUnified(isM820) {
+			// 1. Wybór odpowiednich elementów DOM i danych źródłowych
+			const chartId = isM820 ? 'pasCurvesChartM820' : 'pasCurvesChart';
+			const container = isM820 ? pasCurvesContainerM820 : pasCurvesContainer;
+			const placeholder = isM820 ? pasCurvesPlaceholderM820 : pasCurvesPlaceholder;
+			
+			const chartDiv = document.getElementById(chartId);
+			if (!chartDiv) {
+				console.error(`Container ${chartId} not found!`);
 				return;
 			}
 
-			if (!lastControllerP0 || !lastControllerP0.assist_ratio_levels ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
-				if (pasChart) { pasChart.destroy(); pasChart = null; }
-				if (pasCurvesContainer) pasCurvesContainer.style.display = 'none';
-				if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'flex';
+			// 2. Walidacja danych (różna dla M820 i standardowego sterownika)
+			const baseDataValid = lastControllerP1?.assist_levels && 
+								typeof lastControllerP1.system_voltage === 'number' &&
+								typeof lastControllerP1.current_limit === 'number' &&
+								displayRealtime?.assist_levels;
+
+			const extraDataValid = isM820 ? true : (lastControllerP0?.assist_ratio_levels);
+
+			if (!baseDataValid || !extraDataValid) {
+				console.warn(`PAS Curves (${isM820 ? 'M820' : 'Standard'}): Missing data.`);
+				if (container) container.style.display = 'none';
+				if (placeholder) placeholder.style.display = 'flex';
 				return;
 			}
 
-			// Data is available, show container, hide placeholder
-			if (pasCurvesContainer) pasCurvesContainer.style.display = 'block';
-			if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'none';
+			// Dane są poprawne - przełącz widoczność
+			if (container) container.style.display = 'block';
+			if (placeholder) placeholder.style.display = 'none';
 
-
+			// 3. Przygotowanie stałych
 			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistRatiosP0 = lastControllerP0.assist_ratio_levels;         // Array from P0
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;     // Overall controller current limit
-
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
-
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= assistRatiosP0.length || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
-
-				const assistRatioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level; // This is the "Assistance %" value
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit; // This is "Max. Power %"
-
-				if (typeof assistRatioPercent !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
-
-				const maxPowerForLevel = EFFICIENCY_FACTOR * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
-
-				const dataPoints = [];
-				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
-					let motorOutput = humanPower * (assistRatioPercent / 100.0);
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: humanPower, y: motorOutput });
-				}
-
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
-
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE;
-
-
-			if (pasChart) {
-				pasChart.data.datasets = datasets;
-				pasChart.options.scales.y.max = yAxisMax;
-				pasChart.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				pasChart = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Human power (w)' }, min: 0, max: MAX_HUMAN_POWER_X_AXIS },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
-
-        function updatePasCurvesChartM820() {
-			const ctx = document.getElementById('pasCurvesChartM820')?.getContext('2d');
-			if (!ctx) {
-				console.error("PAS Curves chart canvas not found!");
-				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
-				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex'; // Use flex for centering
-				return;
-			}
-
-			if (!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
-				if (pasChartM820) { pasChartM820.destroy(); pasChartM820 = null; }
-				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
-				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex';
-				return;
-			}
-
-			// Data is available, show container, hide placeholder
-			if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'block';
-			if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'none';
-
-
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;     // Overall controller current limit
-
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
-
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
-
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit; // This is "Max. Power %"
-
-				if (typeof currentLimitPercentForLevel !== 'number') continue;
-
-				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
-
-				const dataPoints = [];
-				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
-					let motorOutput = humanPower * (200 / 100.0); // 200% because assist ratio not exist in M820
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: humanPower, y: motorOutput });
-				}
-
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
-
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600; //600 = max m820 power
-
-
-			if (pasChartM820) {
-				pasChartM820.data.datasets = datasets;
-				pasChartM820.options.scales.y.max = yAxisMax;
-				pasChartM820.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				pasChartM820 = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Human power (w)' }, min: 0, max: MAX_HUMAN_POWER_X_AXIS },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
-
-		function updateStartRampChart() {
-			const ctx = document.getElementById('startRampChart')?.getContext('2d');
-			if (!ctx) {
-				console.error("Start Ramp chart canvas not found!");
-				if (startRampContainer) startRampContainer.style.display = 'none';
-				if (startRampPlaceholder) startRampPlaceholder.style.display = 'flex';
-				return;
-			}
-
-			if (!lastControllerP0 || !lastControllerP0.acceleration_levels ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("Start Ramp: Missing P0, P1, or displayRealtime data for chart.");
-				if (startRampChart) { startRampChart.destroy(); startRampChart = null; }
-				if (startRampContainer) startRampContainer.style.display = 'none';
-				if (startRampPlaceholder) startRampPlaceholder.style.display = 'flex';
-				return;
-			}
-
-			// Data is available, show container, hide placeholder
-			if (startRampContainer) startRampContainer.style.display = 'block';
-			if (startRampPlaceholder) startRampPlaceholder.style.display = 'none';
-
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const accelerationSettingsP0 = lastControllerP0.acceleration_levels; // Array from P0
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
+			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
+			const assistRatiosP0 = isM820 ? null : lastControllerP0.assist_ratio_levels;
 			const systemVoltageP1 = lastControllerP1.system_voltage;
 			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+			
+			// M820 zazwyczaj nie używa EFFICIENCY_FACTOR w Twoim poprzednim kodzie, standardowy tak
+			const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
 
-			const datasets = [];
+			const traces = [];
 			let overallMaxMotorPower = 0;
 			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
+			// 4. Generowanie serii danych
 			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
 				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= accelerationSettingsP0.length || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
+				
+				// Walidacja indeksów w tablicach
+				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) continue;
+				if (!isM820 && internalIndex >= assistRatiosP0.length) continue;
 
-				const accelValue = accelerationSettingsP0[internalIndex]?.acceleration_level; // Value 1-8
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit;
+				const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+				if (typeof currentLimitPercent !== 'number') continue;
 
-				if (typeof accelValue !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
-
-				const maxPowerForLevel = EFFICIENCY_FACTOR * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
+				// Obliczanie limitu mocy (W)
+				const maxPowerForLevel = currentEfficiency * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercent / 100.0);
 				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
 
-				// Time_To_Reach_Max_Power = 2500.0 - (AccelerationSetting * 281.25)
-				// Higher accelValue (1-8) should mean *slower* ramp according to typical Bafang UI (e.g. "Acceleration: 2" on screen)
-				// The C# formula implies: higher accelValue -> smaller denominator -> steeper slope -> FASTER ramp.
-				// Let's verify the C# interpretation: if accelValue is 8 (most aggressive), denominator is 2500 - 8*281.25 = 2500 - 2250 = 250.
-				// If accelValue is 1 (least aggressive), denominator is 2500 - 1*281.25 = 2218.75.
-				// So, yes, in the C# formula, higher accelValue (1-8) means FASTER ramp.
-				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25)); // Ensure non-zero, min 50ms
-
-				const dataPoints = [];
-				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) { // Or 250ms steps like C#
-					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: timeMs, y: motorOutput });
+				// Wybór mnożnika wspomagania (Ratio)
+				let assistRatio;
+				if (isM820) {
+					assistRatio = 2.0; // Stałe 200% dla M820
+				} else {
+					const ratioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level;
+					if (typeof ratioPercent !== 'number') continue;
+					assistRatio = ratioPercent / 100.0;
 				}
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
+				const xValues = [];
+				const yValues = [];
+
+				// Generowanie punktów wykresu
+				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
+					let motorOutput = humanPower * assistRatio;
+					motorOutput = Math.min(maxPowerForLevel, motorOutput);
+					
+					xValues.push(humanPower);
+					yValues.push(motorOutput);
+				}
+
+				traces.push({
+					x: xValues,
+					y: yValues,
+					name: `Level ${displayedLevel}`,
+					mode: 'lines',
+					line: {
+						color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
+						width: 2
+					},
+					type: 'scatter'
 				});
 			}
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE;
+			// 5. Konfiguracja wyglądu (Layout)
+			const yAxisMax = (overallMaxMotorPower > 0) 
+				? Math.ceil((overallMaxMotorPower + 50) / 50) * 50 
+				: (typeof MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE !== 'undefined' ? MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE : 600);
 
-			if (startRampChart) {
-				startRampChart.data.datasets = datasets;
-				startRampChart.options.scales.y.max = yAxisMax;
-				startRampChart.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				startRampChart = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' }, min: 0, max: MAX_TIME_X_AXIS_START_RAMP },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
+			const layout = {
+				template: "plotly_dark",
+				paper_bgcolor: 'rgba(0,0,0,0)',
+				plot_bgcolor: 'rgba(0,0,0,0)',
+				height: 350,
+				margin: { t: 30, b: 50, l: 60, r: 20 },
+				showlegend: true,
+				legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
+				xaxis: {
+					title: 'Human power (W)',
+					range: [0, MAX_HUMAN_POWER_X_AXIS],
+					gridcolor: '#333',
+					fixedrange: true
+				},
+				yaxis: {
+					title: 'Motor output (W)',
+					range: [0, yAxisMax],
+					gridcolor: '#333',
+					fixedrange: true
+				},
+				hovermode: 'x unified'
+			};
+
+			const config = { responsive: true, displayModeBar: false };
+
+			// 6. Aktualizacja wykresu
+			Plotly.react(chartDiv, traces, layout, config);
 		}
 
-        function updateStartRampChartM820() {
-			const ctx = document.getElementById('startRampChartM820')?.getContext('2d');
-			if (!ctx) {
-				console.error("Start Ramp chart canvas not found!");
-				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
-				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
+		function updateStartRampChartUnified(isM820) {
+			const chartId = isM820 ? 'startRampChartM820' : 'startRampChart';
+			const container = isM820 ? startRampContainerM820 : startRampContainer;
+			const placeholder = isM820 ? startRampPlaceholderM820 : startRampPlaceholder;
+			
+			const chartDiv = document.getElementById(chartId);
+			if (!chartDiv) {
+				console.error(`Start Ramp container ${chartId} not found!`);
 				return;
 			}
 
-			if (!lastControllerP2 || !lastControllerP2.acceleration_level ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("Start Ramp: Missing P2, P1, or displayRealtime data for chart.");
-				if (startRampChartM820) { startRampChartM820.destroy(); startRampChartM820 = null; }
-				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
-				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
+			// 1. Walidacja danych podstawowych
+			const baseDataValid = lastControllerP1?.assist_levels && 
+								typeof lastControllerP1.system_voltage === 'number' &&
+								typeof lastControllerP1.current_limit === 'number' &&
+								displayRealtime?.assist_levels;
+
+			// Walidacja danych specyficznych dla modelu
+			const extraDataValid = isM820 
+				? (lastControllerP2 && typeof lastControllerP2.acceleration_level === 'number')
+				: (lastControllerP0?.acceleration_levels);
+
+			if (!baseDataValid || !extraDataValid) {
+				console.warn(`Start Ramp (${isM820 ? 'M820' : 'Standard'}): Missing data.`);
+				if (container) container.style.display = 'none';
+				if (placeholder) placeholder.style.display = 'flex';
 				return;
 			}
 
-			// Data is available, show container, hide placeholder
-			if (startRampContainerM820) startRampContainerM820.style.display = 'block';
-			if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'none';
+			// Pokaż wykres, ukryj placeholder
+			if (container) container.style.display = 'block';
+			if (placeholder) placeholder.style.display = 'none';
 
+			// 2. Przygotowanie stałych
 			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
+			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
 			const systemVoltageP1 = lastControllerP1.system_voltage;
 			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+			
+			// Sprawność (M820 zazwyczaj 1.0, standard używa stałej)
+			const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
 
-			const datasets = [];
+			const traces = [];
 			let overallMaxMotorPower = 0;
 			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
+			// 3. Generowanie serii danych dla każdego poziomu
 			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
 				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
+				
+				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) continue;
+
+				// Pobieranie wartości przyspieszenia (Accel)
+				let accelValue;
+				if (isM820) {
+					accelValue = lastControllerP2.acceleration_level;
+				} else {
+					if (internalIndex >= lastControllerP0.acceleration_levels.length) continue;
+					accelValue = lastControllerP0.acceleration_levels[internalIndex]?.acceleration_level;
 				}
 
-				const accelValue = lastControllerP2.acceleration_level; // Value 1-8
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit;
+				const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+				if (typeof accelValue !== 'number' || typeof currentLimitPercent !== 'number') continue;
 
-				if (typeof accelValue !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
-
-				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
+				// Obliczanie parametrów rampy
+				const maxPowerForLevel = currentEfficiency * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercent / 100.0);
 				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
 
-				// Time_To_Reach_Max_Power = 2500.0 - (AccelerationSetting * 281.25)
-				// Higher accelValue (1-8) should mean *slower* ramp according to typical Bafang UI (e.g. "Acceleration: 2" on screen)
-				// The C# formula implies: higher accelValue -> smaller denominator -> steeper slope -> FASTER ramp.
-				// Let's verify the C# interpretation: if accelValue is 8 (most aggressive), denominator is 2500 - 8*281.25 = 2500 - 2250 = 250.
-				// If accelValue is 1 (least aggressive), denominator is 2500 - 1*281.25 = 2218.75.
-				// So, yes, in the C# formula, higher accelValue (1-8) means FASTER ramp.
-				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25)); // Ensure non-zero, min 50ms
+				// Formula: Higher accelValue (1-8) = Faster ramp (smaller denominator)
+				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25));
 
-				const dataPoints = [];
-				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) { // Or 250ms steps like C#
+				const xValues = [];
+				const yValues = [];
+
+				// Generowanie punktów (Czas ms -> Moc W)
+				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) {
 					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
 					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: timeMs, y: motorOutput });
+					
+					xValues.push(timeMs);
+					yValues.push(motorOutput);
 				}
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
+				traces.push({
+					x: xValues,
+					y: yValues,
+					name: `Level ${displayedLevel}`,
+					mode: 'lines',
+					line: {
+						color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
+						width: 2
+					},
+					type: 'scatter'
 				});
 			}
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600;
+			// 4. Konfiguracja osi i wyglądu
+			const yAxisMax = (overallMaxMotorPower > 0) 
+				? Math.ceil((overallMaxMotorPower + 50) / 50) * 50 
+				: (typeof MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE !== 'undefined' ? MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE : 600);
 
-			if (startRampChartM820) {
-				startRampChartM820.data.datasets = datasets;
-				startRampChartM820.options.scales.y.max = yAxisMax;
-				startRampChartM820.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				startRampChartM820 = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' }, min: 0, max: MAX_TIME_X_AXIS_START_RAMP },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
+			const layout = {
+				template: "plotly_dark",
+				paper_bgcolor: 'rgba(0,0,0,0)',
+				plot_bgcolor: 'rgba(0,0,0,0)',
+				height: 350,
+				margin: { t: 30, b: 50, l: 60, r: 20 },
+				showlegend: true,
+				legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
+				xaxis: {
+					title: 'Time (ms)',
+					range: [0, MAX_TIME_X_AXIS_START_RAMP],
+					gridcolor: '#333',
+					fixedrange: true
+				},
+				yaxis: {
+					title: 'Motor output (W)',
+					range: [0, yAxisMax],
+					gridcolor: '#333',
+					fixedrange: true
+				},
+				hovermode: 'x unified'
+			};
+
+			const config = { responsive: true, displayModeBar: false };
+
+			// 5. Renderowanie
+			Plotly.react(chartDiv, traces, layout, config);
 		}
 
 		function handleAssistInputChange(event) {
@@ -2646,10 +2530,10 @@
                     if (needsGearsM820Update) updateGearsUIM820();
                     if (needsInfoUpdate) updateInfoUI(); 				
 					if (needsHexEditorUpdate || needsHexEditorUpdateC) populateHexEditor(); 
-			        if (needsPasChartUpdate) updatePasCurvesChart();
-					if (needsStartRampChartUpdate) updateStartRampChart();
-                    if (needsPasChartUpdateM820) updatePasCurvesChartM820();
-					if (needsStartRampChartUpdateM820) updateStartRampChartM820();
+			        if (needsPasChartUpdate) updatePasCurvesChartUnified(false);
+					if (needsStartRampChartUpdate) updateStartRampChartUnified(false);
+                    if (needsPasChartUpdateM820) updatePasCurvesChartUnified(true);
+					if (needsStartRampChartUpdateM820) updateStartRampChartUnified(true);
 					
                 } catch (e) { 
 				    console.error("Error processing BAFANG_DATA:", e); // Log the full error object
@@ -3957,7 +3841,7 @@
 		populateHexEditor();
         updateCanInterfaceDisplay('DEVICE_NOT_FOUND'); // Set initial UI state to "Disconnected, No Device"
         statusText.textContent = "Connecting to server..."; // Initial text before WebSocket open	
-		updatePasCurvesChart(); // Initial call to draw empty or placeholder chart
-		updateStartRampChart(); // Initial call
-        updatePasCurvesChartM820(); // Initial call to draw empty or placeholder chart
-		updateStartRampChartM820(); // Initial call
+		updatePasCurvesChartUnified(false); // Initial call to draw empty or placeholder chart
+		updateStartRampChartUnified(false); // Initial call
+        updatePasCurvesChartUnified(true); // Initial call to draw empty or placeholder chart
+		updateStartRampChartUnified(true); // Initial call
