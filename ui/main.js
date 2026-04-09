@@ -922,6 +922,15 @@
 			}); 
 			if(targetTabId == "ride-logger")
 				Plotly.Plots.resize('rideLoggerChart');
+			// else if(targetTabId == "gears"){
+			// 	Plotly.Plots.resize('pasCurvesChart');
+			// 	Plotly.Plots.resize('startRampChart');
+			// }
+			// else if(targetTabId == "gearsM820"){
+			// 	Plotly.Plots.resize('pasCurvesChartM820');
+			// 	Plotly.Plots.resize('startRampChartM820');
+			// }
+
 		}
         function getNullableNumber(value, precision = -1) { return (value === null || value === undefined || isNaN(value)) ? na : (precision >= 0 ? value.toFixed(precision) : value); }
         function getNullableString(value) { return (value === null || value === undefined) ? na : value; }
