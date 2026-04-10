@@ -793,7 +793,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
-			enableAppControls(true); // Enable controls for testing
+			//enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -1671,264 +1671,335 @@
             infoElements.batteryPlaceholder.style.display = (batteryOtherInfo.hwVersion || batteryOtherInfo.swVersion || batteryOtherInfo.modelNumber || batteryOtherInfo.serialNumber) ? 'none' : 'block'; // Added checks
         }
 
-		function updatePasCurvesChartUnified(isM820) {
-			// 1. Wybór odpowiednich elementów DOM i danych źródłowych
-			const chartId = isM820 ? 'pasCurvesChartM820' : 'pasCurvesChart';
-			const container = isM820 ? pasCurvesContainerM820 : pasCurvesContainer;
-			const placeholder = isM820 ? pasCurvesPlaceholderM820 : pasCurvesPlaceholder;
-			
-			const chartDiv = document.getElementById(chartId);
-			if (!chartDiv) {
-				console.error(`Container ${chartId} not found!`);
-				return;
-			}
+function updatePasCurvesChartUnified(isM820) {
+    const chartId = isM820 ? 'pasCurvesChartM820' : 'pasCurvesChart';
+    const container = isM820 ? pasCurvesContainerM820 : pasCurvesContainer;
+    const placeholder = isM820 ? pasCurvesPlaceholderM820 : pasCurvesPlaceholder;
+    
+    const chartDiv = document.getElementById(chartId);
+    if (!chartDiv) return;
 
-			// 2. Walidacja danych (różna dla M820 i standardowego sterownika)
-			const baseDataValid = lastControllerP1?.assist_levels && 
-								typeof lastControllerP1.system_voltage === 'number' &&
-								typeof lastControllerP1.current_limit === 'number' &&
-								displayRealtime?.assist_levels;
+    const baseDataValid =
+        lastControllerP1?.assist_levels &&
+        typeof lastControllerP1.system_voltage === 'number' &&
+        typeof lastControllerP1.current_limit === 'number' &&
+        displayRealtime?.assist_levels;
 
-			const extraDataValid = isM820 ? true : (lastControllerP0?.assist_ratio_levels);
+    const extraDataValid = isM820 ? true : lastControllerP0?.assist_ratio_levels;
 
-			if (!baseDataValid || !extraDataValid) {
-				console.warn(`PAS Curves (${isM820 ? 'M820' : 'Standard'}): Missing data.`);
-				if (container) container.style.display = 'none';
-				if (placeholder) placeholder.style.display = 'flex';
-				return;
-			}
+    if (!baseDataValid || !extraDataValid) {
+        if (container) container.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        return;
+    }
 
-			// Dane są poprawne - przełącz widoczność
-			if (container) container.style.display = 'block';
-			if (placeholder) placeholder.style.display = 'none';
+    if (container) container.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
 
-			// 3. Przygotowanie stałych
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
-			const assistRatiosP0 = isM820 ? null : lastControllerP0.assist_ratio_levels;
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
-			
-			// M820 zazwyczaj nie używa EFFICIENCY_FACTOR w Twoim poprzednim kodzie, standardowy tak
-			const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
+    const totalDisplayLevels = displayRealtime.assist_levels;
+    const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
+    const assistRatiosP0 = isM820 ? null : lastControllerP0.assist_ratio_levels;
+    const systemVoltageP1 = lastControllerP1.system_voltage;
+    const controllerCurrentLimitP1 = lastControllerP1.current_limit;
 
-			const traces = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+    const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
 
-			// 4. Generowanie serii danych
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				
-				// Walidacja indeksów w tablicach
-				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) continue;
-				if (!isM820 && internalIndex >= assistRatiosP0.length) continue;
+    const traces = [];
+    let overallMaxMotorPower = 0;
 
-				const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
-				if (typeof currentLimitPercent !== 'number') continue;
+    const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
-				// Obliczanie limitu mocy (W)
-				const maxPowerForLevel = currentEfficiency * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercent / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+    const PAS_LEVEL_COLORS = ["#9CA3AF","#60A5FA","#34D399","#FBBF24","#F87171"];
 
-				// Wybór mnożnika wspomagania (Ratio)
-				let assistRatio;
-				if (isM820) {
-					assistRatio = 2.0; // Stałe 200% dla M820
-				} else {
-					const ratioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level;
-					if (typeof ratioPercent !== 'number') continue;
-					assistRatio = ratioPercent / 100.0;
-				}
+    for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+        const internalIndex = internalLevelMapping[displayedLevel];
+        if (internalIndex === undefined || internalIndex >= assistCurrentLimitsP1.length) continue;
 
-				const xValues = [];
-				const yValues = [];
+        if (!isM820 && internalIndex >= assistRatiosP0.length) continue;
 
-				// Generowanie punktów wykresu
-				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
-					let motorOutput = humanPower * assistRatio;
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					
-					xValues.push(humanPower);
-					yValues.push(motorOutput);
-				}
+        const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+        if (typeof currentLimitPercent !== 'number') continue;
 
-				traces.push({
-					x: xValues,
-					y: yValues,
-					name: `Level ${displayedLevel}`,
-					mode: 'lines',
-					line: {
-						color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-						width: 2
-					},
-					type: 'scatter'
-				});
-			}
+        const maxPowerForLevel =
+            currentEfficiency *
+            systemVoltageP1 *
+            controllerCurrentLimitP1 *
+            (currentLimitPercent / 100);
 
-			// 5. Konfiguracja wyglądu (Layout)
-			const yAxisMax = (overallMaxMotorPower > 0) 
-				? Math.ceil((overallMaxMotorPower + 50) / 50) * 50 
-				: (typeof MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE !== 'undefined' ? MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE : 600);
+        overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
 
-			const layout = {
-				template: "plotly_dark",
-				paper_bgcolor: 'rgba(0,0,0,0)',
-				plot_bgcolor: 'rgba(0,0,0,0)',
-				height: 350,
-				margin: { t: 30, b: 50, l: 60, r: 20 },
-				showlegend: true,
-				legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
-				xaxis: {
-					title: 'Human power (W)',
-					range: [0, MAX_HUMAN_POWER_X_AXIS],
-					gridcolor: '#333',
-					fixedrange: true
-				},
-				yaxis: {
-					title: 'Motor output (W)',
-					range: [0, yAxisMax],
-					gridcolor: '#333',
-					fixedrange: true
-				},
-				hovermode: 'x unified'
-			};
+        let assistRatio;
+        if (isM820) {
+            // lekko rosnący zamiast stałego 200%
+            assistRatio = 0.6 + (displayedLevel / totalDisplayLevels) * 1.4;
+        } else {
+            const ratioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level;
+            if (typeof ratioPercent !== 'number') continue;
+            assistRatio = ratioPercent / 100;
+        }
 
-			const config = { responsive: true, displayModeBar: false };
+        const xValues = [];
+        const yValues = [];
 
-			// 6. Aktualizacja wykresu
-			Plotly.react(chartDiv, traces, layout, config);
-		}
+        const step = MAX_HUMAN_POWER_X_AXIS > 500 ? 20 : 10;
 
-		function updateStartRampChartUnified(isM820) {
-			const chartId = isM820 ? 'startRampChartM820' : 'startRampChart';
-			const container = isM820 ? startRampContainerM820 : startRampContainer;
-			const placeholder = isM820 ? startRampPlaceholderM820 : startRampPlaceholder;
-			
-			const chartDiv = document.getElementById(chartId);
-			if (!chartDiv) {
-				console.error(`Start Ramp container ${chartId} not found!`);
-				return;
-			}
+        for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += step) {
+            let motorOutput = humanPower * assistRatio;
+            motorOutput = Math.min(maxPowerForLevel, motorOutput);
 
-			// 1. Walidacja danych podstawowych
-			const baseDataValid = lastControllerP1?.assist_levels && 
-								typeof lastControllerP1.system_voltage === 'number' &&
-								typeof lastControllerP1.current_limit === 'number' &&
-								displayRealtime?.assist_levels;
+            xValues.push(humanPower);
+            yValues.push(motorOutput);
+        }
 
-			// Walidacja danych specyficznych dla modelu
-			const extraDataValid = isM820 
-				? (lastControllerP2 && typeof lastControllerP2.acceleration_level === 'number')
-				: (lastControllerP0?.acceleration_levels);
+        traces.push({
+            x: xValues,
+            y: yValues,
+            name: `Level ${displayedLevel}`,
+            mode: 'lines',
+            type: 'scatter',
 
-			if (!baseDataValid || !extraDataValid) {
-				console.warn(`Start Ramp (${isM820 ? 'M820' : 'Standard'}): Missing data.`);
-				if (container) container.style.display = 'none';
-				if (placeholder) placeholder.style.display = 'flex';
-				return;
-			}
+            line: {
+                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                width: 3,
+                shape: 'spline',
+                smoothing: 0.6
+            },
 
-			// Pokaż wykres, ukryj placeholder
-			if (container) container.style.display = 'block';
-			if (placeholder) placeholder.style.display = 'none';
+            fill: 'tozeroy',
+            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
 
-			// 2. Przygotowanie stałych
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
-			
-			// Sprawność (M820 zazwyczaj 1.0, standard używa stałej)
-			const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
+            hovertemplate:
+                'Human: %{x} W<br>' +
+                'Motor: %{y:.0f} W' +
+                '<extra>%{fullData.name}</extra>'
+        });
+    }
 
-			const traces = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+    const yAxisMax = overallMaxMotorPower > 0
+        ? overallMaxMotorPower * 1.1
+        : 600;
 
-			// 3. Generowanie serii danych dla każdego poziomu
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				
-				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) continue;
+    const layout = {
+        template: "plotly_dark",
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(20, 25, 35, 0.8)',
 
-				// Pobieranie wartości przyspieszenia (Accel)
-				let accelValue;
-				if (isM820) {
-					accelValue = lastControllerP2.acceleration_level;
-				} else {
-					if (internalIndex >= lastControllerP0.acceleration_levels.length) continue;
-					accelValue = lastControllerP0.acceleration_levels[internalIndex]?.acceleration_level;
-				}
+        height: 520,
+        autosize: true,
 
-				const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
-				if (typeof accelValue !== 'number' || typeof currentLimitPercent !== 'number') continue;
+        margin: { t: 40, b: 70, l: 70, r: 30 },
 
-				// Obliczanie parametrów rampy
-				const maxPowerForLevel = currentEfficiency * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercent / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+        font: {
+            family: "Inter, system-ui, sans-serif",
+            size: 13,
+            color: "#3f3f3fff"
+        },
 
-				// Formula: Higher accelValue (1-8) = Faster ramp (smaller denominator)
-				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25));
+        title: {
+            text: isM820 ? "Assist Curves (M820)" : "Assist Curves",
+            x: 0.05
+        },
 
-				const xValues = [];
-				const yValues = [];
+        showlegend: true,
+        legend: {
+            orientation: 'h',
+            y: -0.3,
+            x: 0.5,
+            xanchor: 'center'
+        },
 
-				// Generowanie punktów (Czas ms -> Moc W)
-				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) {
-					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					
-					xValues.push(timeMs);
-					yValues.push(motorOutput);
-				}
+        xaxis: {
+            title: 'Human power (W)',
+            range: [0, MAX_HUMAN_POWER_X_AXIS],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            zerolinecolor: 'rgba(255,255,255,0.2)',
+            fixedrange: true
+        },
 
-				traces.push({
-					x: xValues,
-					y: yValues,
-					name: `Level ${displayedLevel}`,
-					mode: 'lines',
-					line: {
-						color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-						width: 2
-					},
-					type: 'scatter'
-				});
-			}
+        yaxis: {
+            title: 'Motor output (W)',
+            range: [0, yAxisMax],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            zerolinecolor: 'rgba(255,255,255,0.2)',
+            fixedrange: true
+        },
 
-			// 4. Konfiguracja osi i wyglądu
-			const yAxisMax = (overallMaxMotorPower > 0) 
-				? Math.ceil((overallMaxMotorPower + 50) / 50) * 50 
-				: (typeof MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE !== 'undefined' ? MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE : 600);
+        hovermode: 'x unified'
+    };
 
-			const layout = {
-				template: "plotly_dark",
-				paper_bgcolor: 'rgba(0,0,0,0)',
-				plot_bgcolor: 'rgba(0,0,0,0)',
-				height: 350,
-				margin: { t: 30, b: 50, l: 60, r: 20 },
-				showlegend: true,
-				legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
-				xaxis: {
-					title: 'Time (ms)',
-					range: [0, MAX_TIME_X_AXIS_START_RAMP],
-					gridcolor: '#333',
-					fixedrange: true
-				},
-				yaxis: {
-					title: 'Motor output (W)',
-					range: [0, yAxisMax],
-					gridcolor: '#333',
-					fixedrange: true
-				},
-				hovermode: 'x unified'
-			};
+    Plotly.react(chartDiv, traces, layout, {
+        responsive: true,
+        displayModeBar: false
+    });
+}
 
-			const config = { responsive: true, displayModeBar: false };
+function updateStartRampChartUnified(isM820) {
+    const chartId = isM820 ? 'startRampChartM820' : 'startRampChart';
+    const container = isM820 ? startRampContainerM820 : startRampContainer;
+    const placeholder = isM820 ? startRampPlaceholderM820 : startRampPlaceholder;
 
-			// 5. Renderowanie
-			Plotly.react(chartDiv, traces, layout, config);
-		}
+    const chartDiv = document.getElementById(chartId);
+    if (!chartDiv) return;
+
+    const baseDataValid =
+        lastControllerP1?.assist_levels &&
+        typeof lastControllerP1.system_voltage === 'number' &&
+        typeof lastControllerP1.current_limit === 'number' &&
+        displayRealtime?.assist_levels;
+
+    const extraDataValid = isM820
+        ? typeof lastControllerP2?.acceleration_level === 'number'
+        : lastControllerP0?.acceleration_levels;
+
+    if (!baseDataValid || !extraDataValid) {
+        if (container) container.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        return;
+    }
+
+    if (container) container.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+
+    const totalDisplayLevels = displayRealtime.assist_levels;
+    const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
+    const systemVoltageP1 = lastControllerP1.system_voltage;
+    const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+
+    const currentEfficiency = isM820 ? 1.0 : (EFFICIENCY_FACTOR || 1.0);
+
+    const traces = [];
+    let overallMaxMotorPower = 0;
+
+    const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+
+    const PAS_LEVEL_COLORS = ["#9CA3AF","#60A5FA","#34D399","#FBBF24","#F87171"];
+
+    for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+        const internalIndex = internalLevelMapping[displayedLevel];
+        if (internalIndex === undefined || internalIndex >= assistCurrentLimitsP1.length) continue;
+
+        let accelValue;
+
+        if (isM820) {
+            const baseAccel = lastControllerP2?.acceleration_level;
+            if (typeof baseAccel !== 'number') continue;
+
+            // lekkie różnicowanie per poziom (lepszy UX)
+            accelValue = baseAccel * (0.6 + displayedLevel / totalDisplayLevels * 0.4);
+        } else {
+            const accelObj = lastControllerP0.acceleration_levels[internalIndex];
+            if (!accelObj || typeof accelObj.acceleration_level !== 'number') continue;
+            accelValue = accelObj.acceleration_level;
+        }
+
+        const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+        if (typeof currentLimitPercent !== 'number') continue;
+
+        const maxPowerForLevel =
+            currentEfficiency *
+            systemVoltageP1 *
+            controllerCurrentLimitP1 *
+            (currentLimitPercent / 100);
+
+        overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+
+        // czytelna formuła rampy
+        const MIN_TIME = 50;
+        const MAX_TIME = 2500;
+        const ACCEL_STEPS = 8;
+
+        const timeToReachFullPower =
+            MIN_TIME + (MAX_TIME - MIN_TIME) * (1 - accelValue / ACCEL_STEPS);
+
+        const xValues = [];
+        const yValues = [];
+
+        for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) {
+            let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
+            motorOutput = Math.min(maxPowerForLevel, motorOutput);
+
+            xValues.push(timeMs);
+            yValues.push(motorOutput);
+        }
+
+        traces.push({
+            x: xValues,
+            y: yValues,
+            name: `Level ${displayedLevel}`,
+            mode: 'lines',
+            type: 'scatter',
+
+            line: {
+                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                width: 3,
+                shape: 'spline',
+                smoothing: 0.6
+            },
+
+            fill: 'tozeroy',
+            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
+
+            hovertemplate:
+                'Time: %{x} ms<br>' +
+                'Motor: %{y:.0f} W' +
+                '<extra>%{fullData.name}</extra>'
+        });
+    }
+
+    const yAxisMax = overallMaxMotorPower > 0
+        ? overallMaxMotorPower * 1.1
+        : 600;
+
+    const layout = {
+        template: "plotly_dark",
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(20, 25, 35, 0.9)',
+
+        height: 520,
+        autosize: true,
+
+        margin: { t: 40, b: 70, l: 70, r: 30 },
+
+        font: {
+            family: "Inter, system-ui, sans-serif",
+            size: 13,
+            color: "#3f3f3fff"
+        },
+
+        title: {
+            text: "Start Ramp",
+            x: 0.05
+        },
+
+        legend: {
+            orientation: 'h',
+            y: -0.3,
+            x: 0.5,
+            xanchor: 'center'
+        },
+
+        xaxis: {
+            title: 'Time (ms)',
+            range: [0, MAX_TIME_X_AXIS_START_RAMP],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            fixedrange: true
+        },
+
+        yaxis: {
+            title: 'Motor output (W)',
+            range: [0, yAxisMax],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            fixedrange: true
+        },
+
+        hovermode: 'x unified'
+    };
+
+    Plotly.react(chartDiv, traces, layout, {
+        responsive: true,
+        displayModeBar: false
+    });
+}
 
 		function handleAssistInputChange(event) {
 			const input = event.target;
