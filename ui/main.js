@@ -1,4 +1,5 @@
         // --- WebSocket and Globals ---
+		/* global Plotly */
         const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
@@ -791,6 +792,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
+			//enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -2564,7 +2566,6 @@
 				connectCanButton.disabled = false; // Enable connect button after update
 			}
 			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
-			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
 			else if (message.startsWith('RIDE_LOGGER_ENTRY:')) { updateRideChart(message.substring('RIDE_LOGGER_ENTRY:'.length).trim()); }
             else { addLog('INFO', message); }
         };
@@ -3837,7 +3838,7 @@
   			autosize: true, 
 			legend: { orientation: 'h', y: -0.2 }
 		}, { responsive: true });
-
+		
 		document.addEventListener('fullscreenchange', () => {
 			Plotly.Plots.resize('rideLoggerChart');
 		});
