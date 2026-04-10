@@ -1,4 +1,5 @@
         // --- WebSocket and Globals ---
+		/* global Plotly */
         const socket = new WebSocket('ws://'+window.location.host);
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
@@ -197,6 +198,7 @@
           torqueProfileTableBody: document.getElementById('torqueProfileTableBody'),
           assistLevelPlaceholder: document.getElementById('assistLevelPlaceholder'),
           torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholder'),
+		  autoCorrectionCheckbox: document.getElementById('autoCorrectionCheckbox'),
 		};
 
         const gearsElementsM820 = {
@@ -397,6 +399,17 @@
 			filteredIdsListOn: document.getElementById('filteredIdsListOn'),
 			snifferLogToFileCheckbox: document.getElementById('snifferLogToFileCheckbox'),
 			zones: document.querySelectorAll('.drop-zone')
+		}
+
+		const rideLoggerElements = {
+			startButton: document.getElementById('rideLoggerStartButton'),
+			stopButton: document.getElementById('rideLoggerStopButton'),
+			clearButton: document.getElementById('rideLoggerClearButton'),
+			logToFileCheckbox: document.getElementById('rideLoggerLogToFileCheckbox'),
+			liveViewCheckbox: document.getElementById('rideLoggerLiveDashboardCheckbox'),
+			refreshRateMsInput: document.getElementById('rideLoggerRefreshRateMsInput'),
+			liveStats: document.getElementById('rideLoggerLiveStats'),
+			fullscreenButton: document.getElementById('rideLoggerFullscreenButton'),
 		}
 
         // --- Global state for CAN connection ---
@@ -780,6 +793,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
+			//enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -902,7 +916,25 @@
 			9: { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8 }
 		}; 
 		
-        function switchTab(targetTabId) {tabButtons.forEach(button => { button.classList.toggle('active', button.getAttribute('data-tab') === targetTabId); }); tabContents.forEach(content => { content.classList.toggle('active', content.id === `tab-${targetTabId}`); }); }
+        function switchTab(targetTabId) {
+			tabButtons.forEach(button => {
+				button.classList.toggle('active', button.getAttribute('data-tab') === targetTabId); 
+			}); 
+			tabContents.forEach(content => { 
+				content.classList.toggle('active', content.id === `tab-${targetTabId}`); 
+			}); 
+			if(targetTabId == "ride-logger")
+				Plotly.Plots.resize('rideLoggerChart');
+			// else if(targetTabId == "gears"){
+			// 	Plotly.Plots.resize('pasCurvesChart');
+			// 	Plotly.Plots.resize('startRampChart');
+			// }
+			// else if(targetTabId == "gearsM820"){
+			// 	Plotly.Plots.resize('pasCurvesChartM820');
+			// 	Plotly.Plots.resize('startRampChartM820');
+			// }
+
+		}
         function getNullableNumber(value, precision = -1) { return (value === null || value === undefined || isNaN(value)) ? na : (precision >= 0 ? value.toFixed(precision) : value); }
         function getNullableString(value) { return (value === null || value === undefined) ? na : value; }
         function getNullableBoolean(value, trueText = 'Yes', falseText = 'No') { return (value === null || value === undefined) ? na : (value ? trueText : falseText); }
@@ -1391,8 +1423,8 @@
 			safeSetInput(gearsElementsM820.globalAccelerationInputEl, p2, 'acceleration_level');
 
             // --- Charts ---
-			updatePasCurvesChartM820();
-			updateStartRampChartM820();
+			updatePasCurvesChartUnified(true);
+			updateStartRampChartUnified(true);
 		}
 		// --- Gears Tab UI Update Function ---
 		function updateGearsUI() {
@@ -1594,8 +1626,8 @@
                 createInputCell('torque_decay_time', profileData?.torque_decay_time, 5, 1275, 5, '');
 				createInputCell('stop_delay', profileData?.stop_delay, 2, 510, 2, '');
 			}
-			updatePasCurvesChart();
-			updateStartRampChart();
+			updatePasCurvesChartUnified(false);
+			updateStartRampChartUnified(false);
 		}
 
 		function updateInfoUI() {
@@ -1639,380 +1671,335 @@
             infoElements.batteryPlaceholder.style.display = (batteryOtherInfo.hwVersion || batteryOtherInfo.swVersion || batteryOtherInfo.modelNumber || batteryOtherInfo.serialNumber) ? 'none' : 'block'; // Added checks
         }
 
-		function updatePasCurvesChart() {
-			const ctx = document.getElementById('pasCurvesChart')?.getContext('2d');
-			if (!ctx) {
-				console.error("PAS Curves chart canvas not found!");
-				if (pasCurvesContainer) pasCurvesContainer.style.display = 'none';
-				if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'flex'; // Use flex for centering
-				return;
-			}
+function updatePasCurvesChartUnified(isM820) {
+    const chartId = isM820 ? 'pasCurvesChartM820' : 'pasCurvesChart';
+    const container = isM820 ? pasCurvesContainerM820 : pasCurvesContainer;
+    const placeholder = isM820 ? pasCurvesPlaceholderM820 : pasCurvesPlaceholder;
+    
+    const chartDiv = document.getElementById(chartId);
+    if (!chartDiv) return;
 
-			if (!lastControllerP0 || !lastControllerP0.assist_ratio_levels ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
-				if (pasChart) { pasChart.destroy(); pasChart = null; }
-				if (pasCurvesContainer) pasCurvesContainer.style.display = 'none';
-				if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'flex';
-				return;
-			}
+    const baseDataValid =
+        lastControllerP1?.assist_levels &&
+        typeof lastControllerP1.system_voltage === 'number' &&
+        typeof lastControllerP1.current_limit === 'number' &&
+        displayRealtime?.assist_levels;
 
-			// Data is available, show container, hide placeholder
-			if (pasCurvesContainer) pasCurvesContainer.style.display = 'block';
-			if (pasCurvesPlaceholder) pasCurvesPlaceholder.style.display = 'none';
+    const extraDataValid = isM820 ? true : lastControllerP0?.assist_ratio_levels;
 
+    if (!baseDataValid || !extraDataValid) {
+        if (container) container.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        return;
+    }
 
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistRatiosP0 = lastControllerP0.assist_ratio_levels;         // Array from P0
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;     // Overall controller current limit
+    if (container) container.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
 
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+    const totalDisplayLevels = displayRealtime.assist_levels;
+    const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
+    const assistRatiosP0 = isM820 ? null : lastControllerP0.assist_ratio_levels;
+    const systemVoltageP1 = lastControllerP1.system_voltage;
+    const controllerCurrentLimitP1 = lastControllerP1.current_limit;
 
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= assistRatiosP0.length || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
+    const currentEfficiency = isM820 ? 1.0 : (typeof EFFICIENCY_FACTOR !== 'undefined' ? EFFICIENCY_FACTOR : 1.0);
 
-				const assistRatioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level; // This is the "Assistance %" value
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit; // This is "Max. Power %"
+    const traces = [];
+    let overallMaxMotorPower = 0;
 
-				if (typeof assistRatioPercent !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
+    const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
-				const maxPowerForLevel = EFFICIENCY_FACTOR * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+    const PAS_LEVEL_COLORS = ["#9CA3AF","#60A5FA","#34D399","#FBBF24","#F87171"];
 
-				const dataPoints = [];
-				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
-					let motorOutput = humanPower * (assistRatioPercent / 100.0);
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: humanPower, y: motorOutput });
-				}
+    for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+        const internalIndex = internalLevelMapping[displayedLevel];
+        if (internalIndex === undefined || internalIndex >= assistCurrentLimitsP1.length) continue;
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
+        if (!isM820 && internalIndex >= assistRatiosP0.length) continue;
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE;
+        const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+        if (typeof currentLimitPercent !== 'number') continue;
 
+        const maxPowerForLevel =
+            currentEfficiency *
+            systemVoltageP1 *
+            controllerCurrentLimitP1 *
+            (currentLimitPercent / 100);
 
-			if (pasChart) {
-				pasChart.data.datasets = datasets;
-				pasChart.options.scales.y.max = yAxisMax;
-				pasChart.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				pasChart = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Human power (w)' }, min: 0, max: MAX_HUMAN_POWER_X_AXIS },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
+        overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
 
-        function updatePasCurvesChartM820() {
-			const ctx = document.getElementById('pasCurvesChartM820')?.getContext('2d');
-			if (!ctx) {
-				console.error("PAS Curves chart canvas not found!");
-				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
-				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex'; // Use flex for centering
-				return;
-			}
+        let assistRatio;
+        if (isM820) {
+            // lekko rosnący zamiast stałego 200%
+            assistRatio = 0.6 + (displayedLevel / totalDisplayLevels) * 1.4;
+        } else {
+            const ratioPercent = assistRatiosP0[internalIndex]?.assist_ratio_level;
+            if (typeof ratioPercent !== 'number') continue;
+            assistRatio = ratioPercent / 100;
+        }
 
-			if (!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("PAS Curves: Missing necessary P0, P1, or displayRealtime data for chart generation.");
-				if (pasChartM820) { pasChartM820.destroy(); pasChartM820 = null; }
-				if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'none';
-				if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'flex';
-				return;
-			}
+        const xValues = [];
+        const yValues = [];
 
-			// Data is available, show container, hide placeholder
-			if (pasCurvesContainerM820) pasCurvesContainerM820.style.display = 'block';
-			if (pasCurvesPlaceholderM820) pasCurvesPlaceholderM820.style.display = 'none';
+        const step = MAX_HUMAN_POWER_X_AXIS > 500 ? 20 : 10;
 
+        for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += step) {
+            let motorOutput = humanPower * assistRatio;
+            motorOutput = Math.min(maxPowerForLevel, motorOutput);
 
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;     // Overall controller current limit
+            xValues.push(humanPower);
+            yValues.push(motorOutput);
+        }
 
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+        traces.push({
+            x: xValues,
+            y: yValues,
+            name: `Level ${displayedLevel}`,
+            mode: 'lines',
+            type: 'scatter',
 
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
+            line: {
+                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                width: 3,
+                shape: 'spline',
+                smoothing: 0.6
+            },
 
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit; // This is "Max. Power %"
+            fill: 'tozeroy',
+            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
 
-				if (typeof currentLimitPercentForLevel !== 'number') continue;
+            hovertemplate:
+                'Human: %{x} W<br>' +
+                'Motor: %{y:.0f} W' +
+                '<extra>%{fullData.name}</extra>'
+        });
+    }
 
-				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+    const yAxisMax = overallMaxMotorPower > 0
+        ? overallMaxMotorPower * 1.1
+        : 600;
 
-				const dataPoints = [];
-				for (let humanPower = 0; humanPower <= MAX_HUMAN_POWER_X_AXIS; humanPower += 10) {
-					let motorOutput = humanPower * (200 / 100.0); // 200% because assist ratio not exist in M820
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: humanPower, y: motorOutput });
-				}
+    const layout = {
+        template: "plotly_dark",
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(20, 25, 35, 0.8)',
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
+        height: 520,
+        autosize: true,
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600; //600 = max m820 power
+        margin: { t: 40, b: 70, l: 70, r: 30 },
 
+        font: {
+            family: "Inter, system-ui, sans-serif",
+            size: 13,
+            color: "#3f3f3fff"
+        },
 
-			if (pasChartM820) {
-				pasChartM820.data.datasets = datasets;
-				pasChartM820.options.scales.y.max = yAxisMax;
-				pasChartM820.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				pasChartM820 = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Human power (w)' }, min: 0, max: MAX_HUMAN_POWER_X_AXIS },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
+        title: {
+            text: isM820 ? "Assist Curves (M820)" : "Assist Curves",
+            x: 0.05
+        },
 
-		function updateStartRampChart() {
-			const ctx = document.getElementById('startRampChart')?.getContext('2d');
-			if (!ctx) {
-				console.error("Start Ramp chart canvas not found!");
-				if (startRampContainer) startRampContainer.style.display = 'none';
-				if (startRampPlaceholder) startRampPlaceholder.style.display = 'flex';
-				return;
-			}
+        showlegend: true,
+        legend: {
+            orientation: 'h',
+            y: -0.3,
+            x: 0.5,
+            xanchor: 'center'
+        },
 
-			if (!lastControllerP0 || !lastControllerP0.acceleration_levels ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("Start Ramp: Missing P0, P1, or displayRealtime data for chart.");
-				if (startRampChart) { startRampChart.destroy(); startRampChart = null; }
-				if (startRampContainer) startRampContainer.style.display = 'none';
-				if (startRampPlaceholder) startRampPlaceholder.style.display = 'flex';
-				return;
-			}
+        xaxis: {
+            title: 'Human power (W)',
+            range: [0, MAX_HUMAN_POWER_X_AXIS],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            zerolinecolor: 'rgba(255,255,255,0.2)',
+            fixedrange: true
+        },
 
-			// Data is available, show container, hide placeholder
-			if (startRampContainer) startRampContainer.style.display = 'block';
-			if (startRampPlaceholder) startRampPlaceholder.style.display = 'none';
+        yaxis: {
+            title: 'Motor output (W)',
+            range: [0, yAxisMax],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            zerolinecolor: 'rgba(255,255,255,0.2)',
+            fixedrange: true
+        },
 
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const accelerationSettingsP0 = lastControllerP0.acceleration_levels; // Array from P0
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+        hovermode: 'x unified'
+    };
 
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+    Plotly.react(chartDiv, traces, layout, {
+        responsive: true,
+        displayModeBar: false
+    });
+}
 
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 ||
-					internalIndex >= accelerationSettingsP0.length || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
+function updateStartRampChartUnified(isM820) {
+    const chartId = isM820 ? 'startRampChartM820' : 'startRampChart';
+    const container = isM820 ? startRampContainerM820 : startRampContainer;
+    const placeholder = isM820 ? startRampPlaceholderM820 : startRampPlaceholder;
 
-				const accelValue = accelerationSettingsP0[internalIndex]?.acceleration_level; // Value 1-8
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit;
+    const chartDiv = document.getElementById(chartId);
+    if (!chartDiv) return;
 
-				if (typeof accelValue !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
+    const baseDataValid =
+        lastControllerP1?.assist_levels &&
+        typeof lastControllerP1.system_voltage === 'number' &&
+        typeof lastControllerP1.current_limit === 'number' &&
+        displayRealtime?.assist_levels;
 
-				const maxPowerForLevel = EFFICIENCY_FACTOR * systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+    const extraDataValid = isM820
+        ? typeof lastControllerP2?.acceleration_level === 'number'
+        : lastControllerP0?.acceleration_levels;
 
-				// Time_To_Reach_Max_Power = 2500.0 - (AccelerationSetting * 281.25)
-				// Higher accelValue (1-8) should mean *slower* ramp according to typical Bafang UI (e.g. "Acceleration: 2" on screen)
-				// The C# formula implies: higher accelValue -> smaller denominator -> steeper slope -> FASTER ramp.
-				// Let's verify the C# interpretation: if accelValue is 8 (most aggressive), denominator is 2500 - 8*281.25 = 2500 - 2250 = 250.
-				// If accelValue is 1 (least aggressive), denominator is 2500 - 1*281.25 = 2218.75.
-				// So, yes, in the C# formula, higher accelValue (1-8) means FASTER ramp.
-				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25)); // Ensure non-zero, min 50ms
+    if (!baseDataValid || !extraDataValid) {
+        if (container) container.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'flex';
+        return;
+    }
 
-				const dataPoints = [];
-				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) { // Or 250ms steps like C#
-					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: timeMs, y: motorOutput });
-				}
+    if (container) container.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
+    const totalDisplayLevels = displayRealtime.assist_levels;
+    const assistCurrentLimitsP1 = lastControllerP1.assist_levels;
+    const systemVoltageP1 = lastControllerP1.system_voltage;
+    const controllerCurrentLimitP1 = lastControllerP1.current_limit;
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : MAX_MOTOR_POWER_Y_AXIS_DEFAULT_SCALE;
+    const currentEfficiency = isM820 ? 1.0 : (EFFICIENCY_FACTOR || 1.0);
 
-			if (startRampChart) {
-				startRampChart.data.datasets = datasets;
-				startRampChart.options.scales.y.max = yAxisMax;
-				startRampChart.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				startRampChart = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' }, min: 0, max: MAX_TIME_X_AXIS_START_RAMP },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
+    const traces = [];
+    let overallMaxMotorPower = 0;
 
-        function updateStartRampChartM820() {
-			const ctx = document.getElementById('startRampChartM820')?.getContext('2d');
-			if (!ctx) {
-				console.error("Start Ramp chart canvas not found!");
-				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
-				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
-				return;
-			}
+    const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
-			if (!lastControllerP2 || !lastControllerP2.acceleration_level ||
-				!lastControllerP1 || !lastControllerP1.assist_levels ||
-				typeof lastControllerP1.system_voltage !== 'number' ||
-				typeof lastControllerP1.current_limit !== 'number' ||
-				!displayRealtime || typeof displayRealtime.assist_levels !== 'number') {
-				console.warn("Start Ramp: Missing P2, P1, or displayRealtime data for chart.");
-				if (startRampChartM820) { startRampChartM820.destroy(); startRampChartM820 = null; }
-				if (startRampContainerM820) startRampContainerM820.style.display = 'none';
-				if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'flex';
-				return;
-			}
+    const PAS_LEVEL_COLORS = ["#9CA3AF","#60A5FA","#34D399","#FBBF24","#F87171"];
 
-			// Data is available, show container, hide placeholder
-			if (startRampContainerM820) startRampContainerM820.style.display = 'block';
-			if (startRampPlaceholderM820) startRampPlaceholderM820.style.display = 'none';
+    for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
+        const internalIndex = internalLevelMapping[displayedLevel];
+        if (internalIndex === undefined || internalIndex >= assistCurrentLimitsP1.length) continue;
 
-			const totalDisplayLevels = displayRealtime.assist_levels;
-			const assistCurrentLimitsP1 = lastControllerP1.assist_levels;      // Array from P1
-			const systemVoltageP1 = lastControllerP1.system_voltage;
-			const controllerCurrentLimitP1 = lastControllerP1.current_limit;
+        let accelValue;
 
-			const datasets = [];
-			let overallMaxMotorPower = 0;
-			const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
+        if (isM820) {
+            const baseAccel = lastControllerP2?.acceleration_level;
+            if (typeof baseAccel !== 'number') continue;
 
-			for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
-				const internalIndex = internalLevelMapping[displayedLevel];
-				if (internalIndex === undefined || internalIndex < 0 || internalIndex >= assistCurrentLimitsP1.length) {
-					continue;
-				}
+            // lekkie różnicowanie per poziom (lepszy UX)
+            accelValue = baseAccel * (0.6 + displayedLevel / totalDisplayLevels * 0.4);
+        } else {
+            const accelObj = lastControllerP0.acceleration_levels[internalIndex];
+            if (!accelObj || typeof accelObj.acceleration_level !== 'number') continue;
+            accelValue = accelObj.acceleration_level;
+        }
 
-				const accelValue = lastControllerP2.acceleration_level; // Value 1-8
-				const currentLimitPercentForLevel = assistCurrentLimitsP1[internalIndex]?.current_limit;
+        const currentLimitPercent = assistCurrentLimitsP1[internalIndex]?.current_limit;
+        if (typeof currentLimitPercent !== 'number') continue;
 
-				if (typeof accelValue !== 'number' || typeof currentLimitPercentForLevel !== 'number') continue;
+        const maxPowerForLevel =
+            currentEfficiency *
+            systemVoltageP1 *
+            controllerCurrentLimitP1 *
+            (currentLimitPercent / 100);
 
-				const maxPowerForLevel = systemVoltageP1 * controllerCurrentLimitP1 * (currentLimitPercentForLevel / 100.0);
-				overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
+        overallMaxMotorPower = Math.max(overallMaxMotorPower, maxPowerForLevel);
 
-				// Time_To_Reach_Max_Power = 2500.0 - (AccelerationSetting * 281.25)
-				// Higher accelValue (1-8) should mean *slower* ramp according to typical Bafang UI (e.g. "Acceleration: 2" on screen)
-				// The C# formula implies: higher accelValue -> smaller denominator -> steeper slope -> FASTER ramp.
-				// Let's verify the C# interpretation: if accelValue is 8 (most aggressive), denominator is 2500 - 8*281.25 = 2500 - 2250 = 250.
-				// If accelValue is 1 (least aggressive), denominator is 2500 - 1*281.25 = 2218.75.
-				// So, yes, in the C# formula, higher accelValue (1-8) means FASTER ramp.
-				const timeToReachFullPower = Math.max(50, 2500.0 - (accelValue * 281.25)); // Ensure non-zero, min 50ms
+        // czytelna formuła rampy
+        const MIN_TIME = 50;
+        const MAX_TIME = 2500;
+        const ACCEL_STEPS = 8;
 
-				const dataPoints = [];
-				for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) { // Or 250ms steps like C#
-					let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
-					motorOutput = Math.min(maxPowerForLevel, motorOutput);
-					dataPoints.push({ x: timeMs, y: motorOutput });
-				}
+        const timeToReachFullPower =
+            MIN_TIME + (MAX_TIME - MIN_TIME) * (1 - accelValue / ACCEL_STEPS);
 
-				datasets.push({
-					label: `Level ${displayedLevel}`,
-					data: dataPoints,
-					borderColor: PAS_LEVEL_COLORS[displayedLevel - 1] || '#CCCCCC',
-					borderWidth: 2,
-					fill: false,
-					tension: 0.1
-				});
-			}
+        const xValues = [];
+        const yValues = [];
 
-			const yAxisMax = (overallMaxMotorPower > 0) ? Math.ceil((overallMaxMotorPower + 50)/50)*50 : 600;
+        for (let timeMs = 0; timeMs <= MAX_TIME_X_AXIS_START_RAMP; timeMs += 100) {
+            let motorOutput = (timeMs * maxPowerForLevel) / timeToReachFullPower;
+            motorOutput = Math.min(maxPowerForLevel, motorOutput);
 
-			if (startRampChartM820) {
-				startRampChartM820.data.datasets = datasets;
-				startRampChartM820.options.scales.y.max = yAxisMax;
-				startRampChartM820.update();
-			} else {
-				// eslint-disable-next-line no-undef
-				startRampChartM820 = new Chart(ctx, {
-					type: 'line',
-					data: { datasets: datasets },
-					options: {
-						responsive: true, maintainAspectRatio: false,
-						scales: {
-							x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' }, min: 0, max: MAX_TIME_X_AXIS_START_RAMP },
-							y: { title: { display: true, text: 'Motor output power (w)' }, min: 0, max: yAxisMax }
-						},
-						plugins: { legend: { position: 'top' } }
-					}
-				});
-			}
-		}
+            xValues.push(timeMs);
+            yValues.push(motorOutput);
+        }
+
+        traces.push({
+            x: xValues,
+            y: yValues,
+            name: `Level ${displayedLevel}`,
+            mode: 'lines',
+            type: 'scatter',
+
+            line: {
+                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                width: 3,
+                shape: 'spline',
+                smoothing: 0.6
+            },
+
+            fill: 'tozeroy',
+            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
+
+            hovertemplate:
+                'Time: %{x} ms<br>' +
+                'Motor: %{y:.0f} W' +
+                '<extra>%{fullData.name}</extra>'
+        });
+    }
+
+    const yAxisMax = overallMaxMotorPower > 0
+        ? overallMaxMotorPower * 1.1
+        : 600;
+
+    const layout = {
+        template: "plotly_dark",
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(20, 25, 35, 0.9)',
+
+        height: 520,
+        autosize: true,
+
+        margin: { t: 40, b: 70, l: 70, r: 30 },
+
+        font: {
+            family: "Inter, system-ui, sans-serif",
+            size: 13,
+            color: "#3f3f3fff"
+        },
+
+        title: {
+            text: "Start Ramp",
+            x: 0.05
+        },
+
+        legend: {
+            orientation: 'h',
+            y: -0.3,
+            x: 0.5,
+            xanchor: 'center'
+        },
+
+        xaxis: {
+            title: 'Time (ms)',
+            range: [0, MAX_TIME_X_AXIS_START_RAMP],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            fixedrange: true
+        },
+
+        yaxis: {
+            title: 'Motor output (W)',
+            range: [0, yAxisMax],
+            gridcolor: 'rgba(255,255,255,0.08)',
+            fixedrange: true
+        },
+
+        hovermode: 'x unified'
+    };
+
+    Plotly.react(chartDiv, traces, layout, {
+        responsive: true,
+        displayModeBar: false
+    });
+}
 
 		function handleAssistInputChange(event) {
 			const input = event.target;
@@ -2075,22 +2062,24 @@
                 }
 				targetObject[targetArrayName][internalIndex][targetParamName] = value;
 				console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
-				for(let i = (internalIndex+1);i<9;i++){
-					if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value){
-						targetObject[targetArrayName][i][targetParamName] = value;
-						const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
-						if(nInput)
-							nInput.value = value;
-						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
+				if(gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked){
+					for(let i = (internalIndex+1);i<9;i++){
+						if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value){
+							targetObject[targetArrayName][i][targetParamName] = value;
+							const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
+							if(nInput)
+								nInput.value = value;
+							console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
+						}
 					}
-				}
-				for(let i = (internalIndex-1);i>=0;i--){
-					if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value){
-						targetObject[targetArrayName][i][targetParamName] = value;
-						const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
-						if(nInput)
-							nInput.value = value;
-						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+					for(let i = (internalIndex-1);i>=0;i--){
+						if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value){
+							targetObject[targetArrayName][i][targetParamName] = value;
+							const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
+							if(nInput)
+								nInput.value = value;
+							console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+						}
 					}
 				}
 			} else {
@@ -2626,10 +2615,10 @@
                     if (needsGearsM820Update) updateGearsUIM820();
                     if (needsInfoUpdate) updateInfoUI(); 				
 					if (needsHexEditorUpdate || needsHexEditorUpdateC) populateHexEditor(); 
-			        if (needsPasChartUpdate) updatePasCurvesChart();
-					if (needsStartRampChartUpdate) updateStartRampChart();
-                    if (needsPasChartUpdateM820) updatePasCurvesChartM820();
-					if (needsStartRampChartUpdateM820) updateStartRampChartM820();
+			        if (needsPasChartUpdate) updatePasCurvesChartUnified(false);
+					if (needsStartRampChartUpdate) updateStartRampChartUnified(false);
+                    if (needsPasChartUpdateM820) updatePasCurvesChartUnified(true);
+					if (needsStartRampChartUpdateM820) updateStartRampChartUnified(true);
 					
                 } catch (e) { 
 				    console.error("Error processing BAFANG_DATA:", e); // Log the full error object
@@ -2651,6 +2640,7 @@
 				connectCanButton.disabled = false; // Enable connect button after update
 			}
 			else if (message.startsWith('SNIFFER_ENTRY:')) { addSnifferLog(message.substring('SNIFFER_ENTRY:'.length).trim()); }
+			else if (message.startsWith('RIDE_LOGGER_ENTRY:')) { updateRideChart(message.substring('RIDE_LOGGER_ENTRY:'.length).trim()); }
             else { addLog('INFO', message); }
         };
 
@@ -3789,8 +3779,145 @@
 		if (savedFilteredIdsOff) 
 			savedFilteredIdsOff.split(',').forEach(t => snifferElements.filteredIdsListOff.appendChild(createFilteredIdItem(t)));
 
+		// Ride Logger Section
 
+		rideLoggerElements.startButton.onclick = () => {
+			rideLoggerElements.startButton.disabled = true;
+			rideLoggerElements.stopButton.disabled = false;
+			socket.send(`RIDE_LOGGER_START:${rideLoggerElements.logToFileCheckbox.checked}:${rideLoggerElements.liveViewCheckbox.checked}:${rideLoggerElements.refreshRateMsInput.value}`);
+		}
+
+		rideLoggerElements.stopButton.onclick = () => {
+			rideLoggerElements.startButton.disabled = false;
+			rideLoggerElements.stopButton.disabled = true;
+			socket.send(`RIDE_LOGGER_STOP`);
+		}
+
+		rideLoggerElements.fullscreenButton.onclick = () => {
+			const element = document.getElementById('rideLoggerChart');
+			if (!document.fullscreenElement) {
+				element.requestFullscreen().catch(err => {
+					console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+				});
+			} else {
+				document.exitFullscreen();
+			}
+		}
+
+		rideLoggerElements.clearButton.onclick = () => {
+			rideLoggerSums.totalDist = 0;
+			rideLoggerSums.totalWhMotor = 0;
+			rideLoggerSums.totalWhHuman = 0;
+			rideLoggerSums.lastTs = null;
+			rideLoggerElements.liveStats.innerText = `Distance: 0.00 km | Motor: 0.00 Wh | Human: 0.00 Wh`;
+			const update = {
+				x: [[], [], [], [], [], []],
+				y: [[], [], [], [], [], []]
+			};
+			Plotly.restyle('rideLoggerChart', update, [0, 1, 2, 3, 4, 5]);
+		}
+
+		const rideLoggerSums = {
+			totalDist: 0,
+			totalWhMotor: 0,
+			totalWhHuman: 0,
+			lastTs: null
+		}
+
+		function updateRideChart(rowCsv){
+			const parts = rowCsv.split(';');
+			//Log Point0;Timestamp (ms)1;SOC (%)2;Cadence (rpm)3;Torque (mV)4;Speed (km/h)5;Current (A)6;Voltage (V)7;Controller Temp (°C)8;Motor Temp (°C)9;Assist Level10;Power (W)11;Human Power (W)12;Distance (km)13
+			const row = {
+				timestamp: parseFloat(parts[1]), 
+				soc: parseFloat(parts[2]),
+				cadence: parseFloat(parts[3]),
+				torque: parseFloat(parts[4]),
+				speed: parseFloat(parts[5]),
+				current: parseFloat(parts[6]),
+				voltage: parseFloat(parts[7]),
+				controllerTemp: parseFloat(parts[8]),
+				motorTemp: parseFloat(parts[9]),
+				assistLevel: parseInt(parts[10], 10),
+				motorPower: parseFloat(parts[11]),
+				humanPower: parseFloat(parts[12]),
+				distance: parseFloat(parts[13])
+			};
+			if (isNaN(row.timestamp)) return; // Zabezpieczenie przed pustymi wierszami
+
+			const timeS = row.timestamp / 1000;
+
+			// Stats
+			if (rideLoggerSums.lastTs !== null) {
+				const dtHours = (row.timestamp - rideLoggerSums.lastTs) / 3600000;
+				if (dtHours > 0) {
+					rideLoggerSums.totalDist += (row.speed || 0) * dtHours;
+					rideLoggerSums.totalWhMotor += (row.motorPower || 0) * dtHours;
+					rideLoggerSums.totalWhHuman += (row.humanPower || 0) * dtHours;
+					rideLoggerElements.liveStats.innerText = 
+						`Distance: ${rideLoggerSums.totalDist.toFixed(2)} km | Motor: ${rideLoggerSums.totalWhMotor.toFixed(2)} Wh | Human: ${rideLoggerSums.totalWhHuman.toFixed(2)} Wh`;
+				}
+			}
+			rideLoggerSums.lastTs = row.timestamp;
+			// Mapowanie wspomagania
+			let assistLabel = row.assistLevel;
+			if (assistLabel === '-1') assistLabel = 'walk';
+
+			// Dane do Plotly
+			const update = {
+				x: [[timeS], [timeS], [timeS], [timeS], [timeS], [timeS]],
+				y: [
+					[row.motorPower],
+					[row.humanPower],
+					[row.cadence],
+					[row.speed],
+					[row.torque],
+					[assistLabel]
+				]
+			};
+
+			const MAX_POINTS = 12000; // 10 minut przy 50ms (20Hz * 60s * 10m)
+			Plotly.extendTraces('rideLoggerChart', update, [0, 1, 2, 3, 4, 5], MAX_POINTS);
+
+			const windowSize = 600; // Przesunięcie okna wykresu (ostatnie 10 minut = 600 sekund)
+			Plotly.relayout('rideLoggerChart', {
+				'xaxis.range': [timeS - windowSize, timeS]
+			});
+		}
+
+		Plotly.newPlot('rideLoggerChart', [
+			{ x: [], y: [], name: "Motor Power (W)", line: {color: '#ff4d4d'} }, // index 0
+			{ x: [], y: [], name: "Human Power (W)", line: {color: '#00cc66'} }, // index 1
+			{ x: [], y: [], name: "Cadence (rpm)", yaxis: 'y2', line: {color: '#3399ff', width: 1} }, // index 2
+			{ x: [], y: [], name: "Speed (km/h)", yaxis: 'y2', line: {color: '#ffffff', width: 1.5} }, // index 3
+			{ x: [], y: [], name: "Torque (mV)", yaxis: 'y3', line: {color: '#9933ff', dash: 'dot'}, visible: "legendonly" }, // index 4
+			{ x: [], y: [], name: "Assist Level", yaxis: 'y4', line: {color: '#ffa500', width: 2, shape: 'hv'} } // index 5
+    	], 
+		{
+			template: "plotly_dark",
+			paper_bgcolor: '#111',
+			plot_bgcolor: '#111',
+			margin: { t: 50, b: 50, l: 80, r: 80 },
+			xaxis: { title: "Time (s)", domain: [0.12, 0.88] },
+			yaxis: { title: "Power (W)", titlefont: {color: "#ff4d4d"}, tickfont: {color: "#ff4d4d"} },
+			yaxis2: { title: "RPM / km/h", anchor: "x", overlaying: "y", side: "right", titlefont: {color: "#3399ff"}, tickfont: {color: "#3399ff"} },
+			yaxis3: { title: "Torque (mV)", anchor: "free", overlaying: "y", side: "right", position: 0.98, titlefont: {color: "#9933ff"}, tickfont: {color: "#9933ff"} },
+			yaxis4: { 
+				title: "Assist", anchor: "free", overlaying: "y", side: "left", position: 0.02,
+				type: 'category', categoryarray: ['walk', '0', '1', '2', '3', '4', '5'], categoryorder: 'array',
+				titlefont: {color: "#ffa500"}, tickfont: {color: "#ffa500"}
+			},
+			hovermode: "x unified",
+			showlegend: true,
+			//height: 800,
+  			autosize: true, 
+			legend: { orientation: 'h', y: -0.2 }
+		}, { responsive: true });
 		
+		document.addEventListener('fullscreenchange', () => {
+			Plotly.Plots.resize('rideLoggerChart');
+		});
+
+	
         // --- Initial State ---
 		populateWheelSelect(); // Populate dropdown on load
         //updateStatus(false);
@@ -3798,7 +3925,7 @@
 		populateHexEditor();
         updateCanInterfaceDisplay('DEVICE_NOT_FOUND'); // Set initial UI state to "Disconnected, No Device"
         statusText.textContent = "Connecting to server..."; // Initial text before WebSocket open	
-		updatePasCurvesChart(); // Initial call to draw empty or placeholder chart
-		updateStartRampChart(); // Initial call
-        updatePasCurvesChartM820(); // Initial call to draw empty or placeholder chart
-		updateStartRampChartM820(); // Initial call
+		updatePasCurvesChartUnified(false); // Initial call to draw empty or placeholder chart
+		updateStartRampChartUnified(false); // Initial call
+        updatePasCurvesChartUnified(true); // Initial call to draw empty or placeholder chart
+		updateStartRampChartUnified(true); // Initial call

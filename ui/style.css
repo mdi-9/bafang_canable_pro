@@ -1,313 +1,476 @@
-body { font-family: Arial, sans-serif; padding: 15px; max-width: 1000px; margin: 0 auto; font-size: 14px; background-color: #f4f4f4; }
-.container { display: flex; flex-direction: column; gap: 15px; }
-.card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-h1 {color: #556B2F;}
-.card h2, .card h3 { margin-top: 10px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #eee; color: #556B2F; }
-.status { display: flex; align-items: center; gap: 10px; }
-.status-indicator { width: 14px; height: 14px; border-radius: 50%; background-color: #dc3545; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
-.status-indicator.connected { background-color: #28a745; }
-.status-indicator.found { background-color: #fd7e14; } 
-.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px;}
-button, input[type="text"], input[type="number"] { padding: 8px 12px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
-button { cursor: pointer; background: #007bff; color: white; border: none; transition: background-color 0.2s ease; }
-button:hover:not(:disabled) { background: #0056b3; }
-button:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.65; }
-input[type="text"], input[type="number"] { width: 100%; }
-textarea { width: calc(100% - 16px); min-height: 80px; font-family: monospace; margin-top: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 12px; }
-.log { background: #212529; color: #e9ecef; padding: 10px 15px; font-family: 'SF Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 12px; height: 350px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; border-radius: 4px; border: 1px solid #495057; }
-.log-entry { border-bottom: 1px solid #495057; padding: 3px 0; margin-bottom: 3px; line-height: 1.4; }
-.log-entry:last-child { border-bottom: none; }
-.log-time { color: #adb5bd; margin-right: 8px; }
-.log-prefix { margin-right: 5px; font-weight: bold;}
-.log-prefix.status { color: #17a2b8; } .log-prefix.info { color: #6c757d; } .log-prefix.error { color: #dc3545; font-weight: bold;} .log-prefix.req { color: #ffc107; } .log-prefix.tx { color: #20c997; } .log-prefix.rx { color: #fd7e14; } .log-prefix.ack { color: #28a745; font-weight: bold;} .log-prefix.nack { color: #dc3545; font-weight: bold;} .log-prefix.save_req { color: #fd7e14; } .log-prefix.tx_error { color: #dc3545; font-weight: bold;}
-.log-data { color: #e9ecef; }
-.log-data pre { margin: 0; padding: 5px; background-color: #343a40; border-radius: 3px; overflow-x: auto; font-size: 11px;}
-.tab-buttons { display: flex; border-bottom: 1px solid #ccc; margin-bottom: 15px; }
-.tab-button { padding: 10px 15px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; background-color: #e9ecef; color: #495057; border-radius: 4px 4px 0 0; font-size: 14px; font-weight: 500; margin-right: 5px; }
-.tab-button:hover { background-color: #dee2e6; }
-.tab-button.active { background-color: #fff; border-color: #ccc #ccc #fff; color: #007bff; }
-.tab-content { display: none; padding-top: 10px; }
-.tab-content.active { display: block; }
-.description-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
-.description-table th, .description-table td { border: 1px solid #dee2e6; padding: 8px 10px; text-align: left; vertical-align: top; word-wrap: break-word; }
-.description-table th { background-color: #f8f9fa; font-weight: bold; width: 35%; }
-.description-table td { width: 65%; }
-.description-table td span { font-weight: 500; margin-right: 5px;}
-.description-table td input { margin-top: 3px; }
-.description-table td button { margin-top: 5px; margin-right: 5px; padding: 5px 10px; font-size: 12px;}
-.description-table small { color: #6c757d; font-style: italic; display: block; margin-top: 4px; }
-.error-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.error-table th, .error-table td { border: 1px solid #dee2e6; padding: 6px 8px; text-align: left; font-size: 12px;}
-.error-table th { background-color: #f8f9fa; font-weight: bold; }
-.error-table td.code { font-weight: bold; }
-.general-controls { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;}
-.assist-table td,
-.assist-table th {
-    padding-top: 4px;
-    padding-bottom: 4px;
-    vertical-align: middle;
+/* ====================================================
+   BAFANG CANABLE PRO — Custom CSS
+   Tailwind handles layout/spacing/colors.
+   This file covers: dynamic JS-toggled classes,
+   component patterns, and specialized widgets.
+   ==================================================== */
+
+/* ====== STATUS INDICATOR ====== */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #dc2626;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.12);
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
+    transition: background-color 0.3s, box-shadow 0.3s;
 }
-.assist-table thead tr th:nth-child(1),
-.assist-table tbody tr td:nth-child(1) {
-     width: 15%;
-     text-align: center;
+.status-indicator.found {
+    background-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
 }
-.assist-table thead tr th:nth-child(2),
-.assist-table tbody tr td:nth-child(2) {
-     width: 40%;
-}
-.assist-table tbody tr td:nth-child(2) input[type="number"] {
-     width: 80px;
-     min-width: 60px;
-     padding: 4px 8px;
-     box-sizing: border-box;
-}
-.assist-table thead tr th:nth-child(3),
-.assist-table tbody tr td:nth-child(3) {
-     width: 45%;
-}
-.assist-table tbody tr td:nth-child(3) input[type="number"] {
-     width: 90px;
-     min-width: 70px;
-     padding: 4px 8px;
-     box-sizing: border-box;
-}
-.assist-table tbody tr td:nth-child(2),
-.assist-table tbody tr td:nth-child(3) {
-     white-space: nowrap;
-}
-.assist-table tbody tr td span.unit-label {
-     display: inline-block;
-     margin-left: 4px;
-     vertical-align: middle;
-}
-.torque-table td,
-.torque-table th {
-    padding-top: 4px;
-    padding-bottom: 4px;
-    vertical-align: middle;
-    font-size: 12px;
-}
-.torque-table input[type="number"] {
-     width: 65px;
-     padding: 4px 6px;
-     font-size: 12px;
-     box-sizing: border-box;
-     display: inline-block;
-     max-width: 90%;
-}
-.torque-table th {
-     font-size: 11px;
-     white-space: normal;
+.status-indicator.connected {
+    background-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
 }
 
-.chart-placeholder {
-    width: 90%;
-    max-width: 600px;
-    height: 300px; /* Same height as your chart container */
-    margin: 20px auto;
-    padding: 20px;
-    border: 1px dashed #555;
+/* ====== TABS ====== */
+/* Hide scrollbar on tab bar while keeping scroll functionality */
+.tab-buttons {
+    scrollbar-width: none;       /* Firefox */
+    -ms-overflow-style: none;    /* IE / Edge */
+}
+.tab-buttons::-webkit-scrollbar {
+    display: none;               /* Chrome / Safari / Opera */
+}
+
+.tab-button {
+    padding: 7px 13px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background-color: transparent;
+    color: #6b7280;
+    border-radius: 6px 6px 0 0;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.15s, color 0.15s;
+    outline: none;
+    margin-bottom: -1px;
+}
+.tab-button:hover:not(.active) {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+.tab-button.active {
+    background-color: #ffffff;
+    border-color: #e5e7eb #e5e7eb #ffffff;
+    color: #2563eb;
+    font-weight: 600;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ====== COMPONENT CLASSES ====== */
+.section-title {
+    font-weight: 700;
+    color: #556B2F;
+}
+.section-subtitle {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #556B2F;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.section-subtitle:first-child,
+h3.section-subtitle:first-of-type { margin-top: 0; }
+
+/* ====== PARAM TABLE ====== */
+.param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.param-table th {
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    text-align: center !important;
+    vertical-align: middle;
+    background-color: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    width: 38%;
+}
+/* td uses flex so value + input sit on the same line */
+.param-table td {
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0px 8px;
+}
+/* Form controls grow to fill remaining space and render before value spans */
+.param-table td .form-input,
+.param-table td .form-select,
+.param-table td input[type="number"],
+.param-table td input[type="text"],
+.param-table td select {
+    order: -1;
+    flex: 1 1 140px;
+    min-width: 100px;
+    width: auto;
+    max-width: 520px;
+    box-sizing: border-box;
+    margin-top: 0; /* override Tailwind mt-1 that's no longer needed */
+}
+/* Hint text and raw-value span always wrap to their own line */
+.param-table td .form-hint,
+.param-table td small {
+    flex-basis: 100%;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+/* Value display badge doesn't grow */
+.param-table td .value-display {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+/* 4-column grid on large screens: label | value | label | value */
+@media (min-width: 1024px) {
+    .param-table {
+        display: grid;
+        grid-template-columns: minmax(160px, 26%) 1fr minmax(160px, 26%) 1fr;
+        gap: 1px;
+        background-color: #e5e7eb; /* gap colour = border */
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .param-table tbody { display: contents; }
+    .param-table tr    { display: contents; }
+    .param-table th,
+    .param-table td    { border: none; }
+    .param-table th    { width: auto; display: flex; align-items: center; justify-content: end; }
+    /* Odd-count tables: last lone row's td spans the remaining 3 columns */
+    .param-table tr:last-child:nth-child(odd) td { grid-column: span 3; }
+
+    /* Exception: tables that must stay 2-column (e.g. sniffer filters with colspan) */
+    .param-table--2col                    { display: table; border-collapse: collapse; background: transparent; border: none; border-radius: 0; overflow: visible; gap: 0; }
+    .param-table--2col tbody              { display: table-row-group; }
+    .param-table--2col tr                 { display: table-row; }
+    .param-table--2col th,
+    .param-table--2col td                 { display: table-cell; border: 1px solid #e5e7eb; }
+    .param-table--2col th                 { width: 35%; background-color: #f9fafb; }
+}
+
+/* Stack to 1-column on very small screens */
+@media (max-width: 480px) {
+    .param-table,
+    .param-table tbody,
+    .param-table tr,
+    .param-table th,
+    .param-table td { display: block; width: 100%; }
+    .param-table th {
+        border-bottom: none;
+        padding-bottom: 2px;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    .param-table td { padding-top: 4px; border-top: none; }
+    .param-table tr { border: 1px solid #e5e7eb; margin-bottom: 6px; border-radius: 6px; overflow: hidden; }
+}
+
+/* ====== ERROR TABLE ====== */
+.error-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+.error-tbl th,
+.error-tbl td {
+    border: 1px solid #e5e7eb;
+    padding: 6px 8px;
+    text-align: left;
+}
+.error-tbl th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+.error-tbl td.code { font-weight: 700; }
+
+/* ====== BUTTONS ====== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s, opacity 0.15s;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.btn:disabled {
+    background-color: #9ca3af !important;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-primary   { background-color: #2563eb; color: #fff; }
+.btn-primary:hover:not(:disabled)   { background-color: #1d4ed8; }
+.btn-save      { background-color: #556B2F; color: #fff; }
+.btn-save:hover:not(:disabled)      { background-color: #445625; }
+.btn-secondary { background-color: #6b7280; color: #fff; }
+.btn-secondary:hover:not(:disabled) { background-color: #4b5563; }
+.btn-success   { background-color: #16a34a; color: #fff; }
+.btn-success:hover:not(:disabled)   { background-color: #15803d; }
+.btn-danger    { background-color: #dc2626; color: #fff; }
+.btn-danger:hover:not(:disabled)    { background-color: #b91c1c; }
+.btn-warning   { background-color: #d97706; color: #fff; }
+.btn-warning:hover:not(:disabled)   { background-color: #b45309; }
+
+/* ====== FORM ELEMENTS ====== */
+.form-input,
+.form-select {
+    padding: 6px 10px;
+    font-size: 13px;
+    border: 1px solid #d1d5db;
     border-radius: 5px;
+    outline: none;
+    display: inline-block;
+    box-sizing: border-box;
+    background-color: #fff;
+    color: #111827;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input:focus,
+.form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+.form-hint {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+    display: block;
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.form-hint.inline { display: inline; margin-left: 6px; }
+.value-display { font-weight: 600; color: #111827; }
+.placeholder-text {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-style: italic;
+    padding: 4px 0 8px;
+}
+
+/* ====== COMMUNICATION LOG ====== */
+.log {
+    background: #1a1d23;
+    color: #e5e7eb;
+    padding: 10px 14px;
+    font-family: 'SF Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    height: 350px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 6px;
+    border: 1px solid #374151;
+    line-height: 1.5;
+}
+.log-entry { border-bottom: 1px solid #374151; padding: 2px 0; margin-bottom: 2px; line-height: 1.4; }
+.log-entry:last-child { border-bottom: none; }
+.log-time { color: #6b7280; margin-right: 8px; }
+.log-prefix { margin-right: 5px; font-weight: 700; }
+.log-prefix.status  { color: #22d3ee; }
+.log-prefix.info    { color: #6b7280; }
+.log-prefix.error   { color: #f87171; }
+.log-prefix.req     { color: #fbbf24; }
+.log-prefix.tx      { color: #34d399; }
+.log-prefix.rx      { color: #fb923c; }
+.log-prefix.ack     { color: #4ade80; }
+.log-prefix.nack    { color: #f87171; }
+.log-prefix.save_req { color: #fb923c; }
+.log-prefix.tx_error { color: #f87171; }
+.log-data { color: #e5e7eb; }
+.log-data pre {
+    margin: 2px 0 0;
+    padding: 4px 6px;
+    background-color: #2d3748;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 11px;
+}
+
+/* ====== HEX EDITOR ====== */
+#hexEditorTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: 'SF Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+}
+#hexEditorTable th,
+#hexEditorTable td {
+    border: 1px solid #d1d5db;
+    padding: 0;
+    text-align: center;
+    height: 30px;
+    position: relative;
+}
+#hexEditorTable input[type="text"] {
+    width: 100%; height: 100%; border: none;
+    text-align: center; font-family: inherit; font-size: inherit;
+    box-sizing: border-box; padding: 5px;
+    text-transform: uppercase;
+    background: transparent;
+}
+#hexEditorTable input[type="text"]:focus {
+    outline: 1px solid #2563eb;
+    background-color: #eff6ff;
+}
+#hexEditorTable td .tooltiptext {
+    visibility: hidden; opacity: 0;
+    min-width: 120px; max-width: 300px;
+    background-color: #1f2937; color: #f9fafb;
+    text-align: left; border-radius: 6px;
+    padding: 8px 10px;
+    position: absolute; z-index: 10; bottom: 125%; left: 0;
+    transition: opacity 0.15s ease-out, visibility 0s linear 0.15s;
+    font-size: 11px; line-height: 1.4;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    white-space: pre-wrap;
+}
+#hexEditorTable td:hover .tooltiptext {
+    visibility: visible; opacity: 1;
+    transition-delay: 0s, 0s;
+}
+#hexEditorTable td .tooltiptext::after {
+    content: "";
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px; border-style: solid;
+    border-color: #1f2937 transparent transparent transparent;
+}
+.hex-byte-highlight-start  { border-left:  2px solid #2563eb !important; }
+.hex-byte-highlight-end    { border-right: 2px solid #2563eb !important; }
+.hex-byte-highlight-middle { }
+.hex-byte-single           { }
+
+/* ====== SNIFFER DRAG-DROP ====== */
+.drop-zone {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    min-height: 50px;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 10px;
+    list-style: none; margin: 0;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.drop-zone.drag-over {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+.item {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 11px; font-weight: 500;
+    cursor: grab;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    transition: transform 0.1s, opacity 0.1s;
+    user-select: none;
+}
+.item:active  { cursor: grabbing; }
+.item.dragging { opacity: 0.4; transform: scale(0.9); }
+
+/* ====== CHARTS ====== */
+.chart-placeholder {
+    width: 100%;
+    max-width: 620px;
+    height: 280px;
+    margin: 12px auto;
+    padding: 20px;
+    border: 2px dashed #9ca3af;
+    border-radius: 8px;
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
-    color: #696666;
-    background-color: #e3e3e3; /* Or your desired placeholder background */
+    color: #9ca3af;
+    font-size: 13px;
+    background-color: #f9fafb;
 }
-
 .chart-container {
-    width: 90%;
-    max-width: 600px;
-    height: 300px;
-    margin: 20px auto;
+    width: 100%;
+    max-width: 620px;
+    height: 280px;
+    margin: 12px auto;
     padding: 10px;
-    border: 1px solid #444;
-    border-radius: 5px;
-    background-color: #303030;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    background-color: #1f2937;
+}
+.fullscreen-chart {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999;
+    background: white;
+    max-width: none !important;
+    border-radius: 0 !important;
 }
 
-.raw-param-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    align-items: center;
-}
-
-.raw-param-controls select {
-    flex-grow: 1;
-    padding: 8px 12px;
-    font-size: 13px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-}
-
-hex-editor-container {
-    overflow-x: auto; /* Allow horizontal scrolling if table is too wide */
-    /* --- NEW: Add top and bottom margin for more viewport space --- */
-    margin-top: 50px;    /* Adds 50px space above the table */
-    margin-bottom: 50px; /* Adds 50px space below the table */
-    /* Alternatively, you could use padding if you want the background of the container to extend:
-    padding-top: 50px;
-    padding-bottom: 50px;
-    */
-}
-
-#hexEditorTable {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed; /* Important for consistent column widths */
-    font-family: 'SF Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-    font-size: 13px;
-}
-
-#hexEditorTable th,
-#hexEditorTable td {
-    border: 1px solid #ddd;
-    padding: 0; /* Remove padding for input to fill cell */
-    text-align: center;
-    height: 30px; /* Fixed height for cells */
-    position: relative; /* For tooltip positioning */
-}
-
-#hexEditorTable input[type="text"] {
-    width: 100%;
-    height: 100%;
-    border: none;
-    text-align: center;
-    font-family: inherit;
-    font-size: inherit;
-    box-sizing: border-box;
-    padding: 5px;
-    text-transform: uppercase; /* Show hex in uppercase */
-}
-#hexEditorTable input[type="text"]:focus {
-    outline: 1px solid #007bff;
-    background-color: #eef;
-}
-
-/* Tooltip Styling */
-#hexEditorTable td .tooltiptext {
-    visibility: hidden; /* Initially hidden */
-    opacity: 0;       /* Initially transparent for transition */
-    min-width: 120px;
-    max-width: 300px;
-    background-color: #333;
-    color: #fff;
-    text-align: left;
-    border-radius: 6px;
-    padding: 8px 10px;
-    position: absolute;
-    z-index: 10;
-    bottom: 125%;
-    left: 0; /* JS will set this */
-    /* transform: translateX(0); NO LONGER NEEDED, JS sets left directly */
-    transition: opacity 0.15s ease-out, visibility 0s linear 0.15s; /* Delay visibility until opacity starts */
-    font-size: 11px;
-    line-height: 1.4;
-    pointer-events: none;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    white-space: pre-wrap;
-}
-
-#hexEditorTable td:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-    transition-delay: 0s, 0s; /* Show immediately on hover */
-}
-
-/* Arrow for tooltip */
-#hexEditorTable td .tooltiptext::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%; /* This will be relative to the tooltip's own width */
-    transform: translateX(-50%); /* Center the arrow under the tooltip */
-    margin-left: 0; /* Not needed with transform */
-    border-width: 5px;
-    border-style: solid;
-    border-color: #333 transparent transparent transparent;
-}
-
-/* Highlighting for multi-byte values */
-.hex-byte-highlight-start {
-    border-left: 2px solid blue !important;
-}
-.hex-byte-highlight-end {
-     border-right: 2px solid blue !important;
-}
-.hex-byte-highlight-middle {
-
-    /* Optional: if you want a different style for bytes in the middle of a multi-byte value */
-}
-.hex-byte-single {
-    /* Optional: style for single byte values if needed */
-}
+/* ====== NOTIFICATION MESSAGES ====== */
 .info-message, .success-message, .warning-message, .error-message {
     border: 1px solid;
-    margin: 10px 0px;
-    padding: 15px 10px 15px 15px;
-    background-repeat: no-repeat;
-    background-position: 10px center;
+    padding: 12px 15px;
+    border-radius: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 8px;
+    font-size: 13px;
 }
-.info-message {
-    color: #00529B;
-    background-color: #BDE5F8;
-}
-.success-message {
-    color: #4F8A10;
-    background-color: #DFF2BF;
-}
-.warning-message {
-    color: #9F6000;
-    background-color: #FEEFB3;
-}
-.error-message{
-    color: #D8000C;
-    background-color: #FFBABA;
-}
-.drop-zone {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-height: 54px;
-    background: #f1f5f9;
-    border: 2px dashed #cbd5e1;
-    border-radius: 12px;
-    padding: 12px;
-    list-style: none;
-    margin: 0;
-    transition: all 0.2s ease;
-}
+.info-message    { color: #1e40af; background-color: #dbeafe; border-color: #93c5fd; }
+.success-message { color: #166534; background-color: #dcfce7; border-color: #86efac; }
+.warning-message { color: #92400e; background-color: #fef3c7; border-color: #fcd34d; }
+.error-message   { color: #991b1b; background-color: #fee2e2; border-color: #fca5a5; }
 
-.drop-zone.drag-over {
-    background: #e0f2fe;
+/* ====== ASSIST / TORQUE TABLES (JS-populated) ====== */
+.assist-table td,
+.assist-table th {
+    padding: 5px 8px;
+    vertical-align: middle;
+    border: 1px solid #e5e7eb;
+    font-size: 12.5px;
 }
-
-/* Elementy - Tagi */
-.item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    padding: 6px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: grab;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: transform 0.1s;
+.assist-table input[type="number"] {
+    width: 75px;
+    padding: 3px 6px;
+    font-size: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    box-sizing: border-box;
 }
-
-.item:active { cursor: grabbing; }
-
-.item.dragging {
-    opacity: 0.4;
-    transform: scale(0.9);
+.torque-table td,
+.torque-table th {
+    padding: 4px 6px;
+    vertical-align: middle;
+    border: 1px solid #e5e7eb;
+    font-size: 12px;
+}
+.torque-table input[type="number"] {
+    width: 62px;
+    padding: 3px 5px;
+    font-size: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    box-sizing: border-box;
 }

@@ -67,7 +67,7 @@ class Logger {
             if(this.logToFile)
                 await this.logToFile(csvRow);
             if(sendOverWS && this.ws){
-                this.ws.send(csvRow);
+                this.ws.send(`RIDE_LOGGER_ENTRY:${csvRow}`);
             }
         }catch( e ) {
             console.log(e, 'ERROR');
@@ -210,7 +210,9 @@ class Logger {
     cleanup(){
         this.canbus.removeListener('bafang_data_received', this.bafangDataReceived);
         this.canbus.removeListener('raw_frame_received', this.rawFrameRecived);
-        this.startLogging()
+        if (this.logIntervalId) {
+            clearInterval(this.logIntervalId);
+        }
     }
 }
 
