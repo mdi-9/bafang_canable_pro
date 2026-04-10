@@ -101,12 +101,13 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
 /* td uses flex so value + input sit on the same line */
 .param-table td {
     border: 1px solid #e5e7eb;
-    padding: 8px 12px;
+    background-color: #ffffff;
+    padding: 4px 12px;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 8px;
+    gap: 0px 8px;
 }
 /* Form controls grow to fill remaining space and render before value spans */
 .param-table td .form-input,
@@ -149,7 +150,7 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
     .param-table tr    { display: contents; }
     .param-table th,
     .param-table td    { border: none; }
-    .param-table th    { width: auto; display: flex; align-items: center; justify-content: center; }
+    .param-table th    { width: auto; display: flex; align-items: center; justify-content: end; }
     /* Odd-count tables: last lone row's td spans the remaining 3 columns */
     .param-table tr:last-child:nth-child(odd) td { grid-column: span 3; }
 

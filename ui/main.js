@@ -198,6 +198,7 @@
           torqueProfileTableBody: document.getElementById('torqueProfileTableBody'),
           assistLevelPlaceholder: document.getElementById('assistLevelPlaceholder'),
           torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholder'),
+		  autoCorrectionCheckbox: document.getElementById('autoCorrectionCheckbox'),
 		};
 
         const gearsElementsM820 = {
@@ -792,7 +793,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
-			//enableAppControls(true); // Enable controls for testing
+			enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -1990,22 +1991,24 @@
                 }
 				targetObject[targetArrayName][internalIndex][targetParamName] = value;
 				console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
-				for(let i = (internalIndex+1);i<9;i++){
-					if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value){
-						targetObject[targetArrayName][i][targetParamName] = value;
-						const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
-						if(nInput)
-							nInput.value = value;
-						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
+				if(gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked){
+					for(let i = (internalIndex+1);i<9;i++){
+						if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value){
+							targetObject[targetArrayName][i][targetParamName] = value;
+							const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
+							if(nInput)
+								nInput.value = value;
+							console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because previoues level was bigger`);
+						}
 					}
-				}
-				for(let i = (internalIndex-1);i>=0;i--){
-					if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value){
-						targetObject[targetArrayName][i][targetParamName] = value;
-						const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
-						if(nInput)
-							nInput.value = value;
-						console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+					for(let i = (internalIndex-1);i>=0;i--){
+						if(targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value){
+							targetObject[targetArrayName][i][targetParamName] = value;
+							const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
+							if(nInput)
+								nInput.value = value;
+							console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+						}
 					}
 				}
 			} else {

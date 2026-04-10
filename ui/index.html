@@ -604,7 +604,7 @@
                     </div>
                 </div>
 
-                <h3 class="section-subtitle">Startup Angle</h3>
+                <!-- <h3 class="section-subtitle">Startup Angle</h3> -->
                 <div class="overflow-x-auto mb-1">
                     <table class="param-table">
                         <tbody>
@@ -614,6 +614,14 @@
                                     <span id="controllerStartupAngleValue" class="value-display">N/A</span> degrees
                                     <input type="number" id="controllerStartupAngleInput" min="0" max="360" step="1" placeholder="New value (0-360°)" class="form-input mt-1 w-48">
                                     <small class="form-hint">Angle pedals must turn before motor assists.</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="autoCorrectionCheckbox">Auto correction</label></th>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="autoCorrectionCheckbox" name="autoCorrectionCheckbox" class="w-4 h-4 accent-olive" checked>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
