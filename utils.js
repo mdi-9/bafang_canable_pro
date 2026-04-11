@@ -86,15 +86,18 @@ function formatRawCanFrameData2(frame) {
   return { idHex, dlc, timestamp, data: frame.data };
 }
 
-async function setupLogger(fileExt = 'log') {
+async function setupLogger(fileExt = 'log', countFiles = false) {
   try {
     // 1. Ensure directory exists
     await fsp.mkdir(logsDir, { recursive: true });
 
     // 2. Count existing files for the index
-    const files = await fsp.readdir(logsDir);
-    const logFiles = files.filter(f => f.endsWith(`.${fileExt}`));
-    const nextIndex = logFiles.length + 1;
+    let nextIndex = 0;
+    if (countFiles) {
+      const files = await fsp.readdir(logsDir);
+      const logFiles = files.filter(f => f.endsWith(`.${fileExt}`));
+      nextIndex = logFiles.length + 1;
+    }
 
     // 3. Generate Date and Time strings
     const now = new Date();

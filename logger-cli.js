@@ -14,9 +14,9 @@ async function main(){
     }
     try {
         logger = new Logger(canbus);
-        await logger.setupLogger()
-        await logger.setupHeader()
-        logger.startLogging()
+        await logger.setupLogger(true);
+        await logger.setupHeader();
+        logger.startLogging();
     } catch (error) {
         console.log(error)
         cleanup()

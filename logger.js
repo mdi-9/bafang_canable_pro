@@ -1,5 +1,5 @@
-const { charsToString } = require('./bafang-parser');
-const { setupLogger, formatRawCanFrameData2 } = require('./utils');
+//const { charsToString } = require('./bafang-parser');
+const { setupLogger, formatRawCanFrameData2, delay } = require('./utils');
 
 class Logger {
 
@@ -74,8 +74,8 @@ class Logger {
         }
     }
 
-    async setupLogger(){
-        this.logToFile = await setupLogger('csv');
+    async setupLogger(countFiles = false){
+        this.logToFile = await setupLogger('csv', countFiles);
     }
     async setupHeader(){
         const rowKeys = Object.values(this.logObjectHeader);
@@ -113,7 +113,7 @@ class Logger {
             sent = await this.canbus.sendRawFrame(this.leadingIdNum+id,data);
             if (!sent) {
                 this.logMessage(`sendFrame returned false for ID${this.leadingIdNum+id}`, 'ERROR');
-                await delay(delayMs);
+                await delay(50);
             }
             tryCount++;
         }while(!sent && tryCount < retries);

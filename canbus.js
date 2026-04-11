@@ -443,12 +443,12 @@ class CanBusService extends EventEmitter {
                     parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
                     dataType = 'controller_startup_angle';
                 }
-             }
-			 else if (cmdCode === 0x62 && subCode === 0x07) { // System AutoOff
-			     parsedData = { controller_auto_shutdown_time: completedParsedFrame.data[0] };
-                 dataType = 'controller_system_auto_off'; 
-				 //console.log(`>>> RX Controller Auto Off (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-             }
+                else if (subCode === 0x07) { // System AutoOff
+                    parsedData = { controller_auto_shutdown_time: completedParsedFrame.data[0] };
+                    dataType = 'controller_system_auto_off'; 
+                    //console.log(`>>> RX Controller Auto Off (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
+                }
+                }
              break; 
 			 
 			 case DeviceNetworkId.DISPLAY: 
