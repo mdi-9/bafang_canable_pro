@@ -853,7 +853,7 @@ const wss = new WebSocket.Server({ server });
 			];
 
 			// --- Only log to console if the type is NOT in the skip list ---
-			if (!typesToSkipInConsoleLog.includes(parsedEvent.type)) {
+			if (!typesToSkipInConsoleLog.includes(parsedEvent.type) && !parsedEvent.type.startsWith('unknown_source_0x')) {
 				console.log("Broadcasting Parsed Data:", jsonString); // Log other types
 			}
 			  broadcastToClients(`BAFANG_DATA: ${jsonString}`);
