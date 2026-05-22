@@ -800,7 +800,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
-			enableAppControls(true); // Enable controls for testing
+			//enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
