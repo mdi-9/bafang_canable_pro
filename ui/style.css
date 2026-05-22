@@ -28,11 +28,7 @@
 /* ====== TABS ====== */
 /* Hide scrollbar on tab bar while keeping scroll functionality */
 .tab-buttons {
-    scrollbar-width: none;       /* Firefox */
-    -ms-overflow-style: none;    /* IE / Edge */
-}
-.tab-buttons::-webkit-scrollbar {
-    display: none;               /* Chrome / Safari / Opera */
+    overflow-y: hidden !important;
 }
 
 .tab-button {

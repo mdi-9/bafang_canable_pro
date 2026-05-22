@@ -412,6 +412,12 @@
 			fullscreenButton: document.getElementById('rideLoggerFullscreenButton'),
 		}
 
+		const backupElements = {
+			createBackupButton: document.getElementById('createBackupButton'),
+			restoreBackupInput: document.getElementById('restoreBackupInput'),
+			restoreBackupButton: document.getElementById('restoreBackupButton'),
+		}
+
         // --- Global state for CAN connection ---
         let isCanDeviceFound = false;
         let isCanConnected = false;
@@ -427,6 +433,7 @@
 		
 		let currentRawParamType = null; // e.g., 'controller_params_1'
 		let rawParamData = {};
+		let allEventsStore = {};
 		
         let displayData1 = null, displayData2 = null, displayRealtime = null, displayErrors = null;
         let displayOtherInfo = { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, productionDate:null, manufacturer: null, customerNumber: null };
@@ -793,7 +800,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
-			//enableAppControls(true); // Enable controls for testing
+			enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -2367,7 +2374,7 @@ function updateStartRampChartUnified(isM820) {
                 const jsonString = message.substring('BAFANG_DATA:'.length);
                 try {
                     const parsedEvent = JSON.parse(jsonString);
-					
+					allEventsStore[parsedEvent.type] = parsedEvent;
 					
 					//skip some messages so log is not overflooded
 					const typesToSkipInUILog = [
@@ -3917,7 +3924,40 @@ function updateStartRampChartUnified(isM820) {
 			Plotly.Plots.resize('rideLoggerChart');
 		});
 
-	
+		// Backup Section
+
+		backupElements.createBackupButton.onclick = () => {
+			if(Object.keys(allEventsStore).length === 0) {
+				alert('No data to backup! Do sync data first by navigating through the tabs and using the sync buttons.');
+				return;
+			}
+			let data = JSON.stringify(allEventsStore);
+			let blob = new Blob([data], { type: 'application/json' });
+			let url = URL.createObjectURL(blob);
+			let a = document.createElement('a');
+			a.href = url;
+			a.download = new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '_canable_backup.json';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+		}
+
+		backupElements.restoreBackupButton.onclick = () => {
+			const fileInput = backupElements.restoreBackupInput;
+			if (fileInput.files.length === 0) return;
+
+			const file = fileInput.files[0];
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				try {
+					socket.send(`RESTORE_BACKUP:${e.target.result}`);
+				} catch (error) {
+					console.error('Error parsing backup file:', error);
+				}
+			};
+			reader.readAsText(file);
+		};
+
         // --- Initial State ---
 		populateWheelSelect(); // Populate dropdown on load
         //updateStatus(false);

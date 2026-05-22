@@ -737,6 +737,19 @@ const wss = new WebSocket.Server({ server });
 		return false;
 	}
 
+	async function handleBackupRestoreCommand(messageString) {
+		if (messageString.startsWith('BACKUP_RESTORE:')) {
+			const allDataJson = messageString.substring('BACKUP_RESTORE:'.length);
+			const allData = JSON.parse(allDataJson);
+			if (allData && typeof allData === 'object') {
+				for (const [paramType, paramData] of Object.entries(allData)) {
+					broadcastToClients(`BAFANG_DATA: ${JSON.stringify(paramData)}`);
+					await new Promise(resolve => setTimeout(resolve, 200)); // Simulate delay
+				}
+			}
+		}
+	}
+
 
 	wss.on('connection', async (ws) => {
 		clients.push(ws);
@@ -793,6 +806,7 @@ const wss = new WebSocket.Server({ server });
 				if (!handled) handled = await handleLogEnabledSniffer(messageString);
 				if (!handled) handled = await handleStartRideLogger(ws, messageString);
 				if (!handled) handled = await handleStopRideLogger(messageString);
+				if (!handled) handled = await handleBackupRestoreCommand(messageString);
 
 				if (!handled) {
 					console.warn("Unknown command received from UI (unhandled):", messageString);

@@ -37,7 +37,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
 
         <!-- Tab Bar -->
-        <div class="tab-buttons overflow-x-auto border-b border-gray-200 px-2 pt-2 flex gap-0.5 bg-gray-50">
+        <div class="tab-buttons overflow-x-auto border-b border-gray-200 px-2 pt-2 flex gap-0.5 flex-nowrap bg-gray-50">
             <button class="tab-button active" data-tab="controller">Controller</button>
             <button class="tab-button" data-tab="display">Display</button>
             <button class="tab-button" data-tab="sensor">Sensor</button>
@@ -49,6 +49,7 @@
             <button class="tab-button" data-tab="fwUpdate">Firmware</button>
             <button class="tab-button" data-tab="sniffer">Sniffer</button>
             <button class="tab-button" data-tab="ride-logger">Ride Logger</button>
+            <button class="tab-button" data-tab="data-backup">Data Backup</button>
         </div>
 
         <!-- Tab Contents -->
@@ -1067,6 +1068,19 @@
                     </div>
                     <div id="rideLoggerLiveStats" class="stats font-mono text-sm text-gray-500 mb-2">Distance: 0.00 km | Motor: 0.00 Wh | Human: 0.00 Wh</div>
                     <div id="rideLoggerChart" style="width:100%;height:90vh;"></div>
+                </div>
+            </div>
+
+            <!-- ===== Data backup TAB ===== -->
+            <div class="tab-content" id="tab-data-backup">
+                <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
+                    <h2 class="section-title text-lg">Data backup</h2>
+                    <div class="flex gap-2">
+                        <button id="createBackupButton" disabled class="btn btn-success">Download current data</button>
+                        <input type="file" id="restoreBackupInput" accept="application/json"
+                            class="text-sm text-gray-600 w-full file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer">
+                        <button id="restoreBackupButton" disabled class="btn btn-danger">Restore data</button>
+                    </div>
                 </div>
             </div>
 
