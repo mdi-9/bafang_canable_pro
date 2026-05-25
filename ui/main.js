@@ -800,7 +800,7 @@
                     canDeviceNameElement.textContent = '';
                     enableAppControls(false);
             }
-			//enableAppControls(true); // Enable controls for testing
+			enableAppControls(true); // Enable controls for testing
         }
 
         function enableControls(enable) { allControls.forEach(ctrl => ctrl.disabled = !enable); }
@@ -3950,13 +3950,35 @@ function updateStartRampChartUnified(isM820) {
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				try {
+					clearAllInputs()
 					socket.send(`RESTORE_BACKUP:${e.target.result}`);
+					fileInput.value = "";
+					autoPopup("Data will be restored.")
 				} catch (error) {
 					console.error('Error parsing backup file:', error);
 				}
 			};
 			reader.readAsText(file);
 		};
+
+		function clearAllInputs(){
+			// Clear all input fields
+			document.querySelectorAll('input').forEach(input => {
+				if (input.type === 'checkbox' || input.type === 'radio') {
+					input.checked = false;
+				} else if (input.type !== 'button' && input.type !== 'submit' && input.type !== 'reset' && input.type !== 'file') {
+					input.value = '';
+				}
+			});
+			// Clear all textarea fields
+			document.querySelectorAll('textarea').forEach(textarea => {
+				textarea.value = '';
+			});
+			// Reset all select fields
+			document.querySelectorAll('select').forEach(select => {
+				select.selectedIndex = 0;
+			});
+		}
 
         // --- Initial State ---
 		populateWheelSelect(); // Populate dropdown on load
