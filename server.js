@@ -738,8 +738,8 @@ const wss = new WebSocket.Server({ server });
 	}
 
 	async function handleBackupRestoreCommand(messageString) {
-		if (messageString.startsWith('BACKUP_RESTORE:')) {
-			const allDataJson = messageString.substring('BACKUP_RESTORE:'.length);
+		if (messageString.startsWith('RESTORE_BACKUP:')) {
+			const allDataJson = messageString.substring('RESTORE_BACKUP:'.length);
 			const allData = JSON.parse(allDataJson);
 			if (allData && typeof allData === 'object') {
 				for (const [paramType, paramData] of Object.entries(allData)) {
