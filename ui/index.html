@@ -85,7 +85,10 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>System Voltage</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">System Voltage</div>
+                                    <div style="color: blue; text-align: right;">System Voltage</div>
+                                </th>                               
                                 <td>
                                     <select id="ctrlP1SysVoltageSelect" class="form-select w-36">
                                         <option value="">-- Select --</option>
@@ -102,7 +105,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Current Limit</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Current Limit</div>
+                                    <div style="color: blue; text-align: right;">Battery Current Limit</div>
+                                </th>                                
                                 <td>
                                     <span id="ctrlP1CurrentLimitValue" class="value-display">N/A</span> A
                                     <input type="number" id="ctrlP1CurrentLimitInput" min="1" max="30" step="1" placeholder="New value (1-30 A)" class="form-input mt-1 w-48">
@@ -110,7 +116,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Max Current on Low Charge</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Max Current on Low Charge</div>
+                                    <div style="color: blue; text-align: right;">Motor Current Limit</div>
+                                </th>                                   
                                 <td>
                                     <span id="ctrlP1MaxCurrentLowChargeValue" class="value-display">N/A</span> A
                                     <input type="number" id="ctrlP1MaxCurrentLowChargeInput" min="0" max="30" step="1" placeholder="New value (0-30 A)" class="form-input mt-1 w-48">
@@ -118,7 +127,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Overvoltage Cutoff</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Overvoltage Cutoff</div>
+                                    <div style="color: blue; text-align: right;">Overvoltage Cutoff</div>
+                                </th>                                 
                                 <td>
                                     <span id="ctrlP1OverVoltageValue" class="value-display">N/A</span> V
                                     <input type="number" id="ctrlP1OverVoltageInput" min="0" max="255" step="1" placeholder="New value (V)" class="form-input mt-1 w-48">
@@ -126,7 +138,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Undervoltage Cutoff (Under Load)</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Undervoltage Cutoff (Under Load)</div>
+                                    <div style="color: blue; text-align: right;">Undervoltage Cutoff (Under Load)</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1UnderVoltageLoadValue" class="value-display">N/A</span> mV
                                     <input type="number" id="ctrlP1UnderVoltageLoadInput" min="0" step="100" placeholder="New value (V)" class="form-input mt-1 w-48">
@@ -134,7 +149,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Undervoltage Recovery</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Undervoltage Recovery</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1UnderVoltageIdleValue" class="value-display">N/A</span> mV
                                     <input type="number" id="ctrlP1UnderVoltageIdleInput" min="0" step="100" placeholder="New value (V)" class="form-input mt-1 w-48">
@@ -151,14 +169,20 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Expected Battery Capacity</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Expected Battery Capacity</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1BattCapacityValue" class="value-display">N/A</span> mAh
                                     <input type="number" id="ctrlP1BattCapacityInput" min="1" max="65000" step="100" placeholder="New value (mAh)" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Limp Mode SoC Limit</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Limp Mode SoC Limit</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1LimpModeSocValue" class="value-display">N/A</span> %
                                     <input type="number" id="ctrlP1LimpModeSocInput" min="0" max="100" step="1" placeholder="New value (0-100 %)" class="form-input mt-1 w-48">
@@ -166,7 +190,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Expected Range on Full Charge</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Expected Range on Full Charge</div>
+                                    <div style="color: blue; text-align: right;">Cadence Exponent</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1FullRangeValue" class="value-display">N/A</span> Km
                                     <input type="number" id="ctrlP1FullRangeInput" min="1" max="255" step="1" placeholder="New value (Km)" class="form-input mt-1 w-48">
@@ -182,14 +209,20 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Gear Ratio (Deceleration)</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Gear Ratio (Deceleration)</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th>
                                 <td>
                                     <span id="ctrlP1GearRatioValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1GearRatioInput" min="1" step="0.01" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
-                            <tr>
-                                <th>Coaster Brake Support</th>
+                            <tr>                               
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Coaster Brake Support</div>
+                                    <div style="color: blue; text-align: right;">Legal Flag</div>
+                                </th>
                                 <td>
                                     <span id="ctrlP1CoasterBrakeValue" class="value-display">N/A</span>
                                     <select id="ctrlP1CoasterBrakeInput" class="form-select mt-1 w-36">
@@ -200,50 +233,65 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Max Motor Rotor RPM</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Max Motor Rotor RPM</div>
+                                    <div style="color: blue; text-align: right;">Magic Number</div>
+                                </th>                                
                                 <td>
                                     <span id="ctrlP1MaxRpmValue" class="value-display">N/A</span> RPM
                                     <input type="number" id="ctrlP1MaxRpmInput" min="1" step="1" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Cadence Sensor Signals/Rotation</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Cadence Sensor Signals/Rotation</div>
+                                    <div style="color: blue; text-align: right;">Throttle Exponent * 100</div>
+                                </th>
                                 <td>
                                     <span id="ctrlP1CadenceSignalsValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1CadenceSignalsInput" min="1" step="1" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Motor Type</th>
-                                <td>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Motor Type</div>
+                                    <div style="color: blue; text-align: right;">Motor Direction</div>
+                                </th>                                <td>
                                     <span id="ctrlP1MotorTypeValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1MotorTypeInput" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Motor Pole Pair Number</th>
-                                <td>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Motor Pole Pair Number</div>
+                                    <div style="color: blue; text-align: right;">Motor Pole Pair Number * Mechanical Gear Ratio</div>
+                                </th>                                 <td>
                                     <span id="ctrlP1PolePairNumberValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1PolePairNumberInput" step="1" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
-                            <tr>
-                                <th>Speed Sensor Magnets</th>
-                                <td>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Speed Sensor Magnets</div>
+                                    <div style="color: blue; text-align: right;">Speed Sensor Magnets</div>
+                                </th>                                 <td>
                                     <span id="ctrlP1SpeedMagnetsValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1SpeedMagnetsInput" min="1" step="1" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Temperature Sensor Type</th>
-                                <td>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Temperature Sensor Type</div>
+                                    <div style="color: blue; text-align: right;">Current Decay On Timeout</div>
+                                </th>                                  <td>
                                     <span id="ctrlP1TempSensorValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1TempSensorInput" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Lamps Always On</th>
-                                <td>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Lamps Always On</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th>                                  <td>
                                     <span id="ctrlP1LampsOnValue" class="value-display">N/A</span>
                                     <select id="ctrlP1LampsOnInput" class="form-select mt-1 w-36">
                                         <option value="">-- Select --</option>
@@ -262,28 +310,40 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Start Current</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Start Current</div>
+                                    <div style="color: blue; text-align: right;">Extended Boost Duration</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1StartCurrentValue" class="value-display">N/A</span> %
                                     <input type="number" id="ctrlP1StartCurrentInput" min="1" max="100" step="1" placeholder="New value (%)" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Current Loading Time (Ramp Up)</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Current Loading Time (Ramp Up)</div>
+                                    <div style="color: blue; text-align: right;">PAS Timeout</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1CurrentLoadTimeValue" class="value-display">N/A</span> S
                                     <input type="number" id="ctrlP1CurrentLoadTimeInput" min="0.1" max="20" step="0.1" placeholder="New value (S)" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Current Shedding Time (Ramp Down)</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Current Shedding Time (Ramp Down)</div>
+                                    <div style="color: blue; text-align: right;">PAS Ramp End, not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1CurrentShedTimeValue" class="value-display">N/A</span> S
                                     <input type="number" id="ctrlP1CurrentShedTimeInput" min="0.1" max="20" step="0.1" placeholder="New value (S)" class="form-input mt-1 w-48">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Motor Trigger Type</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Motor Trigger Type</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1PedalTypeValue" class="value-display">N/A</span>
                                     <select id="ctrlP1PedalTypeInput" class="form-select mt-1 w-64">
@@ -305,14 +365,20 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Speed Limit Enabled</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Speed Limit Enabled</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1SpeedLimitEnabledValue" class="value-display">N/A</span>
                                     <input type="number" id="ctrlP1SpeedLimitEnabledInput" min="0" max="1" step="1" placeholder="0 or 1" class="form-input mt-1 w-28">
                                 </td>
                             </tr>
                             <tr>
-                                <th>Throttle Start Voltage</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Throttle Start Voltage</div>
+                                    <div style="color: blue; text-align: right;">Throttle Start Voltage</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1ThrottleStartValue" class="value-display">N/A</span> V
                                     <input type="number" id="ctrlP1ThrottleStartInput" min="1.0" max="4.2" step="0.1" placeholder="New value (V)" class="form-input mt-1 w-48">
@@ -320,7 +386,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Throttle Max Voltage</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Throttle Max Voltage</div>
+                                    <div style="color: blue; text-align: right;">Throttle Max Voltage</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1ThrottleEndValue" class="value-display">N/A</span> V
                                     <input type="number" id="ctrlP1ThrottleEndInput" min="1.0" max="4.2" step="0.1" placeholder="New value (V)" class="form-input mt-1 w-48">
@@ -337,7 +406,10 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Speed Limit</th>
+                                 <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Speed Limit</div>
+                                    <div style="color: blue; text-align: right;">Speed Limit</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP3SpeedLimitValue" class="value-display">N/A</span> Km/H
                                     <input type="number" id="ctrlP3SpeedLimitInput" min="1" max="99" step="0.1" placeholder="New value (Km/H)" class="form-input mt-1 w-48">
@@ -345,7 +417,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Wheel Diameter Setting</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Wheel Diameter Setting</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP3WheelDiameterValue" class="value-display">N/A</span>
                                     <select id="ctrlP3WheelDiameterInput" class="form-select mt-1 w-48">
@@ -355,7 +430,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Wheel Circumference</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Wheel Circumference</div>
+                                    <div style="color: blue; text-align: right;">Wheel Circumference</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP3CircumferenceValue" class="value-display">N/A</span> mm
                                     <input type="number" id="ctrlP3CircumferenceInput" min="400" max="3000" step="1" placeholder="New value (mm)" class="form-input mt-1 w-48">
@@ -363,7 +441,10 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Walk Assist Speed</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Walk Assist Speed</div>
+                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                </th> 
                                 <td>
                                     <span id="ctrlP1WalkAssistSpeedValue" class="value-display">N/A</span> Km/H
                                     <input type="number" id="ctrlP1WalkAssistSpeedInput" min="0" max="6" step="0.5" placeholder="New value (Km/H)" class="form-input mt-1 w-48">
