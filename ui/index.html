@@ -692,7 +692,10 @@
                     <table class="param-table">
                         <tbody>
                             <tr>
-                                <th>Startup Angle</th>
+                                <th style="display: inline-block;">
+                                    <div style="color: black; text-align: right;">Startup Angle</div>
+                                    <div style="color: blue; text-align: right;">Multiplier</div>
+                                </th> 
                                 <td>
                                     <span id="controllerStartupAngleValue" class="value-display">N/A</span> degrees
                                     <input type="number" id="controllerStartupAngleInput" min="0" max="360" step="1" placeholder="New value (0-360°)" class="form-input mt-1 w-48">
@@ -716,12 +719,27 @@
                 <div class="overflow-x-auto mb-1">
                     <table class="description-table assist-table w-full border-collapse text-sm">
                         <thead>
-                            <tr>
-                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">Assist Level</th>
-                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 font-semibold text-gray-700">Current Limit (%)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 font-semibold text-gray-700">Speed Limit (%)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 font-semibold text-gray-700">Assist Ratio (%)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 font-semibold text-gray-700">Acceleration</th>
+                            <tr>                
+                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Assist Level<div>
+                                    <div style="color: blue; text-align: center;">Assist Level</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Battery Current Limit (%)<div>
+                                    <div style="color: blue; text-align: center;">Motor Current Limit (%)</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Speed Limit (%)<div>
+                                    <div style="color: blue; text-align: center;">Speed Limit (%)</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Assist Ratio (%)<div>
+                                    <div style="color: blue; text-align: center;">Torque Override Threshold (mV)</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-3 py-2 text-center font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Acceleration<div>
+                                    <div style="color: blue; text-align: center;">Torque Filter</div>
+                                </th>                                 
                             </tr>
                         </thead>
                         <tbody id="assistLevelTableBody"></tbody>
@@ -734,16 +752,47 @@
                     <table class="description-table torque-table w-full border-collapse">
                         <thead>
                             <tr>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Speed range</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Start Torque</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Max Torque</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Return Torque</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Max Current (%)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Min Current (%)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Start Pulse</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Current Decay (5ms)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Torque Attenuation (10ms)</th>
-                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">Stop Delay (2ms)</th>
+                                
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Speed range<div>
+                                    <div style="color: blue; text-align: center;">Speed range</div>
+                                </th> 
+                                 <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Start Torque<div>
+                                    <div style="color: blue; text-align: center;">ECO</div>
+                                </th> 
+                                 <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Max Torque<div>
+                                    <div style="color: blue; text-align: center;">TOUR</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Return Torque<div>
+                                    <div style="color: blue; text-align: center;">SPORT</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Max Current (%)<div>
+                                    <div style="color: blue; text-align: center;">SPORT+</div>
+                                </th>                                
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Min Current (%)<div>
+                                    <div style="color: blue; text-align: center;">BOOST</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Start Pulse<div>
+                                    <div style="color: blue; text-align: center;">Ext. Boost Strength (%)</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Current Decay (5ms)<div>
+                                    <div style="color: blue; text-align: center;">not used yet</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Torque Attenuation (10ms)<div>
+                                    <div style="color: blue; text-align: center;">Ext. Boost Duration (%)</div>
+                                </th> 
+                                <th class="bg-gray-50 border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-700">
+                                    <div style="color: black; text-align: center;">Stop Delay (2ms)<div>
+                                    <div style="color: blue; text-align: center;">not used yet</div>
+                                </th> 
                             </tr>
                         </thead>
                         <tbody id="torqueProfileTableBody"></tbody>
