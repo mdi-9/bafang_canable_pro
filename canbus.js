@@ -362,7 +362,7 @@ class CanBusService extends EventEmitter {
             this.emit('bafang_data_received', { type: 'error_ack', source: sourceId, cmdCode, subCode, data: "ERROR ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
             return;
         }
-        else if(completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK &&
+        else if(completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK && cmdCode != 99 &&
             (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0))){
             this.emit('bafang_data_received', { type: 'normal_ack', source: sourceId, cmdCode, subCode, data: "NORMAL ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
             return;
