@@ -332,7 +332,7 @@ function prepareParameter1WriteData(canbusInstance, value) {
         new_pkg[35] = (value.throttle_max_voltage !== undefined && value.throttle_max_voltage !== null)
                         ? Math.round(value.throttle_max_voltage * 10)
                         : 0xFF;
-		new_pkg[36] = value.speed_limit_enabled ? 1 : 0; 
+		new_pkg[36] = value.speed_limit_enabled ?? 0xFF; 
         new_pkg[37] = value.start_current ?? 0xFF;
         new_pkg[38] = (value.current_loading_time !== undefined && value.current_loading_time !== null)
                         ? Math.round(value.current_loading_time * 10)
