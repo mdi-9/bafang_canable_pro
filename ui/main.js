@@ -3962,6 +3962,21 @@ function updateStartRampChartUnified(isM820) {
 		};
 
 		function clearAllInputs(){
+			// Clear global data stores so UI update functions don't repopulate fields from stale data
+			displayData1 = null; displayData2 = null; displayRealtime = null; displayErrors = null; displayShutdownTime = null;
+			Object.keys(displayOtherInfo).forEach(k => displayOtherInfo[k] = null);
+			sensorRealtime = null;
+			Object.keys(sensorOtherInfo).forEach(k => sensorOtherInfo[k] = null);
+			batteryCapacity = null; batteryState = null; batteryCells = {}; batteryDesign = null; batteryChargingInfo = null; batteryCellsStats = null;
+			Object.keys(batteryOtherInfo).forEach(k => batteryOtherInfo[k] = null);
+			controllerRealtime0 = null; controllerRealtime1 = null; controllerState = null; controllerErrors = null;
+			controllerParams0 = null; controllerParams1 = null; controllerParams2 = null; controllerSpeedParams = null;
+			Object.keys(controllerOtherInfo).forEach(k => controllerOtherInfo[k] = null);
+			lastControllerP0 = null; lastControllerP1 = null; lastControllerP2 = null;
+			lastControllerP1Read = null; lastControllerP2Read = null;
+			lastStartupAngle = null;
+			rawParamData = {}; allEventsStore = {};
+
 			// Clear all input fields
 			document.querySelectorAll('input').forEach(input => {
 				if (input.type === 'checkbox' || input.type === 'radio') {
