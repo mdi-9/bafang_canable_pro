@@ -578,7 +578,7 @@ const wss = new WebSocket.Server({ server });
 
             if (isNaN(thresholdKm) || thresholdKm < 0) {
                 ws.send('ERROR: Invalid threshold value for service mileage. Must be a non-negative number.');
-                return;
+                return true;
             }
 
             ws.send(`INFO: Setting service threshold to ${thresholdKm}km and then clearing current service counter...`);
@@ -668,9 +668,10 @@ const wss = new WebSocket.Server({ server });
 			const logToFileEnabled = messageParts[1] === 'true'
 			const liveDashboardEnabled = messageParts[2] === 'true'
 			const intervalTime = parseInt(messageParts[3])
-			console.log(logToFileEnabled,liveDashboardEnabled,intervalTime)
-			if(isNaN(intervalTime) || intervalTime < 50 || (!logToFileEnabled && !liveDashboardEnabled))
-				return false
+			if (isNaN(intervalTime) || intervalTime < 50 || (!logToFileEnabled && !liveDashboardEnabled)) {
+				ws.send('ERROR: Invalid RIDE_LOGGER_START parameters.');
+				return true;
+			}
 			rideLogger = new RideLogger(canbus,liveDashboardEnabled ? ws: null);
 			rideLogger.intervalTime = intervalTime;
 			if(logToFileEnabled){
@@ -695,10 +696,10 @@ const wss = new WebSocket.Server({ server });
 	async function handleStartSniffer(ws,messageString) {
 		if (messageString.startsWith('SNIFFER_START')) {
 			const messageParts = messageString.split(':');
-			const logerEnabled = messageParts[1] === 'true'
+			const loggerEnabled = messageParts[1] === 'true'
 			const filteredIds = messageParts[2].split(';');
 			sniffer = new Sniffer(canbus,ws);
-			if(logerEnabled)
+			if(loggerEnabled)
 				await sniffer.setupLogger()
 			if(filteredIds.length)
 				sniffer.filteredIds = new Set(filteredIds)
@@ -727,8 +728,8 @@ const wss = new WebSocket.Server({ server });
 	async function handleLogEnabledSniffer(messageString) {
 		if (messageString.startsWith('SNIFFER_LOG_ENABLE') && sniffer) {
 			const messageParts = messageString.split(':');
-			const logerEnabled = messageParts[1] === 'true'
-			if(logerEnabled)
+			const loggerEnabled = messageParts[1] === 'true'
+			if(loggerEnabled)
 				await sniffer.setupLogger()
 			else
 				sniffer.logToFile = null
@@ -738,16 +739,20 @@ const wss = new WebSocket.Server({ server });
 	}
 
 	async function handleBackupRestoreCommand(messageString) {
-		if (messageString.startsWith('RESTORE_BACKUP:')) {
-			const allDataJson = messageString.substring('RESTORE_BACKUP:'.length);
+		if (!messageString.startsWith('RESTORE_BACKUP:')) return false;
+		const allDataJson = messageString.substring('RESTORE_BACKUP:'.length);
+		try {
 			const allData = JSON.parse(allDataJson);
 			if (allData && typeof allData === 'object') {
-				for (const [paramType, paramData] of Object.entries(allData)) {
+				for (const paramData of Object.values(allData)) {
 					broadcastToClients(`BAFANG_DATA: ${JSON.stringify(paramData)}`);
-					await new Promise(resolve => setTimeout(resolve, 200)); // Simulate delay
+					await new Promise(resolve => setTimeout(resolve, 200));
 				}
 			}
+		} catch (e) {
+			console.error('Error parsing RESTORE_BACKUP JSON:', e);
 		}
+		return true;
 	}
 
 
@@ -945,7 +950,7 @@ const wss = new WebSocket.Server({ server });
 		await checkCanDevicePresenceAndUpdateGlobal(); // await initial check
 		startPeriodicCanDeviceCheck();
 		console.log(`Initial CAN device state: ${detectedCanDeviceName ? 'Found (' + detectedCanDeviceName + ')' : 'Not Found'}`);
-		var start = (process.platform == 'darwin'? 'open': process.platform == 'win32'? 'start': 'xdg-open');
+		const start = (process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open');
 		if(detectedCanDeviceName)
 			require('child_process').exec(start + ' ' + 'http://localhost:8080');
 	});

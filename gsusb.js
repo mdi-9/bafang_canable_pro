@@ -226,7 +226,7 @@ From https://github.com/torvalds/linux/blob/master/drivers/net/can/usb/gs_usb.c#
 
         console.log("Device ", this.gs_usb.productName);
         console.debug("Configuration ", this.gs_usb.configuration);
-        for (var i of  this.gs_usb.device.interfaces) {
+        for (const i of  this.gs_usb.device.interfaces) {
             console.log("Interface ", i);
 
         }
@@ -302,6 +302,7 @@ rc = usb_control_msg_recv(udev, 0,
             setTimeout(async () => {
                 await this.start(bitrate, flags);
             }, 100);
+            return { ok: false, msg: 'Stop in progress, retry scheduled' };
         }
         console.log("Start startup ===================");
         const webusb = new usb.WebUSB({
@@ -336,7 +337,12 @@ rc = usb_control_msg_recv(udev, 0,
         await this.gs_usb.claimInterface(0);
 
         this.capabilities = await this.readDeviceCapabilities();
-
+        if (!this.capabilities) {
+            console.log("GS USB Failed to read device capabilities");
+            await this.gs_usb.releaseInterface(0);
+            await this.gs_usb.close();
+            return { ok: false, msg: 'Failed to read device capabilities' };
+        }
 
         await this._setBitrate(bitrate);
 
@@ -351,7 +357,7 @@ rc = usb_control_msg_recv(udev, 0,
                 | GSUsb.GS_DEVICE_FLAGS.hwTimeStamp );
 
 
-        if  ((this.device_flags & GSUsb.GS_DEVICE_FLAGS.hwTimeStamp) ==  GSUsb.GS_DEVICE_FLAGS.hwTimeStamp) {
+        if  ((this.device_flags & GSUsb.GS_DEVICE_FLAGS.hwTimeStamp) ===  GSUsb.GS_DEVICE_FLAGS.hwTimeStamp) {
             this.frameLength = 24;
         } else {
             this.frameLength = 20;
@@ -359,8 +365,8 @@ rc = usb_control_msg_recv(udev, 0,
 
         this.frame = new CanFrame(this.frameLength);
 
-        for ( var f in GSUsb.GS_DEVICE_FLAGS ) {
-            if ( (this.device_flags & GSUsb.GS_DEVICE_FLAGS[f]) == GSUsb.GS_DEVICE_FLAGS[f] ) {
+        for ( const f in GSUsb.GS_DEVICE_FLAGS ) {
+            if ( (this.device_flags & GSUsb.GS_DEVICE_FLAGS[f]) === GSUsb.GS_DEVICE_FLAGS[f] ) {
                 console.log(`Flags: ${f} enabled`);
             } else {
                 //console.log(`Flags: ${f} disabled`);
@@ -430,7 +436,7 @@ rc = usb_control_msg_recv(udev, 0,
 
         // stop new can messages being received by the can interface
         console.log("stop Disable Hardware ===================");
-        await this._disableCanHrdware(); // We await this
+        await this._disableCanHardware(); // We await this
 
         // Stop polling first if it's running
         // console.log("Stopping polling if active..."); // Optional log
@@ -463,7 +469,7 @@ rc = usb_control_msg_recv(udev, 0,
         }
     }
 
-    async _disableCanHrdware() {
+    async _disableCanHardware() {
         const out = new DataView(new ArrayBuffer(8));
         out.setUint32(0,0x00, true); // reset 
         out.setUint32(4,0x00, true); // clear all flags. see defice_flags
@@ -489,7 +495,7 @@ rc = usb_control_msg_recv(udev, 0,
      */
     async readDeviceCapabilities() {
         const data = await this._controlRead(GSUSBConstants.GS_USB_BREQ.bt_const);
-        if ( data != undefined ) {
+        if ( data !== undefined ) {
             const capabilities = {
                 features: data.getUint32(0,true),
                 fclk_can: data.getUint32(4,true),
@@ -526,7 +532,7 @@ struct gs_metrics {
 */
     async readMetrics() {
         const data = await this._controlRead(GSUSBConstants.GS_USB_BREQ.readMetrics);
-        if ( data != undefined ) {
+        if ( data !== undefined ) {
             return {
                 main_loop: data.getUint16(0,true),
                 send_to_host: data.getUint16(2,true),
@@ -649,7 +655,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
 
 */
 
-        if (this.capabilities.fclk_can == 48000000) {
+        if (this.capabilities.fclk_can ===48000000) {
 
 
             const timing = {
@@ -681,7 +687,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
             //const result = this.analyseBittimings(bitrate, timing);
             //console.log("Setting timing", bitrate, this.capabilities, timing, result);
             return await this._setTiming(timing);
-        } else if (this.capabilities.fclk_can == 80000000) {
+        } else if (this.capabilities.fclk_can ===80000000) {
             const timing = {
                 prop_seg: 1,
                 phase_seg1:12,
@@ -712,7 +718,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
             //const result = this.analyseBittimings(bitrate, timing);
             //console.log("Setting timing", bitrate, this.capabilities, timing, result);
             return await this._setTiming(timing);
-        }else if (this.capabilities.fclk_can == 160000000) {
+        }else if (this.capabilities.fclk_can ===160000000) {
             const timing = {
                 prop_seg: 1,
                 phase_seg1:12,
@@ -995,7 +1001,7 @@ struct gs_device_filter {
                 console.log("Failed to Initiate read of device destnation filters");
                 return undefined;
             }
-            for (var i = 0; i < 255; i++) {
+            for (let i = 0; i < 255; i++) {
                 const filter = readFilter(await this._controlRead(GSUSBConstants.GS_USB_BREQ.readfilter));
                 if ( filter === undefined ) {
                     console.log("Failed to read device filter");
@@ -1015,17 +1021,17 @@ struct gs_device_filter {
         }
 
         const pgnFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readPgn);
-        if (pgnFilter != undefined) {
+        if (pgnFilter !== undefined) {
             filters.nActivePgnFilters = pgnFilter.nActiveFilters;
             filters.pgnFilter = pgnFilter.pgn;
         }
         const sourceFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readSource);
-        if (sourceFilter != undefined) {
+        if (sourceFilter !== undefined) {
             filters.nActiveSourceFilters = sourceFilter.nActiveFilters;
             filters.sourceFilter = sourceFilter.address;
         }
         const destinationFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readDestination);
-        if (destinationFilter != undefined) {
+        if (destinationFilter !== undefined) {
             filters.nActiveDestinationFilters = destinationFilter.nActiveFilters;
             filters.destinationFilter = destinationFilter.address;
         }
@@ -1054,9 +1060,9 @@ struct gs_device_filter {
      * Write one frame.
      */
     async writeCANFrame(frame) {
-        if ( this.gs_usb != undefined ) {
+        if ( this.gs_usb !== undefined ) {
             const result = await this.gs_usb.transferOut(GSUSBConstants.ENDPOINTS.out, frame.toBuffer());
-            if ( result.status == "ok") {
+            if ( result.status === "ok") {
                 return true;
             } else {
                 console.log("Failed to write ", result);
@@ -1089,8 +1095,8 @@ struct gs_device_filter {
      * returns true if the frame is accepted by the filters.
      */
     _acceptMessage(frame) {
-        if (this.filters !== undefined 
-            && frame.frameType === "extended"  
+        if (this.filters !== undefined
+            && frame.frameType === "extended"
             && frame.messageHeader !== undefined ) {
             if ( this.filters[frame.messageHeader.pgn] !== undefined ) {
                 if ( this.filters[frame.messageHeader.pgn](frame.messageHeader) ) {
@@ -1101,6 +1107,7 @@ struct gs_device_filter {
                         return true;
                     }
                 }
+                return false;
             } else {
                 return true;
             }
@@ -1117,11 +1124,11 @@ struct gs_device_filter {
      * Start internal polling buffers to collect data in frames.
      */
     async startPolling() {
-        if ( this.gs_usb != undefined && this.started ) {
+        if ( this.gs_usb !== undefined && this.started ) {
             //console.log("Reading Frame");
             const endpointId = GSUSBConstants.ENDPOINTS.in | GSUSBConstants.LIBUSB_ENDPOINT_IN;
             this.endpoint = await this.gs_usb.getEndpoint(endpointId);
-            if ( this.endpoint == undefined ) {
+            if ( this.endpoint === undefined ) {
                 console.log("Endpoint doesnt exists", GSUSBConstants.ENDPOINTS.in, GSUSBConstants.LIBUSB_ENDPOINT_IN, endpointId);
                 throw new Error("Invalid endpoint");
             }
@@ -1296,17 +1303,17 @@ struct gs_device_filter {
      * This is a private method, by can be called directly
      */
     async _readCANFrame(frame) {
-        if ( this.gs_usb != undefined && this.started ) {
+        if ( this.gs_usb !== undefined && this.started ) {
             //console.log("Reading Frame");
             const endpointId = GSUSBConstants.ENDPOINTS.in | GSUSBConstants.LIBUSB_ENDPOINT_IN;
             const endpoint = await this.gs_usb.getEndpoint(endpointId);
-            if ( endpoint == undefined ) {
+            if ( endpoint === undefined ) {
                 console.log("Endpoint doesnt exists", GSUSBConstants.ENDPOINTS.in, GSUSBConstants.LIBUSB_ENDPOINT_IN, endpointId);
                 throw new Error("Invalid endpoint");
             }
             endpoint.timeout = 500; // 200 ms timeout, required as the default is infinite.
             const result = await this.gs_usb.transferIn(GSUSBConstants.ENDPOINTS.in, frame.frameLength);
-            if ( result.status == "ok" ) {
+            if ( result.status === "ok" ) {
                 this._emitEvent("canpacket",result.data);
                 frame.fromBuffer(result.data);
                 return true;
@@ -1331,7 +1338,7 @@ struct gs_device_filter {
                     value: 0,  // channel 0 is the can channel, (1 is DFU for programming)
                     index: 0
                 }, req.len);
-                if ( result.status == "ok") {
+                if ( result.status === "ok") {
                     return result.data;
                 } else {
                     console.log("Failed to read data", req, result);
@@ -1374,7 +1381,7 @@ struct gs_device_filter {
                 }
             }
         }
-        return undefined;
+        return false;
 
     }
 
@@ -1390,7 +1397,7 @@ struct gs_device_filter {
      */
     async getDeviceInfo() {
         const data = await this._controlRead(GSUSBConstants.GS_USB_BREQ.device_config);
-        if ( data != undefined ) {
+        if ( data !== undefined ) {
             const deviceInfo = {
                 reserved1: data.getUint8(0, true),
                 reserved2: data.getUint8(1, true),

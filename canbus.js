@@ -19,6 +19,7 @@ const requestFunctions = require('./bafang-can-requests');
 
 const CAN_EFF_FLAG = 0x80000000;
 const BAFANG_CAN_BITRATE = 250000;
+const DISPLAY_DATA_CMD = 0x63; // 99 decimal — display realtime/data command
 const TOOL_SOURCE_ID = DeviceNetworkId.BESST; // Define the ID used by this tool for sending
 
 
@@ -136,8 +137,9 @@ class CanBusService extends EventEmitter {
             else { 
                 console.warn(`DLC mismatch...`); 
                 break; 
-            } 
-        } while(dataArray.length < rawFrame.can_dlc) {
+            }
+        }
+        while (dataArray.length < rawFrame.can_dlc) {
              console.warn(`Padding data...`); 
              dataArray.push(0); 
         } if(dataArray.length > rawFrame.can_dlc) 
@@ -173,7 +175,23 @@ class CanBusService extends EventEmitter {
     }
 
 
-    _handleFrameReceived(rawFrame) {
+    _createMultiFrameTimeout(bufferKey) {
+        return setTimeout(() => {
+            delete this.multiFrameTimeouts[bufferKey];
+            if (this.multiFrameBuffers[bufferKey]) {
+                console.warn(`[CanBusService] Multi-frame timeout, discarding buffer for key: ${bufferKey}`);
+                const originalFrameInfo = this.multiFrameBuffers[bufferKey].originalFrameInfo;
+                this.requestManager.resolveRequest({
+                    ...originalFrameInfo,
+                    canOperationCode: CanOperation.ERROR_ACK,
+                    data: []
+                });
+                delete this.multiFrameBuffers[bufferKey];
+            }
+        }, this.MULTIFRAME_TIMEOUT);
+    }
+
+    async _handleFrameReceived(rawFrame) {
         try {
             this.emit('raw_frame_received', rawFrame);
             const bafangFrame = this._mapRawFrameToBafangFrame(rawFrame);
@@ -228,8 +246,8 @@ class CanBusService extends EventEmitter {
                     originalFrameInfo: { ...parsedFrame }, // Store context of START
                     //nextSequence: 0
                 };
-                this.multiFrameTimeouts[bufferKey] = setTimeout((abk) => { delete this.multiFrameTimeouts[abk]; }, this.MULTIFRAME_TIMEOUT, bufferKey);
-                this._sendAck(parsedFrame); // ACK the START
+                this.multiFrameTimeouts[bufferKey] = this._createMultiFrameTimeout(bufferKey);
+                await this._sendAck(parsedFrame); // ACK the START
                 return;
 
             } else if (opCode === CanOperation.MULTIFRAME || opCode === CanOperation.MULTIFRAME_END) {
@@ -268,7 +286,7 @@ class CanBusService extends EventEmitter {
 
                 // Reset timeout, append data, increment sequence
                 if (this.multiFrameTimeouts[activeBufferKey]) clearTimeout(this.multiFrameTimeouts[activeBufferKey]);
-                 this.multiFrameTimeouts[activeBufferKey] = setTimeout((abk) => { delete this.multiFrameTimeouts[abk]; }, this.MULTIFRAME_TIMEOUT, activeBufferKey);
+                this.multiFrameTimeouts[activeBufferKey] = this._createMultiFrameTimeout(activeBufferKey);
 
                 if(!this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber])
                     this.multiFrameBuffers[activeBufferKey].arrBuffer[sequenceNumber] = frameData;
@@ -278,7 +296,7 @@ class CanBusService extends EventEmitter {
                 //bufferInfo.nextSequence++;
 
                 // Send ACK referencing the original command context stored in bufferInfo
-                this._sendAck(this.multiFrameBuffers[activeBufferKey].originalFrameInfo);
+                await this._sendAck(this.multiFrameBuffers[activeBufferKey].originalFrameInfo);
 
                 // --- Author's Suggestion: Check for completion after MULTIFRAME too ---
                 let isComplete = false;
@@ -355,203 +373,238 @@ class CanBusService extends EventEmitter {
     }
 
 
+    _parseControllerFrame(frame) {
+        let dataType = 'controller';
+        let parsedData = { _rawBytes: [...frame.data] };
+        const cmdCode = frame.canCommandCode;
+        const subCode = frame.canCommandSubCode;
+
+        if (cmdCode === 0x12)
+            if (subCode === 0x00) { parsedData = BafangCanControllerParser.state(frame); dataType = 'controller_state'; };
+        if (cmdCode === 0x32) {
+            if (subCode === 0x00) { parsedData = BafangCanControllerParser.package0(frame); dataType = 'controller_realtime_0'; }
+            else if (subCode === 0x01) { parsedData = BafangCanControllerParser.package1(frame); dataType = 'controller_realtime_1'; }
+            else if (subCode === 0x03) { parsedData = BafangCanControllerParser.parameter3(frame);
+                dataType = 'controller_speed_params';
+                this.cachedSpeedParams = { ...parsedData }; // Cache it
+                if (!parsedData.parseError) {parsedData._rawBytes = [...frame.data]}; }
+            else if (subCode === 0x05) {
+                    parsedData = BafangCanControllerParser.parameter5(frame); dataType = 'controller_calories';
+                    //console.log(`>>> RX Controller Calories (Raw): ${formatBufferForLog(frame.data)}`);
+                    }
+            else if (subCode === 0x06) {
+                    parsedData = { controller_current_assist_level: frame.data[0] };
+                    dataType = 'controller_current_assist_level';
+                    //console.log(`>>> RX Controller Current Level (Raw): ${formatBufferForLog(frame.data)}`);
+                    }
+            else if (subCode === 0x0C) {
+                    parsedData = { controller_total_assist_levels: frame.data[0] };
+                    dataType = 'controller_total_assist_levels'; parsedData = { raw_data: frame.data };
+                    //console.log(`>>> RX Controller Total levels (Raw): ${formatBufferForLog(frame.data)}`);
+            }
+        }
+        else if (cmdCode === 0x60) {
+            if (subCode === 0x10) { parsedData = BafangCanControllerParser.parameter0(frame);
+                dataType = 'controller_params_0';
+                this.cachedParameter0 = { ...parsedData }; // Cache it
+                if (!parsedData.parseError) {parsedData._rawBytes = [...frame.data]}; // Add raw bytes!
+            }
+            else if (subCode === 0x11) { parsedData = BafangCanControllerParser.parameter1(frame);
+                dataType = 'controller_params_1';
+                this.cachedParameter1 = { ...parsedData }; // Cache it
+                if (!parsedData.parseError) {parsedData._rawBytes = [...frame.data]}; // Add raw bytes!
+            }
+            else if (subCode === 0x12) { parsedData = BafangCanControllerParser.parameter2(frame);
+                dataType = 'controller_params_2';
+                this.cachedParameter2= { ...parsedData }; // Cache it
+                if (!parsedData.parseError) {parsedData._rawBytes = [...frame.data]}; // Add raw bytes
+            }
+            else if (subCode === 0x17) {
+                dataType = 'controller_params_6017';
+                parsedData = { _rawBytes: [...frame.data] };
+                console.log(`[CanBusService] Assembled controller_0x6017: ${frame.data.length} bytes`);
+            }
+            else if (subCode === 0x18) {
+                dataType = 'controller_params_6018';
+                parsedData = { _rawBytes: [...frame.data] };
+                console.log(`[CanBusService] Assembled controller_0x6018: ${frame.data.length} bytes`);
+            }
+            else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(frame.data) }; dataType = 'controller_hw_version'; }
+            else if (subCode === 0x01) { parsedData = { software_version: charsToString(frame.data) }; dataType = 'controller_sw_version'; }
+            else if (subCode === 0x03) { parsedData = { serial_number: charsToString(frame.data) }; dataType = 'controller_sn'; }
+            else if (subCode === 0x02) { parsedData = { model_number: charsToString(frame.data) }; dataType = 'controller_mn'; }
+            else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(frame.data) }; dataType = 'controller_mfg'; }
+            else if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(frame.data) }; dataType = 'controller_errors'; }
+        }
+        else if (cmdCode === 0x62) {
+            if (subCode === 0xD9) {
+                // Handle Startup Angle Read Response
+                parsedData = BafangCanControllerParser.parameter4(frame); // Use parameter4 -> startupAngle
+                dataType = 'controller_startup_angle';
+            }
+            else if (subCode === 0x07) { // System AutoOff
+                parsedData = { controller_auto_shutdown_time: frame.data[0] };
+                dataType = 'controller_system_auto_off';
+                //console.log(`>>> RX Controller Auto Off (Raw): ${formatBufferForLog(frame.data)}`);
+            }
+        }
+
+        return { dataType, parsedData };
+    }
+
+    _parseDisplayFrame(frame) {
+        let dataType = 'display';
+        let parsedData = { _rawBytes: [...frame.data] };
+        const cmdCode = frame.canCommandCode;
+        const subCode = frame.canCommandSubCode;
+
+        if (cmdCode === 0x63) {
+            if (subCode === 0x00) {
+                const rawAssistCode = (frame.data && frame.data.length > 1)
+                                    ? frame.data[1] // Get raw code from byte 1
+                                    : null; // Handle cases where data might be missing/short
+                parsedData = BafangCanDisplayParser.package0(frame);
+                dataType = 'display_realtime';
+                // Add the raw code to the parsed data object if parsing succeeded
+                if (parsedData && !parsedData.parseError && rawAssistCode !== null) {
+                    parsedData.current_assist_level_code = rawAssistCode;
+                } else if (rawAssistCode === null && !(parsedData && parsedData.parseError)) {
+                    // Log if raw code couldn't be read but parsing didn't report an error
+                    console.warn("Could not extract raw assist code for display_realtime, data length insufficient.");
+                }
+            }
+            else if (subCode === 0x01) { parsedData = BafangCanDisplayParser.package1(frame); dataType = 'display_data_1'; }
+            else if (subCode === 0x02) { parsedData = BafangCanDisplayParser.package2(frame); dataType = 'display_data_2'; }
+            else if (subCode === 0x03) {
+                // Time settings: Bike autoshutdown (0x63/0x03)
+                if (frame.data && frame.data.length >= 1) {
+                    // Value is minutes, 255 means OFF
+                    parsedData = { display_auto_shutdown_time: frame.data[0] };
+                    dataType = 'display_autoshutdown_time';
+                } else {
+                    parsedData = { parseError: true, error: "Invalid data length for Display Auto Shutdown" };
+                    dataType = 'display_autoshutdown_time_error';
+                }
+            } else if (subCode === 0x04) {
+                parsedData = BafangCanDisplayParser.package3(frame);
+                dataType = 'display_data_lightsensor';  //00 LightSensNum,  01 LightSensLevel,02 BacklightNum, 03 BacklightLevel
+                //console.log(`>>> RX Display Data lighsensor (Raw): ${formatBufferForLog(frame.data)}`);
+            }
+        }
+        else if (cmdCode === 0x60) {
+            if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(frame.data) }; dataType = 'display_errors'; }
+            else if (!charsToString(frame.data)) return { dataType: null, parsedData: null };
+            else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(frame.data) }; dataType = 'display_hw_version'; }
+            else if (subCode === 0x01) { parsedData = { software_version: charsToString(frame.data) }; dataType = 'display_sw_version'; }
+            else if (subCode === 0x03) { parsedData = { serial_number: charsToString(frame.data) }; dataType = 'display_sn'; }
+            else if (subCode === 0x02) { parsedData = { model_number: charsToString(frame.data) }; dataType = 'display_mn'; }
+            else if (subCode === 0x04) { parsedData = { customer_number: charsToString(frame.data) }; dataType = 'display_cn'; }
+            else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(frame.data) }; dataType = 'display_mfg'; }
+            else if (subCode === 0x08) { parsedData = { bootloader_version: charsToString(frame.data) }; dataType = 'display_bootloader_version'; }
+        }
+        else if (cmdCode === 0x21 && subCode === 0x64)
+            { parsedData = { ack_display_2164: true }; dataType = 'display_ack_2164'; }
+
+        return { dataType, parsedData };
+    }
+
+    _parseBatteryFrame(frame) {
+        let dataType = 'battery';
+        let parsedData = { _rawBytes: [...frame.data] };
+        const cmdCode = frame.canCommandCode;
+        const subCode = frame.canCommandSubCode;
+
+        if (cmdCode === 0x34) {
+            if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(frame); dataType = 'battery_capacity'; }
+            else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(frame); dataType = 'battery_state'; }
+        }
+        else if (cmdCode === 0x64) {
+            if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(frame); dataType = 'battery_design'; }
+            else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(frame); dataType = 'battery_charging_info'; }
+            else {
+                parsedData = { raw_cell_data: frame.data, subcode: subCode }; dataType = 'battery_cells_raw';
+            }
+        }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
+        else if (cmdCode === 0x60) {
+            if (subCode === 0x00) { parsedData = { hardware_version: charsToString(frame.data) }; dataType = 'battery_hw_version'; }
+            else if (subCode === 0x01) { parsedData = { software_version: charsToString(frame.data) }; dataType = 'battery_sw_version'; }
+            else if (subCode === 0x03) { parsedData = { serial_number: charsToString(frame.data) }; dataType = 'battery_sn'; }
+            else if (subCode === 0x02) { parsedData = { model_number: charsToString(frame.data) }; dataType = 'battery_mn'; }
+        }
+
+        return { dataType, parsedData };
+    }
+
+    _parseSensorFrame(frame) {
+        let dataType = 'sensor';
+        let parsedData = { _rawBytes: [...frame.data] };
+        const cmdCode = frame.canCommandCode;
+        const subCode = frame.canCommandSubCode;
+
+        if (cmdCode === 0x31 && subCode === 0x00) { parsedData = BafangCanSensorParser.package0(frame); dataType = 'sensor_realtime'; }
+        else if (cmdCode === 0x60) {
+            if (subCode === 0x00) { parsedData = { hardware_version: charsToString(frame.data) }; dataType = 'sensor_hw_version'; }
+            else if (subCode === 0x01) { parsedData = { software_version: charsToString(frame.data) }; dataType = 'sensor_sw_version'; }
+            else if (subCode === 0x03) { parsedData = { serial_number: charsToString(frame.data) }; dataType = 'sensor_sn'; }
+            else if (subCode === 0x02) { parsedData = { model_number: charsToString(frame.data) }; dataType = 'sensor_mn'; }
+        }
+
+        return { dataType, parsedData };
+    }
+
+    _parseBESSTFrame(frame) {
+        let dataType = 'besst';
+        let parsedData = { _rawBytes: [...frame.data] };
+        const cmdCode = frame.canCommandCode;
+        const subCode = frame.canCommandSubCode;
+
+        if (cmdCode === 0x35 && subCode === 0x01)
+            { parsedData = { besst_status_3501: frame.data };
+            dataType = 'besst_status_3501'; }
+
+        return { dataType, parsedData };
+    }
+
     _parseAndEmitCompletedFrame(completedParsedFrame, timestamp_us) {
-        let parsedData = null; let dataType = 'unknown'; const sourceId = completedParsedFrame.sourceDeviceCode; const cmdCode = completedParsedFrame.canCommandCode; const subCode = completedParsedFrame.canCommandSubCode;
-        if(completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK &&
-            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0)) ){
+        const sourceId = completedParsedFrame.sourceDeviceCode;
+        const cmdCode = completedParsedFrame.canCommandCode;
+        const subCode = completedParsedFrame.canCommandSubCode;
+
+        // Early exit for simple ACKs
+        if (completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK &&
+            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 ||
+             (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0))) {
             this.emit('bafang_data_received', { type: 'error_ack', source: sourceId, cmdCode, subCode, data: "ERROR ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
             return;
         }
-        else if(completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK && cmdCode != 99 &&
-            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0))){
+        if (completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK && cmdCode !== DISPLAY_DATA_CMD &&
+            (!completedParsedFrame.data || completedParsedFrame.data.length === 0 ||
+             (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0))) {
             this.emit('bafang_data_received', { type: 'normal_ack', source: sourceId, cmdCode, subCode, data: "NORMAL ACK", timestamp_us: timestamp_us || Date.now() * 1000 });
             return;
         }
-        // --- Skip Data Parsing for Simple ACKs/NACKs ---
-		// if ((completedParsedFrame.canOperationCode === CanOperation.NORMAL_ACK ||
-        //      completedParsedFrame.canOperationCode === CanOperation.ERROR_ACK) &&
-        //     (!completedParsedFrame.data || completedParsedFrame.data.length === 0 || (completedParsedFrame.data.length === 1 && completedParsedFrame.data[0] === 0)) // No data or just a single 0x00 byte for ACK
-        //    ) {
-        //      // console.log(`Received simple ACK/NACK (Op: ${completedParsedFrame.canOperationCode}) from ${completedParsedFrame.sourceDeviceCode.toString(16)} for ${completedParsedFrame.canCommandCode.toString(16)}/${completedParsedFrame.canCommandSubCode.toString(16)} - No data to parse.`);
-        //      return;
-        //  }
-        // --- End ACK Check ---
+
+        let dataType = 'unknown';
+        let parsedData = null;
+
         switch (sourceId) {
-             case DeviceNetworkId.DRIVE_UNIT: 
-             dataType = 'controller'; 
-             parsedData = { _rawBytes: [...completedParsedFrame.data] };
-             if (cmdCode === 0x12)
-                if (subCode === 0x00) { parsedData = BafangCanControllerParser.state(completedParsedFrame); dataType = 'controller_state'; }; 
-			 if (cmdCode === 0x32) { 
-                if (subCode === 0x00) { parsedData = BafangCanControllerParser.package0(completedParsedFrame); dataType = 'controller_realtime_0'; } 
-                else if (subCode === 0x01) { parsedData = BafangCanControllerParser.package1(completedParsedFrame); dataType = 'controller_realtime_1'; } 
-                else if (subCode === 0x03) { parsedData = BafangCanControllerParser.parameter3(completedParsedFrame); 
-                    dataType = 'controller_speed_params'; 
-                    this.cachedSpeedParams = { ...parsedData }; // Cache it
-                    if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; } 			 
-                else if (subCode === 0x05) {
-                        parsedData = BafangCanControllerParser.parameter5(completedParsedFrame); dataType = 'controller_calories'; 
-                        //console.log(`>>> RX Controller Calories (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-                        }
-                else if (subCode === 0x06) {
-                        parsedData = { controller_current_assist_level: completedParsedFrame.data[0] };
-                        dataType = 'controller_current_assist_level';
-                        //console.log(`>>> RX Controller Current Level (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-                        }
-                else if (subCode === 0x0C) {
-                        parsedData = { controller_total_assist_levels: completedParsedFrame.data[0] };
-                        dataType = 'controller_total_assist_levels'; parsedData = { raw_data: completedParsedFrame.data };
-                        //console.log(`>>> RX Controller Total levels (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-                }
-             }					   
-			 else if (cmdCode === 0x60) {
-				  if (subCode === 0x10) { parsedData = BafangCanControllerParser.parameter0(completedParsedFrame); 
-				  dataType = 'controller_params_0';
-				  this.cachedParameter0 = { ...parsedData }; // Cache it
-				  if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; // Add raw bytes!
-				  } 
-			 else if (subCode === 0x11) { parsedData = BafangCanControllerParser.parameter1(completedParsedFrame); 
-				  dataType = 'controller_params_1'; 
-				  this.cachedParameter1 = { ...parsedData }; // Cache it
-				  if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; // Add raw bytes!
-				  } 
-			 else if (subCode === 0x12) { parsedData = BafangCanControllerParser.parameter2(completedParsedFrame); 
-				  dataType = 'controller_params_2'; 
-				  this.cachedParameter2= { ...parsedData }; // Cache it
-				  if (!parsedData.parseError) {parsedData._rawBytes = [...completedParsedFrame.data]}; // Add raw bytes
-				  }
-			 else if (subCode === 0x17) {
-						dataType = 'controller_params_6017'; 
-			            parsedData = { _rawBytes: [...completedParsedFrame.data] };
-                        console.log(`[CanBusService] Assembled controller_0x6017: ${completedParsedFrame.data.length} bytes`);
-				  } 
-			 else if (subCode === 0x18) {  
-	                    dataType = 'controller_params_6018'; 
-                        parsedData = { _rawBytes: [...completedParsedFrame.data] };
-                        console.log(`[CanBusService] Assembled controller_0x6018: ${completedParsedFrame.data.length} bytes`);					
-				  } 				  
-			 else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'controller_hw_version'; } 
-			 else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'controller_sw_version'; } 
-			 else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'controller_sn'; } 
-			 else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'controller_mn'; }  
-			 else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'controller_mfg'; } 
-             else if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'controller_errors'; }
-            } 
-			 else if (cmdCode === 0x62) { 
-                if(subCode === 0xD9){
-                    // Handle Startup Angle Read Response
-                    parsedData = BafangCanControllerParser.parameter4(completedParsedFrame); // Use parameter4 -> startupAngle
-                    dataType = 'controller_startup_angle';
-                }
-                else if (subCode === 0x07) { // System AutoOff
-                    parsedData = { controller_auto_shutdown_time: completedParsedFrame.data[0] };
-                    dataType = 'controller_system_auto_off'; 
-                    //console.log(`>>> RX Controller Auto Off (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);
-                }
-                }
-             break; 
-			 
-			 case DeviceNetworkId.DISPLAY: 
-                dataType = 'display'; 
-                parsedData = { _rawBytes: [...completedParsedFrame.data] };
-					if (cmdCode === 0x63) { 
-                        if (subCode === 0x00) { 
-                                const rawAssistCode = (completedParsedFrame.data && completedParsedFrame.data.length > 1)
-                                                    ? completedParsedFrame.data[1] // Get raw code from byte 1
-                                                    : null; // Handle cases where data might be missing/short
-                                parsedData = BafangCanDisplayParser.package0(completedParsedFrame);
-                                dataType = 'display_realtime';
-                                // Add the raw code to the parsed data object if parsing succeeded
-                                if (parsedData && !parsedData.parseError && rawAssistCode !== null) {
-                                    parsedData.current_assist_level_code = rawAssistCode;
-                                } else if (rawAssistCode === null && !(parsedData && parsedData.parseError)) {
-                                    // Log if raw code couldn't be read but parsing didn't report an error
-                                    console.warn("Could not extract raw assist code for display_realtime, data length insufficient.");
-                                }
-                        } 
-                        else if (subCode === 0x01) { parsedData = BafangCanDisplayParser.package1(completedParsedFrame); dataType = 'display_data_1'; } 
-                        else if (subCode === 0x02) { parsedData = BafangCanDisplayParser.package2(completedParsedFrame); dataType = 'display_data_2'; } 
-                        else if (subCode === 0x03) {
-                                // Time settings: Bike autoshutdown (0x63/0x03)
-                                if (completedParsedFrame.data && completedParsedFrame.data.length >= 1) {
-                                    // Value is minutes, 255 means OFF
-                                    parsedData = { display_auto_shutdown_time: completedParsedFrame.data[0] };
-                                    dataType = 'display_autoshutdown_time';
-                                } else {
-                                    parsedData = { parseError: true, error: "Invalid data length for Display Auto Shutdown" };
-                                    dataType = 'display_autoshutdown_time_error';
-                                }
-                        } else if (subCode === 0x04) { 
-                            parsedData = BafangCanDisplayParser.package3(completedParsedFrame);
-                            dataType = 'display_data_lightsensor';  //00 LightSensNum,  01 LightSensLevel,02 BacklightNum, 03 BacklightLevel 
-                            //console.log(`>>> RX Display Data lighsensor (Raw): ${formatBufferForLog(completedParsedFrame.data)}`);//
-                        }
-                    }
-					else if (cmdCode === 0x60) { 
-                        if (subCode === 0x07) { parsedData = { error_codes: BafangCanDisplayParser.errorCodes(completedParsedFrame.data) }; dataType = 'display_errors'; } 
-                        else if(!charsToString(completedParsedFrame.data)) return;
-                        else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'display_hw_version'; } 
-                        else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'display_sw_version'; } 
-                        else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'display_sn'; } 
-                        else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'display_mn'; } 
-                        else if (subCode === 0x04) { parsedData = { customer_number: charsToString(completedParsedFrame.data) }; dataType = 'display_cn'; } 
-                        else if (subCode === 0x05) { parsedData = { manufacturer: charsToString(completedParsedFrame.data) }; dataType = 'display_mfg'; } 
-                        else if (subCode === 0x08) { parsedData = { bootloader_version: charsToString(completedParsedFrame.data) }; dataType = 'display_bootloader_version'; } 
-                    }
-					else if (cmdCode === 0x21 && subCode === 0x64) 
-					    { parsedData = { ack_display_2164: true }; dataType = 'display_ack_2164'; } 
-					break; 
-             
-			 case DeviceNetworkId.BATTERY: 
-                dataType = 'battery'; 
-                parsedData = { _rawBytes: [...completedParsedFrame.data] };
-                if (cmdCode === 0x34) { 
-                    if (subCode === 0x00) { parsedData = BafangCanBatteryParser.capacity(completedParsedFrame); dataType = 'battery_capacity'; } 
-                    else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.state(completedParsedFrame); dataType = 'battery_state'; } 
-                } 
-                else if (cmdCode === 0x64) { 
-                    if (subCode === 0x00) { parsedData = BafangCanBatteryParser.design(completedParsedFrame); dataType = 'battery_design'; } 
-                    else if (subCode === 0x01) { parsedData = BafangCanBatteryParser.chargingInfo(completedParsedFrame); dataType = 'battery_charging_info'; } 
-                    else {
-                        parsedData = { raw_cell_data: completedParsedFrame.data, subcode: subCode }; dataType = 'battery_cells_raw'; 
-                    }
-                }  //00 BMSSerialNum, 01 BMSParallelNum, 03 BMSDesignCapacity(mAh), 0x640101 BMSCycleCount, 03 BMSMaxChaInterval(h), 05 BMSCurChaInterval(h)"
-                else if (cmdCode === 0x60) { 
-                    if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_hw_version'; } 
-                    else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'battery_sw_version'; } 
-                    else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_sn'; } 
-                    else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'battery_mn'; } 
-                } 
-                break; // Added mn
-             case DeviceNetworkId.TORQUE_SENSOR: 
-                dataType = 'sensor'; 
-                parsedData = { _rawBytes: [...completedParsedFrame.data] };
-                if (cmdCode === 0x31 && subCode === 0x00) { parsedData = BafangCanSensorParser.package0(completedParsedFrame); dataType = 'sensor_realtime'; } 
-                else if (cmdCode === 0x60) { if (subCode === 0x00) { parsedData = { hardware_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_hw_version'; } 
-                else if (subCode === 0x01) { parsedData = { software_version: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sw_version'; } 
-                else if (subCode === 0x03) { parsedData = { serial_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_sn'; } 
-                else if (subCode === 0x02) { parsedData = { model_number: charsToString(completedParsedFrame.data) }; dataType = 'sensor_mn'; } } 
-                break; // Added mn
-             case DeviceNetworkId.BESST: dataType = 'besst'; 
-                parsedData = { _rawBytes: [...completedParsedFrame.data] };
-                if (cmdCode === 0x35 && subCode === 0x01) 
-                { parsedData = { besst_status_3501: completedParsedFrame.data }; 
-                dataType = 'besst_status_3501'; } 
-                break;
-             default: 
-                dataType = `unknown_source_0x${sourceId.toString(16)}`; 
-                parsedData = { original_frame: completedParsedFrame }; 
-			 break;
+            case DeviceNetworkId.DRIVE_UNIT:    ({ dataType, parsedData } = this._parseControllerFrame(completedParsedFrame)); break;
+            case DeviceNetworkId.DISPLAY:       ({ dataType, parsedData } = this._parseDisplayFrame(completedParsedFrame)); break;
+            case DeviceNetworkId.BATTERY:       ({ dataType, parsedData } = this._parseBatteryFrame(completedParsedFrame)); break;
+            case DeviceNetworkId.TORQUE_SENSOR: ({ dataType, parsedData } = this._parseSensorFrame(completedParsedFrame)); break;
+            case DeviceNetworkId.BESST:         ({ dataType, parsedData } = this._parseBESSTFrame(completedParsedFrame)); break;
+            default:
+                dataType = `unknown_source_0x${sourceId.toString(16)}`;
+                parsedData = { original_frame: completedParsedFrame };
         }
+
         if (parsedData && !parsedData.parseError) {
-            if(!parsedData._rawBytes)
-                parsedData._rawBytes = [...completedParsedFrame.data]
+            if (!parsedData._rawBytes)
+                parsedData._rawBytes = [...completedParsedFrame.data];
             this.emit('bafang_data_received', { type: dataType, source: sourceId, cmdCode, subCode, data: parsedData, timestamp_us: timestamp_us || Date.now() * 1000 });
-        } else if (dataType !== 'unknown' && parsedData && parsedData.parseError) { 
-            console.warn(`Parsing error for ${dataType}:`, parsedData.error || "Unknown error", "Original Frame:", completedParsedFrame); 
-        } 
-        // No need to emit unhandled ACKs as they were handled earlier
-        // else if (dataType === 'unknown' && completedParsedFrame.canOperationCode !== CanOperation.NORMAL_ACK) { /* Potentially emit unhandled non-ACK frames */ }
+        } else if (dataType !== 'unknown' && parsedData && parsedData.parseError) {
+            console.warn(`Parsing error for ${dataType}:`, parsedData.error || "Unknown error", "Original Frame:", completedParsedFrame);
+        }
     }
 
     _handleCanError(err) {
@@ -762,7 +815,6 @@ class CanBusService extends EventEmitter {
         }
 
         console.log('[CanBusService] Stopping CAN device...');
-		this.requestManager.stopQueueProcessor();
         this.requestManager.clearAllRequests();
 
         Object.keys(this.multiFrameTimeouts).forEach(key => {

@@ -8,13 +8,15 @@ const DEFAULT_TIMEOUT = 3000; // 3 seconds for response timeout
 const READ_RETRY_LIMIT = 3;
 const DEFAULT_SEND_INTERVAL = 50; // Minimum ms between sending non-ACK frames
 const QUEUE_PROCESS_INTERVAL = 20; // How often to check the send queue (ms)
+const MAX_QUEUE_SIZE = 100;
 
 class RequestManager {
     constructor(canbusInstance) {
         this.canbus = canbusInstance; // Reference to CanBusService to send frames
-        // Structure for pending ACKs: { targetId: { cmdCode: { subCode: { promiseControls, operation, timeoutHandle, attempts } } } }
+        // Structure for pending ACKs: { targetId: { cmdCode: { subCode: { promiseControls, operation, timeoutHandle } } } }
         this.pendingAckRequests = {};
         this.ackTimeoutIds = new Set(); // Keep track of active ACK timeouts
+        this.cleanupTimeoutIds = new Set(); // Keep track of delayed cleanup timeouts
 
         // --- Outgoing Request Queue ---
         this.requestQueue = []; // Stores { details: { source, target, operation, code, subcode, data, promiseControls, attempt }, timestampAdded }
@@ -62,6 +64,13 @@ class RequestManager {
              }
              return;
         }
+        if (this.requestQueue.length >= MAX_QUEUE_SIZE) {
+            console.warn(`[RequestManager] Queue full (${MAX_QUEUE_SIZE}), dropping request: Target=0x${requestDetails.target.toString(16)}, Cmd=0x${requestDetails.code.toString(16)}`);
+            if (requestDetails.promiseControls && requestDetails.promiseControls.resolve) {
+                requestDetails.promiseControls.resolve({ success: false, error: 'Request queue full', timedOut: false });
+            }
+            return;
+        }
         console.log(`[RequestManager] Enqueuing request: Target=0x${requestDetails.target.toString(16)}, Cmd=0x${requestDetails.code.toString(16)}, Sub=0x${requestDetails.subcode.toString(16)},Data=[${requestDetails.data?.map(b => b.toString(16).padStart(2,'0')).join(',')}] ,Attempt=${attempt}`);
         this.requestQueue.push({
             details: { ...requestDetails, attempt: attempt }, // Store attempt count in details
@@ -97,19 +106,15 @@ class RequestManager {
             // Deconstruct details, including the attempt count
             const { source, target, operation, code, subcode, data, promiseControls, attempt } = queuedItem.details;
 
-            // Calculate required delay
-            let requiredDelay = DEFAULT_SEND_INTERVAL;
-           // if (code === 0x60) { // Special delay for command 0x60 as per author
-                const calculatedDelay = 50 * (subcode % 5); // Example: 50ms base * (subcode mod 5)
-                requiredDelay = Math.max(DEFAULT_SEND_INTERVAL, calculatedDelay); // Use calculated or default, whichever is larger
-           // }
+            const requiredDelay = DEFAULT_SEND_INTERVAL;
 
             if (now - this.lastSentTimestamp >= requiredDelay) {
                 // --- Send the request ---
                 this.requestQueue.shift(); // Remove from queue *before* sending
-                this.lastSentTimestamp = now; // Update timestamp *before* async send
+                const actualDelay = now - this.lastSentTimestamp;
+                this.lastSentTimestamp = now;
 
-                console.log(`[RequestManager] Dequeuing & Sending: Tgt=0x${target.toString(16)}, Cmd=0x${code.toString(16)}, Sub=0x${subcode.toString(16)},Data=[${data?.map(b => b.toString(16).padStart(2,'0')).join(',')}] Attempt=${attempt}, Delay=${now - this.lastSentTimestamp}ms (Req: ${requiredDelay}ms)`);
+                console.log(`[RequestManager] Dequeuing & Sending: Tgt=0x${target.toString(16)}, Cmd=0x${code.toString(16)}, Sub=0x${subcode.toString(16)},Data=[${data?.map(b => b.toString(16).padStart(2,'0')).join(',')}] Attempt=${attempt}, Delay=${actualDelay}ms (Req: ${requiredDelay}ms)`);
 
                 const bafangIdArr = generateCanFrameId(source, target, operation, code, subcode);
                 const canId32bit = bafangIdArrayTo32Bit(bafangIdArr);
@@ -231,20 +236,16 @@ class RequestManager {
 
                     // 2. Schedule the cleanup of the entry AFTER a short delay
                     //    This keeps the entry present to block immediate duplicates via enqueueRequest.
-                    const cleanupDelay = 200; // ms - adjust as needed, maybe slightly more than queue interval
-                    console.log(`[RequestManager] Scheduling cleanup for failed request ${target}/${code}/${subcode} in ${cleanupDelay}ms.`);
-                    setTimeout(() => {
-                        // Check if the entry *still* exists before deleting, just in case
-                        // something else resolved it in the meantime (unlikely but safe).
+                    const cleanupDelay = 200;
+                    const cleanupTimeoutId = setTimeout(() => {
+                        this.cleanupTimeoutIds.delete(cleanupTimeoutId);
                         if (this.pendingAckRequests[target]?.[code]?.[subcode] === requestInfo) {
-                            console.log(`[RequestManager] Executing delayed cleanup for ${target}/${code}/${subcode}.`);
                             delete this.pendingAckRequests[target][code][subcode];
                             if (Object.keys(this.pendingAckRequests[target]?.[code] ?? {}).length === 0) delete this.pendingAckRequests[target][code];
                             if (Object.keys(this.pendingAckRequests[target] ?? {}).length === 0) delete this.pendingAckRequests[target];
-                        } else {
-                            console.log(`[RequestManager] Delayed cleanup skipped for ${target}/${code}/${subcode} (entry changed or removed).`);
                         }
                     }, cleanupDelay);
+                    this.cleanupTimeoutIds.add(cleanupTimeoutId);
 
                     // DO NOT delete the entry immediately here anymore.
                     // delete this.pendingAckRequests[target][code][subcode];
@@ -257,9 +258,8 @@ class RequestManager {
 
         this.pendingAckRequests[target][code][subcode] = {
             promiseControls,
-            operation: operation,
+            operation,
             timeoutHandle,
-            attempts: attempt
         };
     }
 
@@ -339,6 +339,8 @@ class RequestManager {
         // Clear any remaining tracked timeout IDs (belt-and-suspenders)
         this.ackTimeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
         this.ackTimeoutIds.clear();
+        this.cleanupTimeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+        this.cleanupTimeoutIds.clear();
 
         // Clear the outgoing queue and resolve associated promises as failed
         this.requestQueue.forEach(queuedItem => {

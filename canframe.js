@@ -34,12 +34,12 @@ class CanFrame {
         this.flags = data.getUint8(10, true);
         this.reserved = data.getUint8(11, true);
         const ba = [];
-        for (var i = 0; i < 8; i++) {
+        for (let i = 0; i < 8; i++) {
             const b = data.getUint8(12+i, true);
             ba.push(b);
             this.data.setUint8(i,b); // 8 bytes
         }
-        if ( this.frameLength == 24 ) {
+        if ( this.frameLength === 24 ) {
             this.timestamp_us = data.getUint32(20, true);
         } else {
             this.timestamp_us = process.hrtime.bigint()/BigInt(1000); // Corrected function call and use BigInt division
@@ -58,10 +58,10 @@ class CanFrame {
         data.setUint8(9, this.channel, true);
         data.setUint8(10, this.flags, true);
         data.setUint8(11, this.reserved, true);
-        for (var i = 0; i < 8; i++) {
+        for (let i = 0; i < 8; i++) {
             data.setUint8(12+i, this.data.getUint8(i, true)); // 8 bytes
         }
-        if ( this.frameLength == 24 ) {
+        if ( this.frameLength === 24 ) {
             data.setUint32(20, this.timestamp_us, true);
         }
         return data.buffer;
@@ -76,7 +76,7 @@ class CanFrame {
      * handle the frame a parse message header if appropriate.
      */
     _handleFrame() {
-        if (this.echo_id != 0xFFFFFFFF ) {
+        if (this.echo_id !== 0xFFFFFFFF ) {
             this.frameType = "echo";
         } else if ( (this.can_id&0x20000000) == 0x20000000) {
             this.frameType = "error";
@@ -143,7 +143,7 @@ class CanFrame {
 
     _accumulate(errDiff, errObj) {
         errObj = errObj || {};
-        for(var k in errDiff) {
+        for(const k in errDiff) {
             if ( errObj[k] === undefined ) {
                 errObj[k] = errDiff[k]
             } else {
@@ -218,7 +218,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfSet(errs, 0x20, "txPassiveStatusErr", errObj );
             this._incIfSet(errs, 0x40, "recovered", errObj );
             this.errors.canController = this._accumulate(errObj, this.errors.canController);
-            console.log("   Controller Controller Status     update:",errObj," totals:", this.errors.canController);
+            console.log("   CAN Controller Status     update:",errObj," totals:", this.errors.canController);
 
         }
         if ( (this.can_id&0x08) === 0x08 ) {
@@ -241,7 +241,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfSet(errs, 0x02, "frameFormatError", errObj );
             this._incIfSet(errs, 0x04, "bitStuffingError", errObj );
             this._incIfSet(errs, 0x08, "unableToSendDominantBit", errObj );
-            this._incIfSet(errs, 0x10, "unableToReciveDominantBit", errObj );
+            this._incIfSet(errs, 0x10, "unableToReceiveRecessiveBit", errObj );
             this._incIfSet(errs, 0x20, "busOverload", errObj );
             this._incIfSet(errs, 0x40, "activeErrorAnnouncement", errObj );
             this._incIfSet(errs, 0x80, "errorOnTransmission", errObj );
@@ -287,7 +287,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfEquals(errsLoc, 0x0C, "RTR", errObjLoc );
             this._incIfEquals(errsLoc, 0x0D, "reservedBit1", errObjLoc );
             this._incIfEquals(errsLoc, 0x09, "reservedBit0", errObjLoc );
-            this._incIfEquals(errsLoc, 0x0B, "dataLenghtCode", errObjLoc );
+            this._incIfEquals(errsLoc, 0x0B, "dataLengthCode", errObjLoc );
             this._incIfEquals(errsLoc, 0x0A, "dataSection", errObjLoc );
             this._incIfEquals(errsLoc, 0x08, "crcSequence", errObjLoc );
             this._incIfEquals(errsLoc, 0x18, "crcDelimiter", errObjLoc );
@@ -317,8 +317,8 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
 #define CAN_ERR_TRX_CANL_SHORT_TO_CANH 0x80 /* 1000 0000 * /
 */
             // may not be implementedin candelLite.
-            const errs = this.data.getUint8(3);
-            const errObj = {}; 
+            const errs = this.data.getUint8(4); // data[4] per CAN error spec
+            const errObj = {};
             this._incIfEquals(errs, 0x00, "unspecified", errObj );
             this._incIfEquals(errs, 0x04, "canHnoWire", errObj );
             this._incIfEquals(errs, 0x05, "canHshortToBat", errObj );
@@ -329,10 +329,9 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfEquals(errs, 0x60, "canLshortToVcc", errObj );
             this._incIfEquals(errs, 0x70, "canLshortToGnd", errObj );
             this._incIfEquals(errs, 0x80, "canLshortToCanH", errObj );
-            this.errors.transceverStatus = this._accumulate(errObj, this.errors.transceverStatus);
+            this.errors.transceiverStatus = this._accumulate(errObj, this.errors.transceiverStatus);
 
-
-            console.log("   Transciever Status       update:",errObj, "totals",this.errors.transceverStatus);
+            console.log("   Transceiver Status       update:",errObj, "totals",this.errors.transceiverStatus);
 
         }
         if ( (this.can_id&0x20) === 0x20 ) {
