@@ -56,9 +56,24 @@
         </div>
 
         <!-- Tab Contents -->
+        <!-- ================================================================
+             SPIS TREŚCI — szukaj przez Ctrl+F → "#tab-"
+             #tab-controller   Controller
+             #tab-display      Display
+             #tab-sensor       Sensor
+             #tab-battery      Battery
+             #tab-gears        Assist (Full)
+             #tab-gearsM820    Assist (Ltd)
+             #tab-info         Info
+             #tab-debug        Debug
+             #tab-fwUpdate     Firmware
+             #tab-sniffer      Sniffer
+             #tab-ride-logger  Ride Logger
+             #tab-data-backup  Data Backup
+             ================================================================ -->
         <div class="p-4 sm:p-6">
 
-            <!-- ===== CONTROLLER TAB ===== -->
+            <!-- #tab-controller ============================================ -->
             <div class="tab-content active" id="tab-controller">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Controller Settings</h2>
@@ -446,7 +461,7 @@
                             <tr>
                                 <th style="display: inline-block;">
                                     <div style="color: black; text-align: right;">Walk Assist Speed</div>
-                                    <div style="color: blue; text-align: right;">not used yet</div>
+                                    <div style="color: blue; text-align: right;">Walk Assist Speed</div>
                                 </th> 
                                 <td>
                                     <span id="ctrlP1WalkAssistSpeedValue" class="value-display">N/A</span> Km/H
@@ -492,7 +507,7 @@
                 </div>
             </div>
 
-            <!-- ===== DISPLAY TAB ===== -->
+            <!-- #tab-display =============================================== -->
             <div class="tab-content" id="tab-display">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Display Settings</h2>
@@ -579,7 +594,7 @@
                 </div>
             </div>
 
-            <!-- ===== SENSOR TAB ===== -->
+            <!-- #tab-sensor ================================================ -->
             <div class="tab-content" id="tab-sensor">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Torque Sensor</h2>
@@ -603,7 +618,7 @@
                 <div id="sensorRealtimePlaceholder" class="placeholder-text">Real-time data not yet received.</div>
             </div>
 
-            <!-- ===== BATTERY TAB ===== -->
+            <!-- #tab-battery =============================================== -->
             <div class="tab-content" id="tab-battery">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Battery</h2>
@@ -680,7 +695,7 @@
                 <div id="batteryChargingInfoPlaceholder" class="placeholder-text">Charging info data not yet received.</div>
             </div>
 
-            <!-- ===== GEARS (FULL) TAB ===== -->
+            <!-- #tab-gears ================================================= -->
             <div class="tab-content" id="tab-gears">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Assist</h2>
@@ -812,7 +827,7 @@
                 <div id="startRampContainer" style="display:none"><div id="startRampChart"></div></div>
             </div>
 
-            <!-- ===== GEARS M820 (LIMITED) TAB ===== -->
+            <!-- #tab-gearsM820 ============================================= -->
             <div class="tab-content" id="tab-gearsM820">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Assist (Limited)</h2>
@@ -891,7 +906,7 @@
                 <div id="startRampContainerM820"  style="display:none"><div id="startRampChartM820"></div></div>
             </div>
 
-            <!-- ===== INFO TAB ===== -->
+            <!-- #tab-info ================================================== -->
             <div class="tab-content" id="tab-info">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Device Information</h2>
@@ -980,7 +995,7 @@
                 <div id="infoBatteryPlaceholder" class="placeholder-text">Battery info not yet received.</div>
             </div>
 
-            <!-- ===== DEBUG TAB ===== -->
+            <!-- #tab-debug ================================================= -->
             <div class="tab-content" id="tab-debug">
                 <h2 class="section-title text-lg mb-4">Debug / Custom Frame</h2>
 
@@ -1047,7 +1062,7 @@
                 </div>
             </div>
 
-            <!-- ===== FIRMWARE TAB ===== -->
+            <!-- #tab-fwUpdate ============================================== -->
             <div class="tab-content" id="tab-fwUpdate">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Firmware Update</h2>
@@ -1098,7 +1113,7 @@
                 </div>
             </div>
 
-            <!-- ===== SNIFFER TAB ===== -->
+            <!-- #tab-sniffer =============================================== -->
             <div class="tab-content" id="tab-sniffer">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Sniffer</h2>
@@ -1154,7 +1169,7 @@
                 </div>
             </div>
 
-            <!-- ===== RIDE LOGGER TAB ===== -->
+            <!-- #tab-ride-logger =========================================== -->
             <div class="tab-content" id="tab-ride-logger">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Ride Logger</h2>
@@ -1204,7 +1219,7 @@
                 </div>
             </div>
 
-            <!-- ===== Data backup TAB ===== -->
+            <!-- #tab-data-backup =========================================== -->
             <div class="tab-content" id="tab-data-backup">
                 <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <h2 class="section-title text-lg">Data backup</h2>
@@ -1227,6 +1242,6 @@
 </div><!-- End main container -->
 
 <script src="plotly-2.24.1.min.js"></script>
-<script src="main.js"></script>
+<script type="module" src="js/init.js"></script>
 </body>
 </html>
