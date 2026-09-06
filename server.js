@@ -732,7 +732,7 @@ const wss = new WebSocket.Server({ server });
 			if(loggerEnabled)
 				await sniffer.setupLogger()
 			else
-				sniffer.logToFile = null
+				await sniffer.closeLogger()
 			return true
 		}
 		return false;

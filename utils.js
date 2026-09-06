@@ -1,3 +1,4 @@
+const fs = require("fs");
 const fsp = require("fs").promises;
 const path = require("path");
 const logsDir = path.join(__dirname, "logs");
@@ -110,14 +111,40 @@ async function setupLogger(fileExt = 'log', countFiles = false) {
     
     console.log("New log session started:", logFilePath);
 
-    return async function logToFile(message) {
-      const logEntry = `${message}\n`;
-      try {
-        await fsp.appendFile(logFilePath, logEntry);
-      } catch (err) {
-        console.error("Log write error:", err);
+    // A single persistent handle for the whole session. The previous
+    // implementation used fsp.appendFile(path, ...) per line, which is an
+    // open+write+close syscall trio on every entry - at CAN frame rates that
+    // saturates the libuv threadpool and stalls the USB transfers.
+    const stream = fs.createWriteStream(logFilePath, { flags: "a" });
+    stream.on("error", (err) => console.error("Log write error:", err));
+
+    // Shared across all in-flight writes, so a burst of fire-and-forget calls
+    // does not pile up one 'drain' listener each.
+    let drain = null;
+
+    // Resolves immediately while the stream buffer has room, and only waits
+    // when it is full, so callers that do not await stay non-blocking and
+    // callers that do await get backpressure instead of unbounded queueing.
+    async function logToFile(message) {
+      if (stream.destroyed || stream.writableEnded) return;
+      if (!stream.write(`${message}\n`)) {
+        if (!drain) {
+          drain = new Promise((resolve) =>
+            stream.once("drain", () => {
+              drain = null;
+              resolve();
+            })
+          );
+        }
+        await drain;
       }
+    }
+
+    logToFile.close = function close() {
+      return new Promise((resolve) => stream.end(resolve));
     };
+
+    return logToFile;
   } catch (err) {
     console.error("Logger setup failed:", err);
     process.exit(1);

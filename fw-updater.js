@@ -361,6 +361,8 @@ class FwUpdater {
             this.logMessage(`Runtime: ${timeInSeconds}s`,'INFO');
             if(this.ws)
                 this.ws.send(`FW_UPDATE_END`);
+            if(this.logToFile && this.logToFile.close)
+                await this.logToFile.close();
         }
     }
 

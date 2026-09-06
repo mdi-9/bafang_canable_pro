@@ -75,7 +75,15 @@ class Logger {
     }
 
     async setupLogger(countFiles = false){
+        await this.closeLogger();
         this.logToFile = await setupLogger('csv', countFiles);
+    }
+
+    async closeLogger(){
+        const current = this.logToFile;
+        this.logToFile = null;
+        if (current && current.close)
+            await current.close();
     }
     async setupHeader(){
         const rowKeys = Object.values(this.logObjectHeader);
@@ -213,6 +221,7 @@ class Logger {
         if (this.logIntervalId) {
             clearInterval(this.logIntervalId);
         }
+        this.closeLogger();
     }
 }
 
