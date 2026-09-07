@@ -1,5 +1,5 @@
 const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
-const { monitorEventLoopDelay } = require('perf_hooks');
+const { monitorEventLoopDelay, PerformanceObserver } = require('perf_hooks');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -22,6 +22,11 @@ class FwUpdater {
         // time, so leave this at 1 unless a real reset is ever found.
         this.maxUpdateAttempts = 1;
         this.maxTotalResends = 200;  // Backstop across the whole transfer
+        // Deliberately stall mid-block to test whether a transmit gap is what gets a
+        // block rejected, instead of waiting for a random failure. Set via env so no
+        // code or UI change is needed: FW_DEBUG_STALL_MS=60 [FW_DEBUG_STALL_CHUNK=5000]
+        this.debugStallMs = Number(process.env.FW_DEBUG_STALL_MS) || 0;
+        this.debugStallAtChunk = Number(process.env.FW_DEBUG_STALL_CHUNK) || 5000;
     }
     init(){
         this.firmwareBuffer = null; // Buffer to hold the firmware file content
@@ -44,6 +49,7 @@ class FwUpdater {
         this.upgradeEndHoldMs = 0;
         this.upgradeEndKeepaliveMs = 60;
         this.lastAckWriteAddress = null; // Flash offset reported by the last block ACK
+        this.echoCount = 0;              // Frames the adapter confirms it transmitted
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {}; //
@@ -131,6 +137,10 @@ class FwUpdater {
         this.logMessage(`File header data: ${fileHeaderData}`, 'INFO');
     }
     setupCunbus(){
+        // The adapter reports "ok" for a USB write even when it cannot put the frame on
+        // the bus - measured: 1500 writes accepted, 3 frames actually transmitted. The
+        // echo is the only real confirmation, so count them and compare per block.
+        this.canbus.on('raw_frame_sent', () => { this.echoCount++; });
         this.canbus.on('raw_frame_received', (rawFrame) => {
             if(this.end)
                 return;
@@ -306,7 +316,8 @@ class FwUpdater {
         }while(!this.firstChunkACK);
     }
     async sendDataChunks() {
-        this.logMessage('Step 5: Sending data chunks...', 'INFO');
+        this.logMessage('Step 5: Sending data chunks...'
+            + (this.debugStallMs ? ` (DEBUG: ${this.debugStallMs}ms stall armed at chunk ${this.debugStallAtChunk})` : ''), 'INFO');
         // Throughput accounting. The interesting number is not the overall rate but
         // how it splits between putting frames on the wire and blocking on the
         // per-block ACKs - only the first half is ours to tune.
@@ -322,24 +333,56 @@ class FwUpdater {
         // numbers to a rejection when it happens - that is what links cause to effect.
         const loopLag = monitorEventLoopDelay({ resolution: 10 });
         loopLag.enable();
+        // Event loop lag tracks the transmit gaps almost exactly, so whatever blocks the
+        // loop is what gets blocks rejected. Measure garbage collection directly rather
+        // than assuming it: the send path allocates ~20 short lived objects per chunk.
+        let gcCount = 0, gcTotalMs = 0, gcMaxMs = 0, gcBlockMaxMs = 0;
+        const gcObserver = new PerformanceObserver((list) => {
+            for (const e of list.getEntries()) {
+                gcCount++;
+                gcTotalMs += e.duration;
+                if (e.duration > gcMaxMs) gcMaxMs = e.duration;
+                if (e.duration > gcBlockMaxMs) gcBlockMaxMs = e.duration;
+            }
+        });
+        gcObserver.observe({ entryTypes: ['gc'] });
         const gapBuckets = [2000, 5000, 20000, 50000];
         const gapCounts = [0, 0, 0, 0];
         let prevSendNs = process.hrtime.bigint();
         let blockMaxGapUs = 0, runMaxGapUs = 0, markMaxGapUs = 0, runMaxLagNs = 0;
+        let lastSentIndex = this.startSendChunkIndex - 1;
+        // Split the cycle: time spent inside the USB write, versus time waiting to be
+        // given the loop back afterwards. A stall in the first is the transfer itself
+        // blocking; in the second it is other work on the event loop.
+        let blockMaxSendUs = 0, runMaxSendUs = 0;
+        let stallInjected = false;
+        const baseEcho = this.echoCount;
+        let maxShortfall = 0;
+        try {
         for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
             this.lastChunkSendIndex = i;
+            lastSentIndex = i;
+            const sendFromNs = process.hrtime.bigint();
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             {
                 const nowNs = process.hrtime.bigint();
+                const sendUs = Number(nowNs - sendFromNs) / 1000;
+                if (sendUs > blockMaxSendUs) blockMaxSendUs = sendUs;
+                if (sendUs > runMaxSendUs) runMaxSendUs = sendUs;
                 const gapUs = Number(nowNs - prevSendNs) / 1000;
                 prevSendNs = nowNs;
                 for (let b = 0; b < gapBuckets.length; b++) if (gapUs > gapBuckets[b]) gapCounts[b]++;
                 if (gapUs > blockMaxGapUs) blockMaxGapUs = gapUs;
                 if (gapUs > markMaxGapUs) markMaxGapUs = gapUs;
                 if (gapUs > runMaxGapUs) runMaxGapUs = gapUs;
+            }
+            if (this.debugStallMs && i === this.debugStallAtChunk && !stallInjected) {
+                stallInjected = true;
+                this.logMessage(`DEBUG: injecting a deliberate ${this.debugStallMs}ms stall after chunk ${i}`, 'WARN');
+                await delay(this.debugStallMs);   // counted in the next gap on purpose
             }
             if (this.indexAckCheckFct(i)) {
                 const waitFromNs = process.hrtime.bigint();
@@ -359,6 +402,12 @@ class FwUpdater {
                 // streamed never landed and the device is still sitting further
                 // back, so carry on from where it says it is rather than leaving a
                 // hole that only surfaces as a rejected image 45 s later.
+                // Cumulative, so echoes still in flight show as a shortfall of one or
+                // two that clears itself; a real drop leaves it permanently high.
+                const sentSoFar = i + 1 - this.startSendChunkIndex;
+                const confirmedSoFar = this.echoCount - baseEcho;
+                const shortfall = sentSoFar - confirmedSoFar;
+                if (shortfall > maxShortfall) maxShortfall = shortfall;
                 const expectedAddress = (i + 1) * CHUNK_SIZE;
                 if (this.lastAckWriteAddress !== null && this.lastAckWriteAddress !== expectedAddress) {
                     const behindChunks = (expectedAddress - this.lastAckWriteAddress) / CHUNK_SIZE;
@@ -375,7 +424,11 @@ class FwUpdater {
                             ? `resend from chunk ${resumeAt} (${sameSpotResends}/${this.maxBlockResends} here, ${resends} total) `
                             : `device wants chunk ${resumeAt} `)
                         + `| worst gap in this block ${blockMaxGapUs.toFixed(0)}us, `
-                        + `loop lag max ${(loopLag.max / 1000).toFixed(0)}us`, 'WARN');
+                        + `loop lag max ${(loopLag.max / 1000).toFixed(0)}us, `
+                        + `worst GC pause in this block ${gcBlockMaxMs.toFixed(1)}ms, `
+                        + `worst single USB write in this block ${blockMaxSendUs.toFixed(0)}us, `
+                        + `adapter confirmed ${confirmedSoFar}/${sentSoFar} frames transmitted so far `
+                        + `(shortfall ${shortfall}; 1-2 is echo still in flight, more means dropped)`, 'WARN');
                     if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
                         || resumeAt < this.startSendChunkIndex || resumeAt > i) {
                         throw `Step 5(chunk ${i}): device rejected the block at ${resumeAt}, ${behindChunks} chunk(s) behind`
@@ -391,6 +444,8 @@ class FwUpdater {
                 }
                 this.lastAckWriteAddress = null;
                 blockMaxGapUs = 0;
+                blockMaxSendUs = 0;
+                gcBlockMaxMs = 0;
                 if (loopLag.max > runMaxLagNs) runMaxLagNs = loopLag.max;
                 loopLag.reset();   // per-block window, so a rejection reports its own lag
                 prevSendNs = process.hrtime.bigint(); // the ACK wait is not a stall
@@ -403,7 +458,7 @@ class FwUpdater {
                 const waitUs = Number(ackWaitNs - ackWaitAtMark) / 1000;
                 this.logMessage(
                     `chunk ${i}/${this.NUM_CHUNKS} | ${(totalUs / n).toFixed(0)} us/chunk `
-                    + `(send ${((totalUs - waitUs) / n).toFixed(0)} + ackwait ${(waitUs / n).toFixed(0)}) `
+                    + `(cycle ${((totalUs - waitUs) / n).toFixed(0)} + ackwait ${(waitUs / n).toFixed(0)}) `
                     + `| worst gap ${markMaxGapUs.toFixed(0)}us `
                     + `| elapsed ${(Number(nowNs - startNs) / 1e9).toFixed(1)}s`, 'RATE');
                 markNs = nowNs;
@@ -412,13 +467,16 @@ class FwUpdater {
                 markMaxGapUs = 0;
             }
         }
-        const sentCount = this.NUM_CHUNKS - 1 - this.startSendChunkIndex;
+        } finally {
+        const sentCount = Math.max(1, lastSentIndex + 1 - this.startSendChunkIndex);
+        const done = lastSentIndex >= this.NUM_CHUNKS - 2;
         const totalUs = Number(process.hrtime.bigint() - startNs) / 1000;
         const waitUs = Number(ackWaitNs) / 1000;
         this.logMessage(
-            `All data chunks (except the last) sent. ${sentCount} chunks in ${(totalUs / 1e6).toFixed(1)}s `
+            (done ? 'All data chunks (except the last) sent. ' : `Stopped at chunk ${lastSentIndex}. `)
+            + `${sentCount} chunks in ${(totalUs / 1e6).toFixed(1)}s `
             + `= ${(totalUs / sentCount).toFixed(0)} us/chunk `
-            + `(send ${((totalUs - waitUs) / sentCount).toFixed(0)}, ackwait ${(waitUs / sentCount).toFixed(0)}) `
+            + `(cycle ${((totalUs - waitUs) / sentCount).toFixed(0)}, ackwait ${(waitUs / sentCount).toFixed(0)}) `
             + `| delayUs setting: ${this.delayUs}`, 'RATE');
         loopLag.disable();
         this.logMessage(
@@ -426,6 +484,17 @@ class FwUpdater {
             + `>50ms=${gapCounts[3]}, worst ${runMaxGapUs.toFixed(0)}us; `
             + `worst event loop lag ${(Math.max(runMaxLagNs, loopLag.max) / 1000).toFixed(0)}us `
             + `(BESST reference: 0 gaps over 50ms)`, 'RATE');
+        gcObserver.disconnect();
+        this.logMessage(
+            `GC: ${gcCount} collections, ${gcTotalMs.toFixed(0)}ms total, worst ${gcMaxMs.toFixed(1)}ms; `
+            + `worst single USB write ${runMaxSendUs.toFixed(0)}us`, 'RATE');
+        this.logMessage(
+            `Adapter confirmed transmitting ${this.echoCount - baseEcho}/${sentCount} chunk frames `
+            + `(peak in-flight shortfall ${maxShortfall})`
+            + (sentCount - (this.echoCount - baseEcho) > 2
+                ? ` - ${sentCount - (this.echoCount - baseEcho)} FRAME(S) NEVER REACHED THE BUS`
+                : ' - nothing dropped by the adapter'), 'RATE');
+        }
     }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
