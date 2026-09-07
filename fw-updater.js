@@ -221,8 +221,11 @@ class FwUpdater {
             // }
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 2: Timeout reached, exiting loop....'
+                    + (this.transferError ? ` Last device response: ${this.transferError}` : '');
             }
         }while(!this.controllerReady);
+        // A refusal seen while negotiating must not abort a later phase.
+        this.transferError = null;
     }
     async send6008Id(){
         await this.sendRawFrameWithRetry(this.id6008,"");
@@ -230,6 +233,9 @@ class FwUpdater {
         this.logMessage('Step 2.1: Waiting for acknowledgment of the 6008 package...', 'INFO');
         do{
             await delay(20);
+            if (this.transferError) {
+                throw `Step 2.1: ${this.transferError}`;
+            }
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 2.1: Timeout reached, exiting loop....'
             }
@@ -245,6 +251,9 @@ class FwUpdater {
         this.logMessage('Step 4: Waiting for acknowledgment of the first package...', 'INFO');
         do{
             await delay(20);
+            if (this.transferError) {
+                throw `Step 4: ${this.transferError}`;
+            }
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 4: Timeout reached, exiting loop....'
             }
@@ -282,6 +291,9 @@ class FwUpdater {
         this.logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
         do{
             await delay(20);
+            if (this.transferError) {
+                throw `Step 4.1: ${this.transferError}`;
+            }
             if (Date.now() - this.startTime > this.timeout) {
                 throw 'Step 4.1: Timeout reached, exiting loop....';
             }
