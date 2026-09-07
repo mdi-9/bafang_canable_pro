@@ -31,6 +31,10 @@ class FwUpdater {
         this.lastChunkSendIndex = -1;
         this.transferError = null; // Set when the device answers with a 2B (error) frame
         this.rateReportEvery = 4096; // Chunks between throughput reports
+        // 0 keeps the original end-of-update timing. Only modes with a capture to
+        // copy from should raise it - see announceFirmwareUpgradeEnd().
+        this.upgradeEndHoldMs = 0;
+        this.upgradeEndKeepaliveMs = 60;
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {}; //
@@ -60,6 +64,7 @@ class FwUpdater {
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
+        this.upgradeEndHoldMs = 30000; // Measured against the official tool on a DPC245
         this.indexAckCheckFct = (i) => (i - 1) % 256 === 0 && i!==2;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
@@ -307,7 +312,7 @@ class FwUpdater {
                 this.logMessage(
                     `chunk ${i}/${this.NUM_CHUNKS} | ${(totalUs / n).toFixed(0)} us/chunk `
                     + `(send ${((totalUs - waitUs) / n).toFixed(0)} + ackwait ${(waitUs / n).toFixed(0)}) `
-                    + `| elapsed ${(Number(nowNs - startNs) / 1e6).toFixed(1)}s`, 'RATE');
+                    + `| elapsed ${(Number(nowNs - startNs) / 1e9).toFixed(1)}s`, 'RATE');
                 markNs = nowNs;
                 markIndex = i;
                 ackWaitAtMark = ackWaitNs;
@@ -342,9 +347,32 @@ class FwUpdater {
     }
     async announceFirmwareUpgradeEnd() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
-        await delay(3000);
+        if (this.upgradeEndHoldMs <= 0) {
+            // Devices we have no capture for keep the timing they always had.
+            await delay(3000);
+            await this.sendRawFrameWithRetry("5FF3005","01");
+            await delay(2000);
+            return;
+        }
+        // Captured from the official tool on a DPC245: it announces the end, then
+        // keeps the host-present heartbeat running for ~26 s while the device
+        // commits the image, and only then closes with a second 01. Going quiet
+        // during that window leaves the device writing flash with no host.
         await this.sendRawFrameWithRetry("5FF3005","01");
-        await delay(2000);
+        await delay(20);
+        const holdUntil = Date.now() + this.upgradeEndHoldMs;
+        let nextNote = Date.now() + 5000;
+        while (Date.now() < holdUntil) {
+            await this.sendRawFrameWithRetry("5FF3005","00");
+            await delay(this.upgradeEndKeepaliveMs);
+            if (Date.now() >= nextNote) {
+                const left = Math.round((holdUntil - Date.now()) / 1000);
+                this.logMessage(`Step 8: device is writing flash, holding host-present for ${left}s more...`, 'INFO');
+                nextNote += 5000;
+            }
+        }
+        await this.sendRawFrameWithRetry("5FF3005","01");
+        await delay(500);
     }
     async announceFirmwareUpgradeEndOld() {
         this.logMessage('Step 8: Announcing firmware upgrade end...', 'INFO');
