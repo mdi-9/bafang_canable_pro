@@ -14,7 +14,13 @@ class FwUpdater {
         this.setupCunbus()
         this.delayUs = delayUs;
         this.rateReportEvery = 4096; // Chunks between throughput reports
-        this.maxBlockResends = 5;    // Consecutive retries of the SAME block before giving up
+        this.maxBlockResends = 0;    // In-place block resend: measured as useless, kept as a knob
+        this.maxUpdateAttempts = 3;  // Full restarts - the only recovery the device honours
+        // 5F83501 is what the official tool broadcasts at ~1 Hz around an update; in one
+        // capture the display came back without anyone touching it. A latched device
+        // otherwise needs a physical restart, so try this before giving the attempt up.
+        this.resetCommandId = '5F83501';
+        this.resetBroadcasts = 8;
         this.maxTotalResends = 200;  // Backstop across the whole transfer
     }
     init(){
@@ -350,7 +356,8 @@ class FwUpdater {
                         + `(${sameSpotResends}/${this.maxBlockResends} here, ${resends} total)`, 'WARN');
                     if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
                         || resumeAt < this.startSendChunkIndex || resumeAt > i) {
-                        throw `Step 5(chunk ${i}): device stuck ${behindChunks} chunk(s) behind at ${resumeAt} after ${sameSpotResends} retries there (${resends} total)`;
+                        throw `Step 5(chunk ${i}): device rejected the block at ${resumeAt}, ${behindChunks} chunk(s) behind`
+                            + (this.maxBlockResends ? ` (${sameSpotResends} in-place retries, ${resends} total)` : '');
                     }
                     for (let j = resumeAt; j <= i; j++) {
                         delete this.chunksACKObject[j];
@@ -449,54 +456,75 @@ class FwUpdater {
         await delay(1000);
     }
 
+    async runUpdateAttempt(fileBuffer,mode) {
+        this.init();
+        if(mode == "HMI")
+            this.setupForHMI()
+        else if(mode == "DPC18")
+            this.setupForDPC18()
+        else if (mode == "CONTROLER_OLD")
+            this.setupForOldMotor()
+        else if (mode == "DPE160")
+            this.setupForDPE160()
+        else if (mode == "CONTROLER_HUB")
+            this.setupForHubControler()
+        else
+            this.setupForNewMotor()
+        this.initFile(fileBuffer);
+        this.emitProgress()
+        this.announceHostReady();
+        await this.checkForControllerReady();
+        await delay(20);
+        if(this.readyIdSent.includes('4000')){
+            await this.send6008Id();
+            await delay(20);
+        }
+        await this.sendFirstPackage();
+        await delay(20);
+        if(this.readyIdSent.includes('4000')){
+            await this.sendFirstChunk();
+            await delayu(this.delayUs);
+        }
+        await this.sendDataChunks();
+        await delayu(this.delayUs);
+        await this.sendLastPackageAndEndTransfer();
+        await delay(20);
+        if(this.readyIdSent.includes('4000'))
+            await this.announceFirmwareUpgradeEnd();
+        else
+            await this.announceFirmwareUpgradeEndOld();
+    }
+
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         const startTime = performance.now();
+        this.logToFile = await setupLogger();
+        let succeeded = false;
         try {
-            this.init();
-            if(mode == "HMI")
-                this.setupForHMI()
-            else if(mode == "DPC18")
-                this.setupForDPC18()
-            else if (mode == "CONTROLER_OLD")
-                this.setupForOldMotor()
-            else if (mode == "DPE160")
-                this.setupForDPE160()
-            else if (mode == "CONTROLER_HUB")
-                this.setupForHubControler()
-            else
-                this.setupForNewMotor()
-            this.logToFile = await setupLogger();
-            this.initFile(fileBuffer);
-            this.emitProgress()
-            this.announceHostReady();
-            await this.checkForControllerReady();
-            await delay(20);
-            if(this.readyIdSent.includes('4000')){
-                await this.send6008Id();
-                await delay(20);
+            for (let attempt = 1; attempt <= this.maxUpdateAttempts; attempt++) {
+                try {
+                    if (attempt > 1)
+                        this.logMessage(`Retrying whole update, attempt ${attempt}/${this.maxUpdateAttempts}...`, 'INFO');
+                    await this.runUpdateAttempt(fileBuffer, mode);
+                    this.logMessage('Firmware update completed successfully!', 'INFO');
+                    succeeded = true;
+                    break;
+                } catch (error) {
+                    this.logMessage(error, 'ERROR');
+                    if (attempt >= this.maxUpdateAttempts) break;
+                    // Let the device drop out of update mode before starting over.
+                    this.end = true;   // stop the progress emitter and the frame handler
+                    this.logMessage(`Attempt failed, asking the device to restart (${this.resetBroadcasts}x ${this.resetCommandId})...`, 'INFO');
+                    for (let k = 0; k < this.resetBroadcasts; k++) {
+                        await this.sendRawFrameWithRetry(this.resetCommandId, "00");
+                        await delay(1000);
+                    }
+                }
             }
-            await this.sendFirstPackage();
-            await delay(20);
-            if(this.readyIdSent.includes('4000')){
-                await this.sendFirstChunk();
-                await delayu(this.delayUs);
-            }
-            await this.sendDataChunks();
-            await delayu(this.delayUs);
-            await this.sendLastPackageAndEndTransfer();
-            await delay(20);
-            if(this.readyIdSent.includes('4000'))
-                await this.announceFirmwareUpgradeEnd();
-            else
-                await this.announceFirmwareUpgradeEndOld();
-            this.logMessage('Firmware update completed successfully!', 'INFO');
-        } catch (error) {
-            this.logMessage(error, 'ERROR');
-            this.logMessage('Firmware update failed or was not completed.', 'ERROR');
+            if (!succeeded)
+                this.logMessage(`Firmware update failed after ${this.maxUpdateAttempts} attempt(s).`, 'ERROR');
         } finally {
             this.end = true
-            const endTime = performance.now();
-            const timeInSeconds = (endTime - startTime) / 1000;
+            const timeInSeconds = (performance.now() - startTime) / 1000;
             this.logMessage(`Runtime: ${timeInSeconds}s`,'INFO');
             if(this.ws)
                 this.ws.send(`FW_UPDATE_END`);
