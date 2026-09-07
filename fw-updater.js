@@ -13,6 +13,9 @@ class FwUpdater {
         this.init()
         this.setupCunbus()
         this.delayUs = delayUs;
+        this.rateReportEvery = 4096; // Chunks between throughput reports
+        this.maxBlockResends = 5;    // Consecutive retries of the SAME block before giving up
+        this.maxTotalResends = 200;  // Backstop across the whole transfer
     }
     init(){
         this.firmwareBuffer = null; // Buffer to hold the firmware file content
@@ -30,11 +33,11 @@ class FwUpdater {
         this.end = false;
         this.lastChunkSendIndex = -1;
         this.transferError = null; // Set when the device answers with a 2B (error) frame
-        this.rateReportEvery = 4096; // Chunks between throughput reports
         // 0 keeps the original end-of-update timing. Only modes with a capture to
         // copy from should raise it - see announceFirmwareUpgradeEnd().
         this.upgradeEndHoldMs = 0;
         this.upgradeEndKeepaliveMs = 60;
+        this.lastAckWriteAddress = null; // Flash offset reported by the last block ACK
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {}; //
@@ -162,6 +165,10 @@ class FwUpdater {
             }
             if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex+1)}`)){
                 this.chunksACKObjectplus1[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
+                // The first four payload bytes are how far the device has actually
+                // written, and it always equals chunkNumber * 8 on a healthy transfer.
+                // Anything less means it dropped what we sent and is waiting there.
+                this.lastAckWriteAddress = this.parseWriteAddress(dataHex);
             }
             if(idHex.includes(`${this.deviceId}2A0002`)){
                 this.firstChunkACK = true;
@@ -243,6 +250,13 @@ class FwUpdater {
             }
         }while(!this.updateProcessStarted);
     }
+    // First four payload bytes of a block ACK, big endian: the flash offset the
+    // device has committed up to. Returns null for payloads that are not one.
+    parseWriteAddress(dataHex) {
+        const bytes = dataHex.split(' ').filter(Boolean);
+        if (bytes.length < 8) return null;
+        return parseInt(bytes.slice(0, 4).join(''), 16);
+    }
     formatChunkNumber(num) {
         const wrappedNum = num % 65536;
         return wrappedNum.toString(16).padStart(4, '0').toUpperCase();
@@ -283,6 +297,7 @@ class FwUpdater {
         let markIndex = this.startSendChunkIndex;
         let ackWaitNs = 0n;
         let ackWaitAtMark = 0n;
+        let resends = 0, sameSpotResends = 0, lastResumeAt = -1;
         for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
@@ -302,6 +317,38 @@ class FwUpdater {
                     }
                 }while(!this.doWhileAckCheckFct(i));
                 ackWaitNs += process.hrtime.bigint() - waitFromNs;
+                // The ACK is cumulative: its payload says the device has committed
+                // everything below (i+1)*8. If it reports less, the block we just
+                // streamed never landed and the device is still sitting further
+                // back, so carry on from where it says it is rather than leaving a
+                // hole that only surfaces as a rejected image 45 s later.
+                const expectedAddress = (i + 1) * CHUNK_SIZE;
+                if (this.lastAckWriteAddress !== null && this.lastAckWriteAddress !== expectedAddress) {
+                    const behindChunks = (expectedAddress - this.lastAckWriteAddress) / CHUNK_SIZE;
+                    const resumeAt = this.lastAckWriteAddress / CHUNK_SIZE;
+                    resends++;
+                    // Count retries per position: a scattered hiccup recovers and
+                    // moves on, a block the device will never take repeats forever.
+                    if (resumeAt === lastResumeAt) sameSpotResends++;
+                    else { sameSpotResends = 1; lastResumeAt = resumeAt; }
+                    this.logMessage(
+                        `Device is ${behindChunks} chunk(s) behind at ${i} `
+                        + `(committed ${this.lastAckWriteAddress}B, expected ${expectedAddress}B); `
+                        + `resend from chunk ${resumeAt} `
+                        + `(${sameSpotResends}/${this.maxBlockResends} here, ${resends} total)`, 'WARN');
+                    if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
+                        || resumeAt < this.startSendChunkIndex || resumeAt > i) {
+                        throw `Step 5(chunk ${i}): device stuck ${behindChunks} chunk(s) behind at ${resumeAt} after ${sameSpotResends} retries there (${resends} total)`;
+                    }
+                    for (let j = resumeAt; j <= i; j++) {
+                        delete this.chunksACKObject[j];
+                        delete this.chunksACKObjectplus1[j];
+                    }
+                    this.lastAckWriteAddress = null;
+                    i = resumeAt - 1; // the loop's i++ puts us back on resumeAt
+                    continue;
+                }
+                this.lastAckWriteAddress = null;
             }else
                 await delayu(this.delayUs);
             if (i - markIndex >= this.rateReportEvery) {
