@@ -1,4 +1,5 @@
 const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
+const { monitorEventLoopDelay } = require('perf_hooks');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -315,12 +316,31 @@ class FwUpdater {
         let ackWaitNs = 0n;
         let ackWaitAtMark = 0n;
         let resends = 0, sameSpotResends = 0, lastResumeAt = -1;
+        // Stall accounting. BESST never leaves a gap over 50 ms between chunks; the one
+        // run of ours that did (232 of them) had 95 blocks rejected. So measure both the
+        // gaps we actually produce and the event loop lag behind them, and attach the
+        // numbers to a rejection when it happens - that is what links cause to effect.
+        const loopLag = monitorEventLoopDelay({ resolution: 10 });
+        loopLag.enable();
+        const gapBuckets = [2000, 5000, 20000, 50000];
+        const gapCounts = [0, 0, 0, 0];
+        let prevSendNs = process.hrtime.bigint();
+        let blockMaxGapUs = 0, runMaxGapUs = 0, markMaxGapUs = 0, runMaxLagNs = 0;
         for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
             this.lastChunkSendIndex = i;
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
+            {
+                const nowNs = process.hrtime.bigint();
+                const gapUs = Number(nowNs - prevSendNs) / 1000;
+                prevSendNs = nowNs;
+                for (let b = 0; b < gapBuckets.length; b++) if (gapUs > gapBuckets[b]) gapCounts[b]++;
+                if (gapUs > blockMaxGapUs) blockMaxGapUs = gapUs;
+                if (gapUs > markMaxGapUs) markMaxGapUs = gapUs;
+                if (gapUs > runMaxGapUs) runMaxGapUs = gapUs;
+            }
             if (this.indexAckCheckFct(i)) {
                 const waitFromNs = process.hrtime.bigint();
                 this.startTime = Date.now();
@@ -351,8 +371,11 @@ class FwUpdater {
                     this.logMessage(
                         `Device is ${behindChunks} chunk(s) behind at ${i} `
                         + `(committed ${this.lastAckWriteAddress}B, expected ${expectedAddress}B); `
-                        + `resend from chunk ${resumeAt} `
-                        + `(${sameSpotResends}/${this.maxBlockResends} here, ${resends} total)`, 'WARN');
+                        + (this.maxBlockResends
+                            ? `resend from chunk ${resumeAt} (${sameSpotResends}/${this.maxBlockResends} here, ${resends} total) `
+                            : `device wants chunk ${resumeAt} `)
+                        + `| worst gap in this block ${blockMaxGapUs.toFixed(0)}us, `
+                        + `loop lag max ${(loopLag.max / 1000).toFixed(0)}us`, 'WARN');
                     if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
                         || resumeAt < this.startSendChunkIndex || resumeAt > i) {
                         throw `Step 5(chunk ${i}): device rejected the block at ${resumeAt}, ${behindChunks} chunk(s) behind`
@@ -367,6 +390,10 @@ class FwUpdater {
                     continue;
                 }
                 this.lastAckWriteAddress = null;
+                blockMaxGapUs = 0;
+                if (loopLag.max > runMaxLagNs) runMaxLagNs = loopLag.max;
+                loopLag.reset();   // per-block window, so a rejection reports its own lag
+                prevSendNs = process.hrtime.bigint(); // the ACK wait is not a stall
             }else
                 await delayu(this.delayUs);
             if (i - markIndex >= this.rateReportEvery) {
@@ -377,10 +404,12 @@ class FwUpdater {
                 this.logMessage(
                     `chunk ${i}/${this.NUM_CHUNKS} | ${(totalUs / n).toFixed(0)} us/chunk `
                     + `(send ${((totalUs - waitUs) / n).toFixed(0)} + ackwait ${(waitUs / n).toFixed(0)}) `
+                    + `| worst gap ${markMaxGapUs.toFixed(0)}us `
                     + `| elapsed ${(Number(nowNs - startNs) / 1e9).toFixed(1)}s`, 'RATE');
                 markNs = nowNs;
                 markIndex = i;
                 ackWaitAtMark = ackWaitNs;
+                markMaxGapUs = 0;
             }
         }
         const sentCount = this.NUM_CHUNKS - 1 - this.startSendChunkIndex;
@@ -391,6 +420,12 @@ class FwUpdater {
             + `= ${(totalUs / sentCount).toFixed(0)} us/chunk `
             + `(send ${((totalUs - waitUs) / sentCount).toFixed(0)}, ackwait ${(waitUs / sentCount).toFixed(0)}) `
             + `| delayUs setting: ${this.delayUs}`, 'RATE');
+        loopLag.disable();
+        this.logMessage(
+            `Stalls: gaps >2ms=${gapCounts[0]} >5ms=${gapCounts[1]} >20ms=${gapCounts[2]} `
+            + `>50ms=${gapCounts[3]}, worst ${runMaxGapUs.toFixed(0)}us; `
+            + `worst event loop lag ${(Math.max(runMaxLagNs, loopLag.max) / 1000).toFixed(0)}us `
+            + `(BESST reference: 0 gaps over 50ms)`, 'RATE');
     }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');

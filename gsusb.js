@@ -1207,6 +1207,12 @@ struct gs_device_filter {
             const dv = new DataView(data.buffer);
             this._emitEvent("canpacket",dv);
             this.frame.fromBuffer(dv);
+            // A transmit confirmation for a frame we sent, not bus traffic. Keep it off
+            // the main path so listeners are not flooded with their own transmissions.
+            if ( this.frame.frameType === "echo" ) {
+                this._emitEvent("echo", this.frame);
+                return;
+            }
             if ( this._acceptMessage(this.frame)) {
                 this._emitEvent("frame", this.frame);
             };
