@@ -15,12 +15,11 @@ class FwUpdater {
         this.delayUs = delayUs;
         this.rateReportEvery = 4096; // Chunks between throughput reports
         this.maxBlockResends = 0;    // In-place block resend: measured as useless, kept as a knob
-        this.maxUpdateAttempts = 3;  // Full restarts - the only recovery the device honours
-        // 5F83501 is what the official tool broadcasts at ~1 Hz around an update; in one
-        // capture the display came back without anyone touching it. A latched device
-        // otherwise needs a physical restart, so try this before giving the attempt up.
-        this.resetCommandId = '5F83501';
-        this.resetBroadcasts = 8;
+        // A device that rejected a block stays latched until it is restarted by hand, and
+        // no CAN command is known to clear it - 5F83501 was tried and only froze it harder,
+        // to the point of needing the battery pulled. Retrying in software can only waste
+        // time, so leave this at 1 unless a real reset is ever found.
+        this.maxUpdateAttempts = 1;
         this.maxTotalResends = 200;  // Backstop across the whole transfer
     }
     init(){
@@ -513,15 +512,14 @@ class FwUpdater {
                     if (attempt >= this.maxUpdateAttempts) break;
                     // Let the device drop out of update mode before starting over.
                     this.end = true;   // stop the progress emitter and the frame handler
-                    this.logMessage(`Attempt failed, asking the device to restart (${this.resetBroadcasts}x ${this.resetCommandId})...`, 'INFO');
-                    for (let k = 0; k < this.resetBroadcasts; k++) {
-                        await this.sendRawFrameWithRetry(this.resetCommandId, "00");
-                        await delay(1000);
-                    }
+                    await delay(5000);
                 }
             }
-            if (!succeeded)
+            if (!succeeded) {
                 this.logMessage(`Firmware update failed after ${this.maxUpdateAttempts} attempt(s).`, 'ERROR');
+                this.logMessage('Restart the display before trying again - it stays in this state '
+                    + 'until it is restarted.', 'ERROR');
+            }
         } finally {
             this.end = true
             const timeInSeconds = (performance.now() - startTime) / 1000;
