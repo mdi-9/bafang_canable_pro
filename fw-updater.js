@@ -29,6 +29,8 @@ class FwUpdater {
         this.progress = 0; // procentage
         this.end = false;
         this.lastChunkSendIndex = -1;
+        this.transferError = null; // Set when the device answers with a 2B (error) frame
+        this.rateReportEvery = 4096; // Chunks between throughput reports
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {}; //
@@ -123,7 +125,21 @@ class FwUpdater {
                 console.warn("Received invalid frame object, skipping.");
                 return;
             }
-            //this.logMessage(`RECIVE ID: ${idHex} DLC: ${dlc} Data: ${dataHex} (Timestamp: ${timestamp})`, 'INFO',false);
+            // The adapter echoes back everything we transmit, so this handler runs
+            // once per sent chunk too. Nothing we wait for comes from ourselves, and
+            // skipping the echo early avoids tens of thousands of needless string
+            // builds during a transfer.
+            if(idHex.startsWith(this.leadingIdNum + '5'))
+                return;
+            // What the device sends is sparse (a few hundred frames per update),
+            // so recording all of it costs nothing and shows what we ignore.
+            this.logMessage(`RX ${idHex} DLC:${dlc} Data:${dataHex}`, 'RX', false);
+            // 2B (rather than 2A) is the device reporting a problem. Without this we
+            // would sit in a wait loop until its timeout with no idea why.
+            if(idHex.includes(`${this.deviceId}2B`)){
+                this.transferError = `Device reported an error: ID:${idHex} Data:${dataHex}`;
+                this.logMessage(this.transferError, 'ERROR');
+            }
             if(idHex.includes(this.readyIdAck)){
                 this.controllerReady = true;
             }
@@ -254,6 +270,14 @@ class FwUpdater {
     }
     async sendDataChunks() {
         this.logMessage('Step 5: Sending data chunks...', 'INFO');
+        // Throughput accounting. The interesting number is not the overall rate but
+        // how it splits between putting frames on the wire and blocking on the
+        // per-block ACKs - only the first half is ours to tune.
+        const startNs = process.hrtime.bigint();
+        let markNs = startNs;
+        let markIndex = this.startSendChunkIndex;
+        let ackWaitNs = 0n;
+        let ackWaitAtMark = 0n;
         for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
             const chunkId = this.formatChunkNumber(i); // #### incrementing chunk number
             const chunkData = this.getFirmwareChunk(i); // XXXXXXXXXXXXXXXX
@@ -261,17 +285,42 @@ class FwUpdater {
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             if (this.indexAckCheckFct(i)) {
+                const waitFromNs = process.hrtime.bigint();
                 this.startTime = Date.now();
                 do{
                     await delayu(this.delayUs);
+                    if (this.transferError) {
+                        throw `Step 5(chunkId:${chunkId}): ${this.transferError}`;
+                    }
                     if (Date.now() - this.startTime > this.timeout) {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.doWhileAckCheckFct(i));
+                ackWaitNs += process.hrtime.bigint() - waitFromNs;
             }else
                 await delayu(this.delayUs);
+            if (i - markIndex >= this.rateReportEvery) {
+                const nowNs = process.hrtime.bigint();
+                const n = i - markIndex;
+                const totalUs = Number(nowNs - markNs) / 1000;
+                const waitUs = Number(ackWaitNs - ackWaitAtMark) / 1000;
+                this.logMessage(
+                    `chunk ${i}/${this.NUM_CHUNKS} | ${(totalUs / n).toFixed(0)} us/chunk `
+                    + `(send ${((totalUs - waitUs) / n).toFixed(0)} + ackwait ${(waitUs / n).toFixed(0)}) `
+                    + `| elapsed ${(Number(nowNs - startNs) / 1e6).toFixed(1)}s`, 'RATE');
+                markNs = nowNs;
+                markIndex = i;
+                ackWaitAtMark = ackWaitNs;
+            }
         }
-        this.logMessage('All data chunks (except the last) sent.', 'INFO');
+        const sentCount = this.NUM_CHUNKS - 1 - this.startSendChunkIndex;
+        const totalUs = Number(process.hrtime.bigint() - startNs) / 1000;
+        const waitUs = Number(ackWaitNs) / 1000;
+        this.logMessage(
+            `All data chunks (except the last) sent. ${sentCount} chunks in ${(totalUs / 1e6).toFixed(1)}s `
+            + `= ${(totalUs / sentCount).toFixed(0)} us/chunk `
+            + `(send ${((totalUs - waitUs) / sentCount).toFixed(0)}, ackwait ${(waitUs / sentCount).toFixed(0)}) `
+            + `| delayUs setting: ${this.delayUs}`, 'RATE');
     }
     async sendLastPackageAndEndTransfer() {
         this.logMessage('Step 6: Sending last data package and ending transfer...', 'INFO');
@@ -282,6 +331,9 @@ class FwUpdater {
         this.logMessage('Step 7: Waiting for acknowledgment of the last package...', 'INFO');
         do{
             await delay(20);
+            if (this.transferError) {
+                throw `Step 7: ${this.transferError}`;
+            }
             if (Date.now() - this.startTime > (30000)) {
                 throw 'Step 7: Timeout reached, exiting loop....';
             }
