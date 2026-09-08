@@ -102,6 +102,7 @@ class CanBusService extends EventEmitter {
             // Transmit confirmations, kept off the receive path but available for
             // anything that wants to see what we actually put on the wire.
             this.canDevice.on('echo', (frame) => this.emit('raw_frame_sent', frame));
+            this.canDevice.on('canerror', (frame) => this.emit('raw_frame_error', frame));
             this.canDevice.on('error', (err) => this._handleCanError(err));
 
             try {

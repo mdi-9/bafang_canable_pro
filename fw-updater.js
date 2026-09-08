@@ -22,6 +22,11 @@ class FwUpdater {
         // time, so leave this at 1 unless a real reset is ever found.
         this.maxUpdateAttempts = 1;
         this.maxTotalResends = 200;  // Backstop across the whole transfer
+        // Pace on transmit confirmations instead of a fixed delay: delayu() is a busy
+        // wait that pegs a core for the whole transfer, and the right rate is whatever
+        // the wire does, not a number we guess. 0 falls back to the old delayUs pacing.
+        this.maxInFlight = 4;
+        this.echoWaitMs = 5;         // Echoes can be dropped; do not wait forever
         // Deliberately stall mid-block to test whether a transmit gap is what gets a
         // block rejected, instead of waiting for a random failure. Set via env so no
         // code or UI change is needed: FW_DEBUG_STALL_MS=60 [FW_DEBUG_STALL_CHUNK=5000]
@@ -50,6 +55,9 @@ class FwUpdater {
         this.upgradeEndKeepaliveMs = 60;
         this.lastAckWriteAddress = null; // Flash offset reported by the last block ACK
         this.echoCount = 0;              // Frames the adapter confirms it transmitted
+        this.errorFrameCount = 0;        // CAN controller/bus error reports
+        this.echoWaiter = null;          // Resolves the in-flight window wait
+        this.lastErrorFrameId = 0;
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
         this.chunksACKObjectplus1 = {}; //
@@ -140,7 +148,14 @@ class FwUpdater {
         // The adapter reports "ok" for a USB write even when it cannot put the frame on
         // the bus - measured: 1500 writes accepted, 3 frames actually transmitted. The
         // echo is the only real confirmation, so count them and compare per block.
-        this.canbus.on('raw_frame_sent', () => { this.echoCount++; });
+        this.canbus.on('raw_frame_sent', () => {
+            this.echoCount++;
+            if (this.echoWaiter) this.echoWaiter();
+        });
+        this.canbus.on('raw_frame_error', (frame) => {
+            this.errorFrameCount++;
+            this.lastErrorFrameId = frame.can_id;
+        });
         this.canbus.on('raw_frame_received', (rawFrame) => {
             if(this.end)
                 return;
@@ -315,6 +330,15 @@ class FwUpdater {
             }
         }while(!this.firstChunkACK);
     }
+    // Resolves when the adapter confirms another transmission, or after a short
+    // timeout so a dropped echo cannot wedge the transfer.
+    waitForEcho() {
+        return new Promise((resolve) => {
+            const done = () => { clearTimeout(timer); this.echoWaiter = null; resolve(); };
+            const timer = setTimeout(done, this.echoWaitMs);
+            this.echoWaiter = done;
+        });
+    }
     async sendDataChunks() {
         this.logMessage('Step 5: Sending data chunks...'
             + (this.debugStallMs ? ` (DEBUG: ${this.debugStallMs}ms stall armed at chunk ${this.debugStallAtChunk})` : ''), 'INFO');
@@ -357,6 +381,8 @@ class FwUpdater {
         let blockMaxSendUs = 0, runMaxSendUs = 0;
         let stallInjected = false;
         const baseEcho = this.echoCount;
+        const baseErrors = this.errorFrameCount;
+        let blockStartErrors = this.errorFrameCount;
         let maxShortfall = 0;
         try {
         for (let i = this.startSendChunkIndex; i < this.NUM_CHUNKS - 1; i++) {
@@ -367,6 +393,15 @@ class FwUpdater {
             const sendFromNs = process.hrtime.bigint();
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
+            if (this.maxInFlight > 0) {
+                // Sliding window: keep the pipe full but never let the adapter's queue
+                // run away, which is what a fixed delay cannot know how to avoid.
+                let guard = 0;
+                while ((i + 1 - this.startSendChunkIndex) - (this.echoCount - baseEcho) >= this.maxInFlight
+                       && guard++ < this.maxInFlight * 2) {
+                    await this.waitForEcho();
+                }
+            }
             {
                 const nowNs = process.hrtime.bigint();
                 const sendUs = Number(nowNs - sendFromNs) / 1000;
@@ -428,7 +463,8 @@ class FwUpdater {
                         + `worst GC pause in this block ${gcBlockMaxMs.toFixed(1)}ms, `
                         + `worst single USB write in this block ${blockMaxSendUs.toFixed(0)}us, `
                         + `adapter confirmed ${confirmedSoFar}/${sentSoFar} frames transmitted so far `
-                        + `(shortfall ${shortfall}; 1-2 is echo still in flight, more means dropped)`, 'WARN');
+                        + `(shortfall ${shortfall}; 1-2 is echo still in flight, more means dropped), `
+                        + `CAN error frames in this block ${this.errorFrameCount - blockStartErrors}`, 'WARN');
                     if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
                         || resumeAt < this.startSendChunkIndex || resumeAt > i) {
                         throw `Step 5(chunk ${i}): device rejected the block at ${resumeAt}, ${behindChunks} chunk(s) behind`
@@ -443,6 +479,7 @@ class FwUpdater {
                     continue;
                 }
                 this.lastAckWriteAddress = null;
+                blockStartErrors = this.errorFrameCount;
                 blockMaxGapUs = 0;
                 blockMaxSendUs = 0;
                 gcBlockMaxMs = 0;
@@ -477,7 +514,7 @@ class FwUpdater {
             + `${sentCount} chunks in ${(totalUs / 1e6).toFixed(1)}s `
             + `= ${(totalUs / sentCount).toFixed(0)} us/chunk `
             + `(cycle ${((totalUs - waitUs) / sentCount).toFixed(0)}, ackwait ${(waitUs / sentCount).toFixed(0)}) `
-            + `| delayUs setting: ${this.delayUs}`, 'RATE');
+            + `| pacing: ${this.maxInFlight > 0 ? 'echo window ' + this.maxInFlight : 'delayUs ' + this.delayUs}`, 'RATE');
         loopLag.disable();
         this.logMessage(
             `Stalls: gaps >2ms=${gapCounts[0]} >5ms=${gapCounts[1]} >20ms=${gapCounts[2]} `
@@ -499,6 +536,10 @@ class FwUpdater {
         // first frame, so a non-zero count here means the fix is doing real work.
         const packed = this.canbus.canDevice && this.canbus.canDevice.multiFrameTransfers;
         if (packed) this.logMessage(`USB transfers carrying more than one frame: ${packed}`, 'RATE');
+        const errs = this.errorFrameCount - baseErrors;
+        this.logMessage(`CAN error frames reported by the controller: ${errs}`
+            + (errs ? ` (last id 0x${this.lastErrorFrameId.toString(16).toUpperCase()}; `
+                    + `set CAN_VERBOSE_ERRORS=1 to decode them)` : ''), 'RATE');
         }
     }
     async sendLastPackageAndEndTransfer() {

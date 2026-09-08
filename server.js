@@ -650,11 +650,14 @@ const wss = new WebSocket.Server({ server });
 		if (messageString.startsWith('FW_UPDATE_START:')) {
 			const messageParts = messageString.split(':');
 			const modePart = messageParts[1];
-			const delayPart = messageParts[2];
+			const windowPart = messageParts[2];
 			const base64Content = messageParts[3];
 			const buffer = Buffer.from(base64Content, 'base64');
 			const fwUpdater = new FwUpdater(canbus,ws);
-			fwUpdater.delayUs = parseInt(delayPart) || 300;
+			// Frames allowed in flight before waiting on a transmit confirmation.
+			// 0 keeps the old fixed-delay pacing; anything else paces off the echoes.
+			const sendWindow = parseInt(windowPart);
+			fwUpdater.maxInFlight = Number.isFinite(sendWindow) ? sendWindow : 4;
 			fwUpdater.startUpdateProcedure(buffer,modePart);
 			return true
 		}

@@ -333,7 +333,7 @@ export const fwUpdateElements = {
     logArea: document.getElementById('fwUpdatelog'),
     clearButton: document.getElementById('clearFwUpdateLogButton'),
     modeSelect: document.getElementById('fwUpdateModeSelect'),
-    delayInput: document.getElementById('fwUpdateDelayUsInput'),
+    windowInput: document.getElementById('fwUpdateWindowInput'),
 };
 
 export const snifferElements = {

@@ -5,6 +5,11 @@ const process = require('node:process');
  * Provides handling the can frame received from USB, upto the point where the 
  * CanID is decoded. It does not handle decoding the PGN or handling multi frame messages.
  */ 
+// Decoding an error frame used to print up to 11 lines per frame. Writing to the
+// console is synchronous and blocks the event loop, which is the last thing we
+// want in the receive path. The decoded bits stay on the frame either way.
+const VERBOSE_ERRORS = process.env.CAN_VERBOSE_ERRORS === '1';
+
 class CanFrame {
 
 
@@ -185,17 +190,17 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
 */
 
 
-        console.log(`Can ID 0x${this.can_id.toString(16)}`);
+        if (VERBOSE_ERRORS) console.log(`Can ID 0x${this.can_id.toString(16)}`);
 
-        console.log("Can Error detected:")
+        if (VERBOSE_ERRORS) console.log("Can Error detected:")
         if ( (this.can_id&0x01) === 0x01 ) {
-            console.log("   TX Timeout");
+            if (VERBOSE_ERRORS) console.log("   TX Timeout");
         }
         if ( (this.can_id&0x02) === 0x02 ) {
 /* arbitration lost in bit ... / data[0] * /
 #define CAN_ERR_LOSTARB_UNSPEC 0x00   /* unspecified * /
 /* else bit number in bitstream */
-            console.log(`   Lost Arbitration at bit:${this.data.getUint8(0)}`);
+            if (VERBOSE_ERRORS) console.log(`   Lost Arbitration at bit:${this.data.getUint8(0)}`);
         }
         if ( (this.can_id&0x04) === 0x04 ) {
 /* error status of CAN-controller / data[1] * /
@@ -218,7 +223,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfSet(errs, 0x20, "txPassiveStatusErr", errObj );
             this._incIfSet(errs, 0x40, "recovered", errObj );
             this.errors.canController = this._accumulate(errObj, this.errors.canController);
-            console.log("   CAN Controller Status     update:",errObj," totals:", this.errors.canController);
+            if (VERBOSE_ERRORS) console.log("   CAN Controller Status     update:",errObj," totals:", this.errors.canController);
 
         }
         if ( (this.can_id&0x08) === 0x08 ) {
@@ -246,7 +251,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfSet(errs, 0x40, "activeErrorAnnouncement", errObj );
             this._incIfSet(errs, 0x80, "errorOnTransmission", errObj );
             this.errors.protocolErrorType = this._accumulate(errObj, this.errors.protocolErrorType);
-            console.log("   Protocol Error Type         update:",errObj," totals:", this.errors.protocolErrorType);
+            if (VERBOSE_ERRORS) console.log("   Protocol Error Type         update:",errObj," totals:", this.errors.protocolErrorType);
 
 
 /* error in CAN protocol (location) / data[3] * /
@@ -296,7 +301,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfEquals(errsLoc, 0x12, "intermission", errObjLoc );
             this.errors.protocolErrorLocation = this._accumulate(errObjLoc, this.errors.protocolErrorLocation);
 
-            console.log("   Protocol Error Location     update:",errObjLoc,"totals", this.errors.protocolErrorLocation);
+            if (VERBOSE_ERRORS) console.log("   Protocol Error Location     update:",errObjLoc,"totals", this.errors.protocolErrorLocation);
 
 
         }
@@ -331,24 +336,24 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this._incIfEquals(errs, 0x80, "canLshortToCanH", errObj );
             this.errors.transceiverStatus = this._accumulate(errObj, this.errors.transceiverStatus);
 
-            console.log("   Transceiver Status       update:",errObj, "totals",this.errors.transceiverStatus);
+            if (VERBOSE_ERRORS) console.log("   Transceiver Status       update:",errObj, "totals",this.errors.transceiverStatus);
 
         }
         if ( (this.can_id&0x20) === 0x20 ) {
-            console.log(`   no ack`);
+            if (VERBOSE_ERRORS) console.log(`   no ack`);
         }
         if ( (this.can_id&0x40) === 0x40 ) {
-            console.log(`   bus off`);
+            if (VERBOSE_ERRORS) console.log(`   bus off`);
         }
         if ( (this.can_id&0x80) === 0x80 ) {
-            console.log(`   bus error`);
+            if (VERBOSE_ERRORS) console.log(`   bus error`);
         }
         if ( (this.can_id&0x100) === 0x100 ) {
-            console.log(`   controller restarted`);
+            if (VERBOSE_ERRORS) console.log(`   controller restarted`);
         }
         if ( (this.can_id&0x200) === 0x200 ) {
-            console.log(`   tx errors           count:${this.data.getUint8(6)}`);
-            console.log(`   rx errors           count:${this.data.getUint8(7)}`);
+            if (VERBOSE_ERRORS) console.log(`   tx errors           count:${this.data.getUint8(6)}`);
+            if (VERBOSE_ERRORS) console.log(`   rx errors           count:${this.data.getUint8(7)}`);
         }
     }
 

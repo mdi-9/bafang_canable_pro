@@ -24,7 +24,7 @@ fwUpdateElements.startButton.onclick = () => {
     var reader = new FileReader();
     reader.onload = function (e) {
         const base64Content = e.target.result.split(',')[1];
-        socket.send(`FW_UPDATE_START:${fwUpdateElements.modeSelect.value}:${fwUpdateElements.delayInput.value}:${base64Content}`);
+        socket.send(`FW_UPDATE_START:${fwUpdateElements.modeSelect.value}:${fwUpdateElements.windowInput.value}:${base64Content}`);
         updateFwUpdateProgress(0);
     };
     reader.readAsDataURL(file);

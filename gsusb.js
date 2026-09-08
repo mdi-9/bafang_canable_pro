@@ -1225,6 +1225,12 @@ struct gs_device_filter {
                     this._emitEvent("echo", frame);
                     continue;
                 }
+                // A controller/bus error report, not a Bafang message. Passing it on
+                // as a normal frame meant the parser tried to read it as one.
+                if ( frame.frameType === "error" ) {
+                    this._emitEvent("canerror", frame);
+                    continue;
+                }
                 if ( this._acceptMessage(frame)) {
                     this._emitEvent("frame", frame);
                 }
