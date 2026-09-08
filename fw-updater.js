@@ -494,6 +494,11 @@ class FwUpdater {
             + (sentCount - (this.echoCount - baseEcho) > 2
                 ? ` - ${sentCount - (this.echoCount - baseEcho)} FRAME(S) NEVER REACHED THE BUS`
                 : ' - nothing dropped by the adapter'), 'RATE');
+        // How often the firmware packed several frames into one USB transfer. Before
+        // the multi-frame fix in onUSBPollData every one of these lost all but the
+        // first frame, so a non-zero count here means the fix is doing real work.
+        const packed = this.canbus.canDevice && this.canbus.canDevice.multiFrameTransfers;
+        if (packed) this.logMessage(`USB transfers carrying more than one frame: ${packed}`, 'RATE');
         }
     }
     async sendLastPackageAndEndTransfer() {
