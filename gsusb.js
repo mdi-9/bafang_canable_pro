@@ -212,6 +212,25 @@ From https://github.com/torvalds/linux/blob/master/drivers/net/can/usb/gs_usb.c#
         this._listeners[name].push(fn);
     }
 
+    /**
+     * Remove one listener, or every listener for an event when fn is omitted.
+     * This object outlives a USB reconnect, so without a way to detach, each
+     * reconnect left another copy of every handler attached.
+     */
+    off(name, fn) {
+        if ( this._listeners[name] === undefined ) return;
+        if ( fn === undefined ) {
+            delete this._listeners[name];
+            return;
+        }
+        this._listeners[name] = this._listeners[name].filter((f) => f !== fn);
+    }
+
+    removeAllListeners(name) {
+        if ( name === undefined ) this._listeners = {};
+        else this.off(name);
+    }
+
     async checkDevice() {
         console.log("Start check device ===================");
         const webusb = new usb.WebUSB({

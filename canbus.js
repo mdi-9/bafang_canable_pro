@@ -98,6 +98,13 @@ class CanBusService extends EventEmitter {
             this.emit('can_status', true, `CAN device connected (${this.connectedDeviceName}).`);
 
 
+            // canDevice survives a reconnect and its listener list is append-only, so
+            // drop the previous set first. Duplicates parsed every frame twice over and,
+            // worse, double counted the transmit confirmations the send window paces on,
+            // which quietly disabled the pacing after any USB replug.
+            for (const ev of ['frame', 'echo', 'canerror', 'error']) {
+                this.canDevice.removeAllListeners(ev);
+            }
             this.canDevice.on('frame', (frame) => this._handleFrameReceived(frame));
             // Transmit confirmations, kept off the receive path but available for
             // anything that wants to see what we actually put on the wire.
