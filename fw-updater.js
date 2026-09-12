@@ -57,6 +57,7 @@ class FwUpdater {
         this.echoCount = 0;              // Frames the adapter confirms it transmitted
         this.errorFrameCount = 0;        // CAN controller/bus error reports
         this.echoWaiter = null;          // Resolves the in-flight window wait
+        this.lastComplaintChunk = null;  // Chunk the device named when refusing a block
         this.lastErrorFrameId = 0;
         this.leadingIdNum = "8"; // The leading number for the ID, e.g., 8 for 82F83200
         this.chunksACKObject = {}; // Object to track ACKs for each 
@@ -193,6 +194,15 @@ class FwUpdater {
             }
             if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex)}`)){
                 this.chunksACKObject[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
+            }
+            // Any other numbered report from the device during the data phase is it
+            // naming the chunk it took issue with - the only clue to where in the block
+            // things went wrong, and worth comparing against where our worst stall was.
+            if(this.lastChunkSendIndex >= 0 && dlc === 8
+               && idHex.includes(`${this.deviceId}2A`)
+               && !idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex+1)}`)
+               && !idHex.includes(`${this.deviceId}2A4001`) && !idHex.includes(`${this.deviceId}2A6008`)){
+                this.lastComplaintChunk = parseInt(idHex.slice(-4), 16);
             }
             if(this.lastChunkSendIndex >= 0 && idHex.includes(`${this.deviceId}2A${this.formatChunkNumber(this.lastChunkSendIndex+1)}`)){
                 this.chunksACKObjectplus1[this.lastChunkSendIndex] = true; // Mark this chunk as acknowledged
@@ -374,6 +384,7 @@ class FwUpdater {
         const gapCounts = [0, 0, 0, 0];
         let prevSendNs = process.hrtime.bigint();
         let blockMaxGapUs = 0, runMaxGapUs = 0, markMaxGapUs = 0, runMaxLagNs = 0;
+        let blockWorstGapAt = -1, blockFirstChunk = this.startSendChunkIndex;
         let lastSentIndex = this.startSendChunkIndex - 1;
         // Split the cycle: time spent inside the USB write, versus time waiting to be
         // given the loop back afterwards. A stall in the first is the transfer itself
@@ -410,7 +421,7 @@ class FwUpdater {
                 const gapUs = Number(nowNs - prevSendNs) / 1000;
                 prevSendNs = nowNs;
                 for (let b = 0; b < gapBuckets.length; b++) if (gapUs > gapBuckets[b]) gapCounts[b]++;
-                if (gapUs > blockMaxGapUs) blockMaxGapUs = gapUs;
+                if (gapUs > blockMaxGapUs) { blockMaxGapUs = gapUs; blockWorstGapAt = i; }
                 if (gapUs > markMaxGapUs) markMaxGapUs = gapUs;
                 if (gapUs > runMaxGapUs) runMaxGapUs = gapUs;
             }
@@ -464,7 +475,14 @@ class FwUpdater {
                         + `worst single USB write in this block ${blockMaxSendUs.toFixed(0)}us, `
                         + `adapter confirmed ${confirmedSoFar}/${sentSoFar} frames transmitted so far `
                         + `(shortfall ${shortfall}; 1-2 is echo still in flight, more means dropped), `
-                        + `CAN error frames in this block ${this.errorFrameCount - blockStartErrors}`, 'WARN');
+                        + `CAN error frames in this block ${this.errorFrameCount - blockStartErrors}`
+                        + `, block spans ${blockFirstChunk}..${i}`
+                        + `, worst stall at chunk ${blockWorstGapAt} (position ${blockWorstGapAt - blockFirstChunk + 1})`
+                        + (this.lastComplaintChunk !== null
+                            ? `, device complained about chunk 0x${this.lastComplaintChunk.toString(16).toUpperCase()} `
+                              + `(position ${((this.lastComplaintChunk - blockFirstChunk) & 0xFFFF) + 1}) `
+                              + `-> stall came ${blockWorstGapAt - blockFirstChunk <= ((this.lastComplaintChunk - blockFirstChunk) & 0xFFFF) ? 'BEFORE' : 'AFTER'} the complaint`
+                            : ', device named no chunk'), 'WARN');
                     if (sameSpotResends > this.maxBlockResends || resends > this.maxTotalResends
                         || resumeAt < this.startSendChunkIndex || resumeAt > i) {
                         throw `Step 5(chunk ${i}): device rejected the block at ${resumeAt}, ${behindChunks} chunk(s) behind`
@@ -480,6 +498,9 @@ class FwUpdater {
                 }
                 this.lastAckWriteAddress = null;
                 blockStartErrors = this.errorFrameCount;
+                blockFirstChunk = i + 1;
+                blockWorstGapAt = -1;
+                this.lastComplaintChunk = null;
                 blockMaxGapUs = 0;
                 blockMaxSendUs = 0;
                 gcBlockMaxMs = 0;
