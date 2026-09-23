@@ -149,15 +149,17 @@ class FwUpdater {
         // The adapter reports "ok" for a USB write even when it cannot put the frame on
         // the bus - measured: 1500 writes accepted, 3 frames actually transmitted. The
         // echo is the only real confirmation, so count them and compare per block.
-        this.canbus.on('raw_frame_sent', () => {
+        this._onFrameSent = () => {
             this.echoCount++;
             if (this.echoWaiter) this.echoWaiter();
-        });
-        this.canbus.on('raw_frame_error', (frame) => {
+        };
+        this._onFrameError = (frame) => {
             this.errorFrameCount++;
             this.lastErrorFrameId = frame.can_id;
-        });
-        this.canbus.on('raw_frame_received', (rawFrame) => {
+        };
+        this.canbus.on('raw_frame_sent', this._onFrameSent);
+        this.canbus.on('raw_frame_error', this._onFrameError);
+        this._onFrameReceived = (rawFrame) => {
             if(this.end)
                 return;
             const { idHex, dataHex, dlc, timestamp } = formatRawCanFrameData(rawFrame);
@@ -214,7 +216,17 @@ class FwUpdater {
             if(idHex.includes(`${this.deviceId}2A0002`)){
                 this.firstChunkACK = true;
             }
-        });
+        };
+        this.canbus.on('raw_frame_received', this._onFrameReceived);
+    }
+    // server.js builds a new updater for every attempt and canbus is a singleton, so
+    // without this each attempt left three more handlers on it for the rest of the
+    // session - the same append-only leak as GSUsb's, one level up.
+    dispose() {
+        if (typeof this.canbus.removeListener !== 'function') return;
+        this.canbus.removeListener('raw_frame_sent', this._onFrameSent);
+        this.canbus.removeListener('raw_frame_error', this._onFrameError);
+        this.canbus.removeListener('raw_frame_received', this._onFrameReceived);
     }
     async sendRawFrameWithRetry(id,data,retries = 3){
         let sent = false;
@@ -342,11 +354,28 @@ class FwUpdater {
     }
     // Resolves when the adapter confirms another transmission, or after a short
     // timeout so a dropped echo cannot wedge the transfer.
+    // Resolves true on timeout. setTimeout cannot be used for this: on Windows it
+    // rounds up to the 15.6 ms system tick (measured: setTimeout(5) = 15.6 ms median),
+    // so every lost echo cost ~16 ms and two in a row sat right on the gap length that
+    // gets blocks rejected. Poll an hrtime deadline on setImmediate instead, which
+    // still lets the USB callbacks that deliver the echo run between checks.
     waitForEcho() {
         return new Promise((resolve) => {
-            const done = () => { clearTimeout(timer); this.echoWaiter = null; resolve(); };
-            const timer = setTimeout(done, this.echoWaitMs);
-            this.echoWaiter = done;
+            const deadline = process.hrtime.bigint() + BigInt(Math.round(this.echoWaitMs * 1e6));
+            let settled = false;
+            const finish = (timedOut) => {
+                if (settled) return;
+                settled = true;
+                this.echoWaiter = null;
+                resolve(timedOut);
+            };
+            this.echoWaiter = () => finish(false);
+            const poll = () => {
+                if (settled) return;
+                if (process.hrtime.bigint() >= deadline) { finish(true); return; }
+                setImmediate(poll);
+            };
+            setImmediate(poll);
         });
     }
     async sendDataChunks() {
@@ -390,6 +419,10 @@ class FwUpdater {
         // given the loop back afterwards. A stall in the first is the transfer itself
         // blocking; in the second it is other work on the event loop.
         let blockMaxSendUs = 0, runMaxSendUs = 0;
+        // Kept apart from the write: until now the "USB write" figure was taken after
+        // the echo window, so it silently included waiting for echoes.
+        let blockMaxEchoWaitUs = 0, runMaxEchoWaitUs = 0, blockEchoTimeouts = 0, runEchoTimeouts = 0;
+        let blockStartNs = process.hrtime.bigint(), blockIndex = 0;
         let stallInjected = false;
         const baseEcho = this.echoCount;
         const baseErrors = this.errorFrameCount;
@@ -403,6 +436,7 @@ class FwUpdater {
             lastSentIndex = i;
             const sendFromNs = process.hrtime.bigint();
             await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId}`,chunkData);
+            const writtenNs = process.hrtime.bigint();
             this.progress = Math.round((i/this.NUM_CHUNKS)*100);
             if (this.maxInFlight > 0) {
                 // Sliding window: keep the pipe full but never let the adapter's queue
@@ -410,12 +444,15 @@ class FwUpdater {
                 let guard = 0;
                 while ((i + 1 - this.startSendChunkIndex) - (this.echoCount - baseEcho) >= this.maxInFlight
                        && guard++ < this.maxInFlight * 2) {
-                    await this.waitForEcho();
+                    if (await this.waitForEcho()) { blockEchoTimeouts++; runEchoTimeouts++; }
                 }
+                const echoWaitUs = Number(process.hrtime.bigint() - writtenNs) / 1000;
+                if (echoWaitUs > blockMaxEchoWaitUs) blockMaxEchoWaitUs = echoWaitUs;
+                if (echoWaitUs > runMaxEchoWaitUs) runMaxEchoWaitUs = echoWaitUs;
             }
             {
                 const nowNs = process.hrtime.bigint();
-                const sendUs = Number(nowNs - sendFromNs) / 1000;
+                const sendUs = Number(writtenNs - sendFromNs) / 1000;
                 if (sendUs > blockMaxSendUs) blockMaxSendUs = sendUs;
                 if (sendUs > runMaxSendUs) runMaxSendUs = sendUs;
                 const gapUs = Number(nowNs - prevSendNs) / 1000;
@@ -442,7 +479,18 @@ class FwUpdater {
                         throw `Step 5(chunkId:${chunkId}): Timeout reached, exiting loop....`;
                     }
                 }while(!this.doWhileAckCheckFct(i));
-                ackWaitNs += process.hrtime.bigint() - waitFromNs;
+                const ackDoneNs = process.hrtime.bigint();
+                ackWaitNs += ackDoneNs - waitFromNs;
+                // Every block-0 failure so far had a far slower cycle than successful
+                // runs - but those figures averaged one block against 57k chunks. Log the
+                // first blocks on their own so failing and passing runs compare directly.
+                if (blockIndex < 3) {
+                    const n = i - blockFirstChunk + 1;
+                    this.logMessage(`Block ${blockIndex} (chunks ${blockFirstChunk}..${i}): `
+                        + `cycle ${(Number(waitFromNs - blockStartNs) / 1000 / n).toFixed(0)} us/chunk, `
+                        + `ACK after ${(Number(ackDoneNs - waitFromNs) / 1e6).toFixed(1)} ms, `
+                        + `echo timeouts ${blockEchoTimeouts}`, 'RATE');
+                }
                 // The ACK is cumulative: its payload says the device has committed
                 // everything below (i+1)*8. If it reports less, the block we just
                 // streamed never landed and the device is still sitting further
@@ -473,6 +521,7 @@ class FwUpdater {
                         + `loop lag max ${(loopLag.max / 1000).toFixed(0)}us, `
                         + `worst GC pause in this block ${gcBlockMaxMs.toFixed(1)}ms, `
                         + `worst single USB write in this block ${blockMaxSendUs.toFixed(0)}us, `
+                        + `worst echo wait ${blockMaxEchoWaitUs.toFixed(0)}us (${blockEchoTimeouts} echo timeouts), `
                         + `adapter confirmed ${confirmedSoFar}/${sentSoFar} frames transmitted so far `
                         + `(shortfall ${shortfall}; 1-2 is echo still in flight, more means dropped), `
                         + `CAN error frames in this block ${this.errorFrameCount - blockStartErrors}`
@@ -499,6 +548,10 @@ class FwUpdater {
                 this.lastAckWriteAddress = null;
                 blockStartErrors = this.errorFrameCount;
                 blockFirstChunk = i + 1;
+                blockIndex++;
+                blockStartNs = process.hrtime.bigint();
+                blockMaxEchoWaitUs = 0;
+                blockEchoTimeouts = 0;
                 blockWorstGapAt = -1;
                 this.lastComplaintChunk = null;
                 blockMaxGapUs = 0;
@@ -545,7 +598,8 @@ class FwUpdater {
         gcObserver.disconnect();
         this.logMessage(
             `GC: ${gcCount} collections, ${gcTotalMs.toFixed(0)}ms total, worst ${gcMaxMs.toFixed(1)}ms; `
-            + `worst single USB write ${runMaxSendUs.toFixed(0)}us`, 'RATE');
+            + `worst single USB write ${runMaxSendUs.toFixed(0)}us; `
+            + `worst echo wait ${runMaxEchoWaitUs.toFixed(0)}us, echo timeouts ${runEchoTimeouts}`, 'RATE');
         this.logMessage(
             `Adapter confirmed transmitting ${this.echoCount - baseEcho}/${sentCount} chunk frames `
             + `(peak in-flight shortfall ${maxShortfall})`
@@ -699,6 +753,7 @@ class FwUpdater {
                 this.ws.send(`FW_UPDATE_END`);
             if(this.logToFile && this.logToFile.close)
                 await this.logToFile.close();
+            this.dispose();
         }
     }
 
