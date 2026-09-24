@@ -1,5 +1,6 @@
 const { setupLogger, formatRawCanFrameData, delay,delayu } = require('./utils');
 const { monitorEventLoopDelay, PerformanceObserver } = require('perf_hooks');
+const os = require('os');
 // --- Configuration Constants ---
 const CHUNK_SIZE = 8; // Bytes per chunk
 const HEADER_SIZE = 16; // The first 16 hex bytes to be excluded from the data transfer
@@ -719,10 +720,35 @@ class FwUpdater {
             await this.announceFirmwareUpgradeEndOld();
     }
 
+    // The stalls that get blocks rejected were measured inside the USB write itself,
+    // i.e. below our code. Raising the process priority for the duration of the update
+    // is the one lever we have on how often the OS leaves us waiting there. HIGH needs
+    // no admin rights on Windows; REALTIME would, and could starve the USB stack.
+    raisePriority() {
+        try {
+            this.previousPriority = os.getPriority();
+            os.setPriority(os.constants.priority.PRIORITY_HIGH);
+            this.logMessage(`Process priority raised to HIGH for the update (was ${this.previousPriority})`, 'INFO');
+        } catch (e) {
+            this.previousPriority = undefined;
+            this.logMessage(`Could not raise process priority: ${e.message}`, 'WARN');
+        }
+    }
+    restorePriority() {
+        if (this.previousPriority === undefined) return;
+        try {
+            os.setPriority(this.previousPriority);
+        } catch (e) {
+            console.warn('Could not restore process priority:', e.message);
+        }
+        this.previousPriority = undefined;
+    }
+
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         const startTime = performance.now();
         this.logToFile = await setupLogger();
         let succeeded = false;
+        this.raisePriority();
         try {
             for (let attempt = 1; attempt <= this.maxUpdateAttempts; attempt++) {
                 try {
@@ -746,6 +772,7 @@ class FwUpdater {
                     + 'until it is restarted.', 'ERROR');
             }
         } finally {
+            this.restorePriority();
             this.end = true
             const timeInSeconds = (performance.now() - startTime) / 1000;
             this.logMessage(`Runtime: ${timeInSeconds}s`,'INFO');
