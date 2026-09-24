@@ -1152,7 +1152,7 @@ struct gs_device_filter {
                 throw new Error("Invalid endpoint");
             }
             const that = this;
-            this.endpoint.startPoll(3, 1024);
+            this.endpoint.startPoll(this.pollTransfers || 3, 1024);
             that.pollCanFrames = true;
 
             this.endpoint.on('data', this.onUSBPollData);
