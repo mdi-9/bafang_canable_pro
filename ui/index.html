@@ -19,7 +19,7 @@
                 <div id="canDeviceName" class="text-center text-olive font-semibold ml-3 text-sm"></div>
             </div>
             <h1 class="text-xl font-bold text-olive tracking-tight">
-                <span style="color: black;">Bafang</span> / <span style="color: blue;">EBiCS</span> CANable Pro
+                <span style="color: black;">Bafang</span> / <span style="color: blue;">EBiCS</span> CANable Pro V2.3
 
             </h1>
             <button id="connectCanButton" disabled class="btn btn-primary">Connect</button>
@@ -923,8 +923,10 @@
                             <tr><th>Hardware Version</th><td><span id="infoCtrlHwVersionValue">N/A</span></td></tr>
                             <tr><th>Software Version</th><td><span id="infoCtrlSwVersionValue">N/A</span></td></tr>
                             <tr><th>Model Number</th><td><span id="infoCtrlModelNumberValue">N/A</span></td></tr>
+                            <tr><th>Bootloader Version</th><td><span id="infoCtrlBootloaderVersionValue">N/A</span></td></tr>
                             <tr><th>Serial Number</th><td><span id="infoCtrlSnValue">N/A</span> <small class="form-hint inline">Often changeable.</small></td></tr>
                             <tr><th>Production Date</th><td><span id="infoCtrlProductionDateValue">N/A</span></td></tr>
+                            <tr><th>Customer Number</th><td><span id="infoCtrlCnValue">N/A</span></td></tr>
                             <tr>
                                 <th>Manufacturer</th>
                                 <td>
@@ -1079,9 +1081,10 @@
                                         <option value="CONTROLER" selected>Motor controller</option>
                                         <option value="CONTROLER_OLD">Old motor controller</option>
                                         <option value="CONTROLER_HUB">M410 V2.0 / Hub CRS10F V4.0</option>
+                                        <option value="M400_2.1">M400 Version 2.1</option>
                                         <option value="HMI">HMI (DPC245, DPC080CB, DPC010CN)</option>
                                         <option value="DPC18">HMI DPC18 1.4</option>
-                                        <option value="DPE160">M400 Version 2.1 / HMI DPE160</option>
+                                        <option value="DPE160">HMI DPE160</option>
                                     </select>
                                 </td>
                             </tr>

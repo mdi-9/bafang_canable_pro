@@ -262,6 +262,8 @@ socket.onmessage = (event) => {
                 case 'controller_sn': state.controllerOtherInfo.serialNumber = parsedEvent.data?.serial_number; state.controllerOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsInfoUpdate = true; break;
                 case 'controller_mn': state.controllerOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break;
                 case 'controller_mfg': state.controllerOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break;
+                case 'controller_cn': state.controllerOtherInfo.customerNumber = parsedEvent.data?.customer_number; needsInfoUpdate = true; break;
+                case 'controller_bootloader_version': state.controllerOtherInfo.bootloaderVersion = parsedEvent.data?.bootloader_version; needsInfoUpdate = true; break;
 
                 case 'display_hw_version': state.displayOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
                 case 'display_sw_version': state.displayOtherInfo.swVersion = parsedEvent.data?.software_version; needsInfoUpdate = true; break;

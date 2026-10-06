@@ -13,9 +13,11 @@ export function updateInfoUI() {
     infoElements.ctrlModelNumberValue.textContent = getNullableString(state.controllerOtherInfo.modelNumber);
     infoElements.ctrlSnValue.textContent = getNullableString(state.controllerOtherInfo.serialNumber);
     infoElements.ctrlProductionDateValue.textContent = getNullableString(state.controllerOtherInfo.productionDate);
+    infoElements.ctrlBootloaderVersionValue.textContent = getNullableString(state.controllerOtherInfo.bootloaderVersion);
+    infoElements.ctrlCnValue.textContent = getNullableString(state.controllerOtherInfo.customerNumber);
     infoElements.ctrlMfgValue.textContent = getNullableString(state.controllerOtherInfo.manufacturer);
     if (state.controllerOtherInfo.manufacturer !== null && infoElements.ctrlMfgInput.value === "") infoElements.ctrlMfgInput.value = state.controllerOtherInfo.manufacturer;
-    infoElements.ctrlPlaceholder.style.display = (state.controllerOtherInfo.hwVersion || state.controllerOtherInfo.swVersion || state.controllerOtherInfo.modelNumber || state.controllerOtherInfo.serialNumber || state.controllerOtherInfo.manufacturer) ? 'none' : 'block';
+    infoElements.ctrlPlaceholder.style.display = (state.controllerOtherInfo.hwVersion || state.controllerOtherInfo.swVersion || state.controllerOtherInfo.modelNumber || state.controllerOtherInfo.bootloaderVersion || state.controllerOtherInfo.serialNumber || state.controllerOtherInfo.manufacturer || state.controllerOtherInfo.customerNumber) ? 'none' : 'block';
 
     // Display Info
     infoElements.displayHwVersionValue.textContent = getNullableString(state.displayOtherInfo.hwVersion);
@@ -60,6 +62,12 @@ async function controllerInfoSend() {
     state.controllerOtherInfo.modelNumber = null;
     socket.send('READ:2:96:2');
     await waitFor(() => state.controllerOtherInfo.modelNumber !== null);
+    state.controllerOtherInfo.bootloaderVersion = null;
+    socket.send('READ:2:96:8');
+    await waitFor(() => state.controllerOtherInfo.bootloaderVersion !== null);
+    state.controllerOtherInfo.customerNumber = null;
+    socket.send('READ:2:96:4');
+    await waitFor(() => state.controllerOtherInfo.customerNumber !== null);
     socket.send('READ:2:96:5');
 }
 

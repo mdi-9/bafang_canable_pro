@@ -29,7 +29,7 @@ const CanReadCommandsList = Object.freeze({
     CustomerNumber: {
         canCommandCode: 0x60, // 96
         canCommandSubCode: 0x04,
-        applicableDevices: [DeviceNetworkId.TORQUE_SENSOR, DeviceNetworkId.DISPLAY],
+        applicableDevices: [DeviceNetworkId.TORQUE_SENSOR, DeviceNetworkId.DRIVE_UNIT, DeviceNetworkId.DISPLAY],
     },
     Manufacturer: {
         canCommandCode: 0x60, // 96
@@ -41,10 +41,10 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x07,
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT,DeviceNetworkId.DISPLAY],
     },
-    BootloaderVersion: { // Read Bootloader Version from Display
+    BootloaderVersion: { // Read Bootloader Version from Controller/Display
         canCommandCode: 0x60, // 96
         canCommandSubCode: 0x08,
-        applicableDevices: [DeviceNetworkId.DISPLAY],
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT, DeviceNetworkId.DISPLAY],
     },
 	Parameter0: { // Read Controller Parameter Block 0 (Contains Acceleration)
         canCommandCode: 0x60, // 96

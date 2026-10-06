@@ -104,6 +104,11 @@ class FwUpdater {
         this.setupForHMI();
         this.indexAckCheckFct = (i) => (i - 1) % 4096 === 0 && i!==2;
     }
+
+    setupForM400_21(){
+        this.setupForNewMotor();
+        this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 127) % 256 === 0;
+    }
     setupForDPE160(){
         this.setupForHMI();
         this.indexAckCheckFct = (i) => ((i - 1) % 256 === 0 && i!==2) || (i + 127) % 256 === 0;
@@ -693,6 +698,8 @@ class FwUpdater {
             this.setupForDPE160()
         else if (mode == "CONTROLER_HUB")
             this.setupForHubControler()
+		else if (mode == "M400_2.1") 
+			this.setupForM400_21() 
         else
             this.setupForNewMotor()
         this.initFile(fileBuffer);
