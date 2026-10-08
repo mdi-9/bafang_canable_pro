@@ -1,5 +1,5 @@
 // init.js — ES Module entry point
-import { populateWheelSelect, switchTab, updateCanInterfaceDisplay, statusText } from './shared.js';
+import { populateWheelSelect, switchTab, updateCanInterfaceDisplay, statusText, initHintTips } from './shared.js';
 import { populateHexEditor } from './tab-debug.js';
 import { updatePasCurvesChartUnified, updateStartRampChartUnified } from './tab-gears.js';
 
@@ -22,6 +22,7 @@ import './tab-data-backup.js';
 populateWheelSelect();
 switchTab('controller');
 populateHexEditor();
+initHintTips();
 updateCanInterfaceDisplay('DEVICE_NOT_FOUND');
 statusText.textContent = "Connecting to server...";
 updatePasCurvesChartUnified(false);

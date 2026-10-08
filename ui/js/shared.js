@@ -336,6 +336,8 @@ export const fwUpdateElements = {
     clearButton: document.getElementById('clearFwUpdateLogButton'),
     modeSelect: document.getElementById('fwUpdateModeSelect'),
     windowInput: document.getElementById('fwUpdateWindowInput'),
+    rxLogCheckbox: document.getElementById('fwUpdateRxLogCheckbox'),
+    holdCheckbox: document.getElementById('fwUpdateHoldCheckbox'),
 };
 
 export const snifferElements = {
@@ -970,5 +972,29 @@ export function populateWheelSelect() {
             circInput.min = "400";
             circInput.max = "3000";
         }
+    });
+}
+
+// Hover help: a "?" next to a field label (.hint-tip) holding its explanation
+// (.hint-tip-text). The bubble is positioned against the window rather than the
+// label, because the parameter tables clip anything that sticks out of them; it
+// opens upwards and flips below the icon when there is no room above.
+function placeHintTip(tip) {
+    const bubble = tip.querySelector('.hint-tip-text');
+    if (!bubble) return;
+    const icon = tip.getBoundingClientRect();
+    const width = bubble.offsetWidth, height = bubble.offsetHeight;
+    const left = Math.min(Math.max(8, icon.right + 12 - width), window.innerWidth - width - 8);
+    const below = icon.top - height - 8 < 8;
+    bubble.style.left = `${left}px`;
+    bubble.style.top = `${below ? icon.bottom + 8 : icon.top - height - 8}px`;
+    bubble.style.setProperty('--hint-arrow-x', `${icon.left + icon.width / 2 - left}px`);
+    bubble.classList.toggle('below', below);
+}
+
+export function initHintTips(root = document) {
+    root.querySelectorAll('.hint-tip').forEach((tip) => {
+        tip.addEventListener('mouseenter', () => placeHintTip(tip));
+        tip.addEventListener('focus', () => placeHintTip(tip));
     });
 }

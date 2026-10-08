@@ -24,7 +24,13 @@ fwUpdateElements.startButton.onclick = () => {
     var reader = new FileReader();
     reader.onload = function (e) {
         const base64Content = e.target.result.split(',')[1];
-        socket.send(`FW_UPDATE_START:${fwUpdateElements.modeSelect.value}:${fwUpdateElements.windowInput.value}:${base64Content}`);
+        // URL encoding keeps ':' out of the options, so the server can still split on it.
+        const options = new URLSearchParams({
+            name: file.name,
+            rxlog: fwUpdateElements.rxLogCheckbox.checked ? '1' : '0',
+            hold: fwUpdateElements.holdCheckbox.checked ? '1' : '0',
+        });
+        socket.send(`FW_UPDATE_START:${fwUpdateElements.modeSelect.value}:${fwUpdateElements.windowInput.value}:${options}:${base64Content}`);
         updateFwUpdateProgress(0);
     };
     reader.readAsDataURL(file);

@@ -15,6 +15,10 @@ class FwUpdater {
         this.init()
         this.setupCunbus()
         this.delayUs = delayUs;
+        // Set by server.js from the UI before an update starts.
+        this.firmwareName = '';        // Shown at the top of the log
+        this.logRxFrames = false;      // Detailed [RX] line per received frame (UI option)
+        this.holdAfterUpdate = false;  // Keep host-present up for 30 s after an HMI update
         this.rateReportEvery = 4096; // Chunks between throughput reports
         this.maxBlockResends = 0;    // In-place block resend: measured as useless, kept as a knob
         // A device that rejected a block stays latched until it is restarted by hand, and
@@ -89,7 +93,12 @@ class FwUpdater {
     }
     setupForHMI(){
         this.deviceId = '3'; //HMI
-        this.upgradeEndHoldMs = 30000; // Measured against the official tool on a DPC245
+        // The official tool was seen holding host-present for ~26 s after a DPC245 update,
+        // but that is its bulk-programming loop waiting for the next device until the
+        // orange button is pressed, not something the display needs: M400, DPC18, DPC080
+        // and DPE160 all update fine without it. Holding also keeps the motor controller
+        // silent, so a display that powers up meanwhile reports error 30. Off by default.
+        this.upgradeEndHoldMs = this.holdAfterUpdate ? 30000 : 0;
         this.indexAckCheckFct = (i) => (i - 1) % 256 === 0 && i!==2;
         this.chunk0Prefix = 'C';
         this.chunkNPrefix = 'D';
@@ -118,12 +127,13 @@ class FwUpdater {
         this.indexAckCheckFct = (i) => (i % 256 === 0 && i!==2) || (i + 128) % 256 === 0;
         this.doWhileAckCheckFct = (i) => this.chunksACKObject[i];
     }
+    // The display shows how many chunks it has, so report the same: chunk progress
+    // during the transfer, 100 once the device has confirmed the last package. The old
+    // formula subtracted 4 and added one back per finished step, which kept the UI 2 %
+    // behind the display for the whole transfer.
     overallProgress(){
-        let progress = this.progress+this.controllerReady+this.updateProcessStarted+this.lastChunkConfirmed+this.end-4;
-        if(progress < 0)
-            return 0;
-        else 
-            return progress;
+        if (this.lastChunkConfirmed) return 100;
+        return Math.min(99, Math.max(0, this.progress));
     }
     logMessage(message, type = 'INFO',sendOverWS = true) {
         try {
@@ -147,7 +157,8 @@ class FwUpdater {
         //     throw `File is to big ...`;
         // } 
         this.NUM_CHUNKS = Math.ceil(dataLength / CHUNK_SIZE);
-        this.logMessage(`Firmware file loaded. Size: ${this.FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${this.NUM_CHUNKS}`, 'INFO');
+        this.logMessage(`Firmware file loaded${this.firmwareName ? `: ${this.firmwareName}` : ''}. `
+            + `Size: ${this.FIRMWARE_FILE_SIZE} bytes. Data chunks to send: ${this.NUM_CHUNKS}`, 'INFO');
         const fileHeaderData = Array.from(this.firmwareBuffer.slice(0, 15)).map(byte =>byte.toString(16).padStart(2, '0').toUpperCase()).join(' ');
         this.logMessage(`File header data: ${fileHeaderData}`, 'INFO');
     }
@@ -181,7 +192,8 @@ class FwUpdater {
                 return;
             // What the device sends is sparse (a few hundred frames per update),
             // so recording all of it costs nothing and shows what we ignore.
-            this.logMessage(`RX ${idHex} DLC:${dlc} Data:${dataHex}`, 'RX', false);
+            if (this.logRxFrames)
+                this.logMessage(`RX ${idHex} DLC:${dlc} Data:${dataHex}`, 'RX', false);
             // 2B (rather than 2A) is the device reporting a problem. Without this we
             // would sit in a wait loop until its timeout with no idea why.
             if(idHex.includes(`${this.deviceId}2B`)){
@@ -751,10 +763,25 @@ class FwUpdater {
         this.previousPriority = undefined;
     }
 
+    // Which adapter a log came from: CAN error counts and timings were seen to differ a
+    // lot between modules on the same bike, so a log must say which one was used.
+    describeAdapter() {
+        const dev = this.canbus.canDevice;
+        if (!dev || !dev.gs_usb) return null;
+        const usb = dev.gs_usb;
+        const caps = dev.capabilities || {};
+        return `${usb.productName || '?'} by ${usb.manufacturerName || '?'}, serial ${usb.serialNumber || '?'}`
+            + (caps.fclk_can ? `, CAN clock ${caps.fclk_can / 1e6} MHz` : '')
+            + (caps.features !== undefined ? `, features 0x${caps.features.toString(16)}` : '');
+    }
+
     async startUpdateProcedure(fileBuffer,mode="CONTROLER") {
         const startTime = performance.now();
         this.logToFile = await setupLogger();
         let succeeded = false;
+        this.logMessage(`Firmware file: ${this.firmwareName || '(name not provided)'}, mode ${mode}`, 'INFO');
+        const adapter = this.describeAdapter();
+        if (adapter) this.logMessage(`Adapter: ${adapter}`, 'INFO');
         this.raisePriority();
         try {
             for (let attempt = 1; attempt <= this.maxUpdateAttempts; attempt++) {

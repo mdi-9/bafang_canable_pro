@@ -651,9 +651,16 @@ const wss = new WebSocket.Server({ server });
 			const messageParts = messageString.split(':');
 			const modePart = messageParts[1];
 			const windowPart = messageParts[2];
-			const base64Content = messageParts[3];
+			// mode:window:options:base64 from current UIs, mode:window:base64 from older
+			// ones. Base64 never contains ':' and the options are URL encoded, so the
+			// payload is always the last part.
+			const base64Content = messageParts[messageParts.length - 1];
+			const options = new URLSearchParams(messageParts.length >= 5 ? messageParts[3] : '');
 			const buffer = Buffer.from(base64Content, 'base64');
 			const fwUpdater = new FwUpdater(canbus,ws);
+			fwUpdater.firmwareName = options.get('name') || '';
+			fwUpdater.logRxFrames = options.get('rxlog') === '1';
+			fwUpdater.holdAfterUpdate = options.get('hold') === '1';
 			// Frames allowed in flight before waiting on a transmit confirmation.
 			// 0 keeps the old fixed-delay pacing; anything else paces off the echoes.
 			const sendWindow = parseInt(windowPart);

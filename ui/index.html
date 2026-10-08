@@ -1089,17 +1089,25 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Send window (frames)</th>
+                                <th>Send window (frames)<span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">How many frames may be waiting for the adapter to confirm them before we pause. The transfer then paces itself to whatever the CAN bus actually carries, so there is no timing to guess.<br><b>4 is the default and suits almost everything.</b> Try 2 if an update keeps failing on the same device, or 8 if the transfer is unusually slow &mdash; both were measured as only marginally different. 1 is much slower (one round trip per frame) and 0 disables the window entirely, falling back to the old fixed 300&nbsp;&micro;s delay.</span></span></th>
                                 <td>
                                     <input type="number" id="fwUpdateWindowInput" min="0" max="32" step="1" value="4" class="form-input w-32">
-                                    <small class="form-hint">How many frames may be waiting for the adapter to confirm
-                                        them before we pause. The transfer then paces itself to whatever the CAN bus
-                                        actually carries, so there is no timing to guess.
-                                        <b>4 is the default and suits almost everything.</b>
-                                        Try 2 if an update keeps failing on the same device, or 8 if the transfer is
-                                        unusually slow &mdash; both were measured as only marginally different.
-                                        1 is much slower (one round trip per frame) and 0 disables the window
-                                        entirely, falling back to the old fixed 300&nbsp;&micro;s delay.</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="fwUpdateRxLogCheckbox">Log received frames</label><span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Writes one [RX] line per frame received from the device to the log file. The summary lines (timings, stalls, errors, adapter) are always written.</span></span></th>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="fwUpdateRxLogCheckbox" name="fwUpdateRxLogCheckbox" class="w-4 h-4 accent-olive">
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="fwUpdateHoldCheckbox">Wait 30 s after update</label><span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Keeps telling the bus a programming tool is present for 30 s after an HMI update, as the official tool does while it waits for the next device to program. Not needed by the displays, and it keeps the motor controller silent, so a display switched on during that time can show error 30. Leave off unless testing.</span></span></th>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="fwUpdateHoldCheckbox" name="fwUpdateHoldCheckbox" class="w-4 h-4 accent-olive">
+                                    </div>
                                 </td>
                             </tr>
                             <tr>

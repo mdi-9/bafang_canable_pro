@@ -470,3 +470,48 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
     border-radius: 4px;
     box-sizing: border-box;
 }
+
+/* ====== HOVER HELP ======
+   A "?" next to a field label that shows its explanation on hover or keyboard focus,
+   for hints too long to sit under the field. Styled like the hex editor tooltips.
+   The bubble is fixed to the window and placed by initHintTips() in shared.js, as the
+   parameter tables clip anything that sticks out of them. */
+.hint-tip {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 15px; height: 15px; margin-left: 6px;
+    border-radius: 50%;
+    background-color: #e5e7eb; color: #4b5563;
+    font-size: 10px; font-weight: 700; font-style: normal;
+    vertical-align: middle;
+    cursor: help;
+}
+.hint-tip:focus { outline: 2px solid #2563eb; outline-offset: 1px; }
+.hint-tip .hint-tip-text {
+    visibility: hidden; opacity: 0;
+    position: fixed; z-index: 50; top: 0; left: 0;
+    width: 320px; max-width: calc(100vw - 16px);
+    background-color: #1f2937; color: #f9fafb;
+    text-align: left; border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px; font-weight: 400; line-height: 1.45;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    pointer-events: none;
+    transition: opacity 0.15s ease-out, visibility 0s linear 0.15s;
+}
+.hint-tip:hover .hint-tip-text,
+.hint-tip:focus .hint-tip-text {
+    visibility: visible; opacity: 1;
+    transition-delay: 0s, 0s;
+}
+.hint-tip .hint-tip-text::after {
+    content: "";
+    position: absolute; top: 100%; left: var(--hint-arrow-x, 50%);
+    transform: translateX(-50%);
+    border-width: 5px; border-style: solid;
+    border-color: #1f2937 transparent transparent transparent;
+}
+.hint-tip .hint-tip-text.below::after {
+    top: auto; bottom: 100%;
+    border-color: transparent transparent #1f2937 transparent;
+}

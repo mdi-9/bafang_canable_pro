@@ -17,9 +17,10 @@
 //   --ui       nothing is started automatically: open http://localhost:8080 in the
 //              browser and upload any .bin from the Firmware tab as usual (mode HMI).
 //              This adds the browser rendering the update on the same machine.
+//   --rx       with --ws: as if "Log received frames" were ticked in the UI
 //
 // Usage (close the application first - this script starts its own server):
-//   node tools/bench-adapter.js [--ws|--ui] [runs] [firmware.bin] [window]
+//   node tools/bench-adapter.js [--ws [--rx]|--ui] [runs] [firmware.bin] [window]
 //     runs         transfers to run back to back (default 3; ignored with --ui)
 //     firmware.bin any firmware file; only its size matters (default: synthetic 456572 B)
 //     window       send window, as in the UI (default 4)
@@ -37,6 +38,7 @@ const ROOT = path.join(__dirname, '..');
 const flags = process.argv.slice(2).filter((a) => a.startsWith('--'));
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const MODE = flags.includes('--ui') ? 'ui' : flags.includes('--ws') ? 'ws' : 'direct';
+const RX_LOG = flags.includes('--rx'); // --ws only: tick "Log received frames"
 const RUNS = Number(args[0]) || 3;
 const FW_FILE = args[1];
 const WINDOW = args[2] !== undefined ? Number(args[2]) : 4;
@@ -155,10 +157,6 @@ function verdict() {
         if (current) current.push(`[${t}] ${m}`);
         return origLog.call(this, m, t, ws);
     };
-    // The 30 s host-present hold after an HMI update has nothing to hold for here and
-    // happens after the stall figures are final, so skip it to keep runs short.
-    const origHmi = FwUpdater.prototype.setupForHMI;
-    FwUpdater.prototype.setupForHMI = function () { origHmi.call(this); this.upgradeEndHoldMs = 0; };
 
     require(path.join(ROOT, 'server.js'));
     // At startup the server briefly opens the adapter itself to read its name; starting
@@ -217,7 +215,13 @@ function verdict() {
                 const onMsg = (msg) => { if (String(msg).startsWith('FW_UPDATE_END')) { sock.off('message', onMsg); res(); } };
                 sock.on('message', onMsg);
             });
-            sock.send(`FW_UPDATE_START:HMI:${WINDOW}:${b64}`);
+            // Same message the UI sends, options included.
+            const options = new URLSearchParams({
+                name: FW_FILE ? path.basename(FW_FILE) : `synthetic-${buf.length}.bin`,
+                rxlog: RX_LOG ? '1' : '0',
+                hold: '0',
+            });
+            sock.send(`FW_UPDATE_START:HMI:${WINDOW}:${options}:${b64}`);
             await ended;
             report(current, `run ${r}`);
         }
