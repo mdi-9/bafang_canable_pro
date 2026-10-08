@@ -4,7 +4,7 @@ import {
     debugElements, tabButtons, connectCanButton, log, clearLogButton,
     switchTab, addLog, updateCanInterfaceDisplay,
     sendCustomFrame, encodeToHex,
-    rawParamFieldMappings,
+    rawParamFieldMappings, placeTooltip,
 } from './shared.js';
 
 export function populateHexEditor() {
@@ -93,26 +93,11 @@ export function populateHexEditor() {
                 cell.appendChild(tooltipSpan);
                 cell.appendChild(input);
 
+                // The editor's container clips vertically as well as horizontally, which
+                // hid the tooltips of the top rows; place them against the window instead.
                 cell.addEventListener('mouseenter', () => {
                     const tooltip = cell.querySelector('.tooltiptext');
-                    if (!tooltip) return;
-                    tooltip.style.position = 'absolute';
-                    tooltip.style.visibility = 'hidden';
-                    tooltip.style.display = 'block';
-                    const cellRect = cell.getBoundingClientRect();
-                    const containerRect = hexEditorContainer.getBoundingClientRect();
-                    const tooltipWidth = tooltip.offsetWidth;
-                    let idealLeft = (cell.offsetWidth / 2) - (tooltipWidth / 2);
-                    const cellLeftInContainer = cellRect.left - containerRect.left + hexEditorContainer.scrollLeft;
-                    let potentialTooltipLeftInContainer = cellLeftInContainer + idealLeft;
-                    if (potentialTooltipLeftInContainer < hexEditorContainer.scrollLeft + 5) {
-                        idealLeft = (hexEditorContainer.scrollLeft + 5) - cellLeftInContainer;
-                    } else if (potentialTooltipLeftInContainer + tooltipWidth > hexEditorContainer.scrollLeft + hexEditorContainer.clientWidth - 5) {
-                        idealLeft = (hexEditorContainer.scrollLeft + hexEditorContainer.clientWidth - tooltipWidth - 5) - cellLeftInContainer;
-                    }
-                    tooltip.style.left = `${idealLeft}px`;
-                    tooltip.style.display = '';
-                    tooltip.style.visibility = '';
+                    if (tooltip) placeTooltip(cell, tooltip, 6);
                 });
             } else {
                 cell.textContent = '--';

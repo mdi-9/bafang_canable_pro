@@ -975,26 +975,33 @@ export function populateWheelSelect() {
     });
 }
 
-// Hover help: a "?" next to a field label (.hint-tip) holding its explanation
-// (.hint-tip-text). The bubble is positioned against the window rather than the
-// label, because the parameter tables clip anything that sticks out of them; it
-// opens upwards and flips below the icon when there is no room above.
-function placeHintTip(tip) {
-    const bubble = tip.querySelector('.hint-tip-text');
-    if (!bubble) return;
-    const icon = tip.getBoundingClientRect();
+// Places a hover bubble (styled position: fixed) next to the element it explains.
+// Positioning against the window rather than the element is what keeps it whole:
+// the parameter tables and the hex editor sit in scrolling/rounded containers that
+// clip anything sticking out of them. The bubble is centred on the anchor, kept
+// inside the window, and opens below instead of above when there is no room on top.
+// Its arrow follows the anchor via --hint-arrow-x; .below flips the arrow.
+export function placeTooltip(anchor, bubble, gap = 8) {
+    const box = anchor.getBoundingClientRect();
     const width = bubble.offsetWidth, height = bubble.offsetHeight;
-    const left = Math.min(Math.max(8, icon.right + 12 - width), window.innerWidth - width - 8);
-    const below = icon.top - height - 8 < 8;
+    const centre = box.left + box.width / 2;
+    const left = Math.min(Math.max(8, centre - width / 2), window.innerWidth - width - 8);
+    const below = box.top - height - gap < 8;
     bubble.style.left = `${left}px`;
-    bubble.style.top = `${below ? icon.bottom + 8 : icon.top - height - 8}px`;
-    bubble.style.setProperty('--hint-arrow-x', `${icon.left + icon.width / 2 - left}px`);
+    bubble.style.top = `${below ? box.bottom + gap : box.top - height - gap}px`;
+    bubble.style.setProperty('--hint-arrow-x', `${centre - left}px`);
     bubble.classList.toggle('below', below);
 }
 
+// Hover help: a "?" next to a field label (.hint-tip) holding its explanation
+// (.hint-tip-text), shown on hover or keyboard focus.
 export function initHintTips(root = document) {
     root.querySelectorAll('.hint-tip').forEach((tip) => {
-        tip.addEventListener('mouseenter', () => placeHintTip(tip));
-        tip.addEventListener('focus', () => placeHintTip(tip));
+        const show = () => {
+            const bubble = tip.querySelector('.hint-tip-text');
+            if (bubble) placeTooltip(tip, bubble);
+        };
+        tip.addEventListener('mouseenter', show);
+        tip.addEventListener('focus', show);
     });
 }

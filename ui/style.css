@@ -333,7 +333,7 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
     background-color: #1f2937; color: #f9fafb;
     text-align: left; border-radius: 6px;
     padding: 8px 10px;
-    position: absolute; z-index: 10; bottom: 125%; left: 0;
+    position: fixed; z-index: 50; top: 0; left: 0; /* placed by placeTooltip() */
     transition: opacity 0.15s ease-out, visibility 0s linear 0.15s;
     font-size: 11px; line-height: 1.4;
     pointer-events: none;
@@ -346,10 +346,14 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
 }
 #hexEditorTable td .tooltiptext::after {
     content: "";
-    position: absolute; top: 100%; left: 50%;
+    position: absolute; top: 100%; left: var(--hint-arrow-x, 50%);
     transform: translateX(-50%);
     border-width: 5px; border-style: solid;
     border-color: #1f2937 transparent transparent transparent;
+}
+#hexEditorTable td .tooltiptext.below::after {
+    top: auto; bottom: 100%;
+    border-color: transparent transparent #1f2937 transparent;
 }
 .hex-byte-highlight-start  { border-left:  2px solid #2563eb !important; }
 .hex-byte-highlight-end    { border-right: 2px solid #2563eb !important; }
