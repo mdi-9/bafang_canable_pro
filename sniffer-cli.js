@@ -1,5 +1,8 @@
+// Standalone CAN sniffer: prints every frame and, like the old can-listener.js, writes
+// them to a log file in logs/. Usage: node sniffer-cli.js [--no-log]
 const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
 const Sniffer = require('./sniffer');
+const logToFile = !process.argv.includes('--no-log');
 let sniffer;
 async function main(){
 
@@ -14,7 +17,12 @@ async function main(){
     }
     try {
         sniffer = new Sniffer(canbus);
-        
+        // The Sniffer class only writes a file once setupLogger() is called; the UI
+        // does that from its checkbox, but this CLI never did, so it logged nothing.
+        if (logToFile)
+            await sniffer.setupLogger();
+        else
+            console.log("File logging disabled (--no-log).");
     } catch (error) {
         console.log(error)
         cleanup()
@@ -27,7 +35,10 @@ async function main(){
 async function cleanup() {
     console.log("\nShutting down CAN listener...");
     console.log("-------------------------------------------------------------");
-    sniffer.cleanup();
+    // Wait for the log to be flushed: exiting straight away could lose the last
+    // lines, including the repeat summaries cleanup() writes.
+    if (sniffer)
+        await sniffer.cleanup();
     if (canbus.isConnected()) {
         await canbus.close();
     }

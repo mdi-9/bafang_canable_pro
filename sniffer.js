@@ -117,7 +117,8 @@ class Sniffer {
             }
         }
         this.logMessage(`Stoping sniffer...`);
-        this.closeLogger();
+        // Returned so a caller about to exit can wait for the file to be flushed.
+        return this.closeLogger();
     }
 }
 
