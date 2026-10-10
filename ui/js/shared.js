@@ -328,6 +328,17 @@ export const infoElements = {
     batteryPlaceholder: document.getElementById('infoBatteryPlaceholder'),
 };
 
+// Events that describe the bike's state at the moment they were read rather than its
+// settings: live values, current faults and acknowledgements. They are left out of
+// backups, and skipped when restoring older backups that still contain them.
+export const TRANSIENT_EVENT_TYPES = new Set([
+    'normal_ack', 'error_ack',
+    'display_realtime', 'display_errors',
+    'controller_realtime_0', 'controller_realtime_1', 'controller_state', 'controller_errors',
+    'sensor_realtime',
+    'battery_state', 'battery_capacity', 'battery_cells_raw', 'battery_charging_info',
+]);
+
 export const fwUpdateElements = {
     fileInput: document.getElementById('fwUpdateFileInput'),
     startButton: document.getElementById('fwUpdateStartButton'),
