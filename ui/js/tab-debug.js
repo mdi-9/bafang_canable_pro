@@ -16,6 +16,15 @@ function mappingFor(type) {
     return mapping && Array.isArray(bytes) && bytes.length === mapping.byteLength ? mapping : null;
 }
 
+// The 256-byte 6017/6018 blocks of newer controllers look like ride statistics (odometer,
+// time and distance per assist level). Their layout is unknown and the official tool warns
+// that clearing them wipes the ride history, so they are shown but never written.
+function isReadOnlyBlock(type) {
+    const bytes = state.rawParamData[type];
+    return (type === 'controller_params_6017' || type === 'controller_params_6018')
+        && Array.isArray(bytes) && bytes.length === 256;
+}
+
 export function populateHexEditor() {
     const tableBody = debugElements.hexEditorTableBody;
     const placeholder = debugElements.hexEditorPlaceholder;
@@ -58,6 +67,7 @@ export function populateHexEditor() {
     const numBytes = bytes.length;
     const numCols = 8;
     const numRows = Math.ceil(numBytes / numCols);
+    const readOnly = isReadOnlyBlock(state.currentRawParamType);
 
     for (let i = 0; i < numRows; i++) {
         const row = tableBody.insertRow();
@@ -75,12 +85,13 @@ export function populateHexEditor() {
                     input.value = bytes[byteIndex]?.toString(16).toUpperCase().padStart(2, '0') || '00';
                 }
                 input.dataset.index = byteIndex;
+                input.readOnly = readOnly;
                 input.addEventListener('change', handleHexInputChange);
                 input.addEventListener('input', (e) => {
                     e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-F]/g, '');
                 });
 
-                let tooltipTextContent = `Byte Index: ${byteIndex}`;
+                let tooltipTextContent = `Byte Index: ${byteIndex}` + (readOnly ? '\nRead only (ride statistics)' : '');
                 let fieldClass = 'hex-byte-single';
 
                 if (mappingInfo && mappingInfo.fields) {
@@ -380,6 +391,11 @@ debugElements.rawParamCustomSyncIntervalStopButton.onclick = () => {
 debugElements.rawParamCustomSaveButton.onclick = () => {
     if (!state.currentRawParamType || !state.rawParamData[state.currentRawParamType]) {
         alert('Please select a parameter block and ensure data is loaded before saving.');
+        return;
+    }
+    if (isReadOnlyBlock(state.currentRawParamType)) {
+        alert('The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
+            + 'and writing them could wipe the ride history.');
         return;
     }
 

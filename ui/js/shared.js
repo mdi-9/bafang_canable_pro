@@ -678,9 +678,18 @@ export function delay(ms) {
 export function getProductionDateFromSerial(serialNumber) {
     if (!serialNumber) return 'Unknown';
     serialNumber = serialNumber.replace(/\s/g, '');
-    let dateCode = serialNumber.substring(serialNumber.length - 8, serialNumber.length - 4);
-    let y = dateCode[0].charCodeAt(0) - 65 + 2000;
-    let m = isNaN(dateCode[1]) ? dateCode[1].charCodeAt(0) - 65 + 10 : parseInt(dateCode[1]);
+    // The four characters before the last four: year letter, month (1-9, then A-C for
+    // 10-12) and two-digit day. Anything else is not a date code we can read.
+    const dateCode = serialNumber.substring(serialNumber.length - 8, serialNumber.length - 4);
+    if (!/^[A-Z][1-9A-C]\d\d$/.test(dateCode)) return 'Unknown';
+    // The year letter ran A=2000 ... Z=2025, and Bafang started again at A for 2026, so a
+    // letter stands for 2000+n, 2026+n, ... Take the latest of those not in the future:
+    // a 2026 motor no longer shows as 2000, older serials keep their year, and it keeps
+    // working as the cycle goes round without a fixed cut-off year to maintain.
+    const thisYear = new Date().getFullYear();
+    let y = 2000 + dateCode.charCodeAt(0) - 65;
+    while (y + 26 <= thisYear) y += 26;
+    const m = isNaN(dateCode[1]) ? dateCode.charCodeAt(1) - 65 + 10 : parseInt(dateCode[1], 10);
     return `${y}-${String(m).padStart(2, '0')}-${dateCode.substring(2, 4)}`;
 }
 

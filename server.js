@@ -479,6 +479,12 @@ const wss = new WebSocket.Server({ server });
 		};
 		try {
 			const bytesArray = JSON.parse(jsonData);
+			// The 256-byte 6017/6018 blocks of newer controllers hold the ride statistics
+			// and are read only; refuse here too, so no client can write them by another path.
+			if (cmdCode === 0x60 && (subCode === 0x17 || subCode === 0x18) && Array.isArray(bytesArray) && bytesArray.length > 64) {
+				ws.send(`ERROR: 6017/6018 blocks larger than 64 bytes are read only (ride statistics).`);
+				return true;
+			}
 			if (Array.isArray(bytesArray) && bytesArray.every(b => typeof b === 'number' && b >= 0 && b <= 255)) {
 				ws.send(`INFO: Writing raw long custom...`);
 				const success = await canbus.writeRawBytesParameter(targetId, targetCommandInfo, bytesArray);
