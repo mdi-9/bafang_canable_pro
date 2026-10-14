@@ -244,8 +244,14 @@ class CanBusService extends EventEmitter {
             const bufferKey = `${sourceId}-${targetId}-${cmdCode}-${subCode}`; // Unique key for the original command
  
             if (opCode === CanOperation.MULTIFRAME_START) {
-                const expectedLength = frameData[0];
-                console.log(`>>> MF_START | Key: ${bufferKey} | ExpLen: ${expectedLength}`);
+                // The block length is one byte for the 64-byte blocks, but newer controllers
+                // (BBSxx since ~2025) answer 6017/6018 with 256-byte blocks, whose length
+                // only fits in two bytes, little endian. Reading just the first byte gave 0
+                // there and every such read ended in a length mismatch. Found by DPC18RI.
+                const expectedLength = frameData.length >= 2
+                    ? (frameData[1] << 8) | frameData[0]
+                    : frameData[0];
+                console.log(`>>> MF_START | Key: ${bufferKey} | DLC: ${frameData.length} | ExpLen: ${expectedLength}`);
 
                 if (this.multiFrameBuffers[bufferKey]) {
                     console.warn(`>>> MF buffer for key ${bufferKey} already exists. skipping.`);

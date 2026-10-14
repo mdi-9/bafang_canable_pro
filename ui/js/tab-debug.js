@@ -7,6 +7,15 @@ import {
     rawParamFieldMappings, placeTooltip,
 } from './shared.js';
 
+// The field map of a block - names, highlights, auto checksum - but only when the block
+// that arrived is as long as the map describes. Newer controllers answer 6017/6018 with
+// 256 bytes in a different layout, and the 64-byte map would mislabel it.
+function mappingFor(type) {
+    const mapping = rawParamFieldMappings[type];
+    const bytes = state.rawParamData[type];
+    return mapping && Array.isArray(bytes) && bytes.length === mapping.byteLength ? mapping : null;
+}
+
 export function populateHexEditor() {
     const tableBody = debugElements.hexEditorTableBody;
     const placeholder = debugElements.hexEditorPlaceholder;
@@ -43,10 +52,12 @@ export function populateHexEditor() {
     placeholder.style.display = 'none';
     if (hexEditorContainer) hexEditorContainer.style.display = 'block';
     const bytes = state.rawParamData[state.currentRawParamType];
-    const mappingInfo = rawParamFieldMappings[state.currentRawParamType];
-    const numBytes = mappingInfo ? mappingInfo.byteLength : bytes.length;
-    const numRows = 8;
+    const mappingInfo = mappingFor(state.currentRawParamType);
+    // As many rows as the block that arrived needs: 8 for the usual 64 bytes, 32 for
+    // the 256-byte 6017/6018 blocks of newer controllers.
+    const numBytes = bytes.length;
     const numCols = 8;
+    const numRows = Math.ceil(numBytes / numCols);
 
     for (let i = 0; i < numRows; i++) {
         const row = tableBody.insertRow();
@@ -134,7 +145,9 @@ function handleHexInputChange(event) {
         state.rawParamData[state.currentRawParamType][byteIndex] = newValue;
         addLog('DEBUG', `Raw param ${state.currentRawParamType} byte ${byteIndex} changed to 0x${newValue.toString(16).toUpperCase()}`);
 
-        const mapping = rawParamFieldMappings[state.currentRawParamType];
+        // Only for the 64-byte layout: in a 256-byte block byte 63 is plain data, and
+        // rewriting it as a checksum would silently corrupt it.
+        const mapping = mappingFor(state.currentRawParamType);
         if (mapping && mapping.byteLength === 64 && byteIndex !== 63) {
             const checksumByteIndex = 63;
             let sum = 0;

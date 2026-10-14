@@ -115,8 +115,13 @@ async function writeLongParameter(canbusInstance, target, can_command, value) {
 
         // 1. Send initial WRITE_CMD with total data length
         const initIdArr = generateCanFrameId(source, target, CanOperation.WRITE_CMD, code, subcode);
-        await sendMfFrame(initIdArr, [arrayClone.length]);
-        console.log(`[Serializer] Sent Long Write Init: ID=0x${bafangIdArrayTo32Bit(initIdArr).toString(16)} LenByte=${arrayClone.length}`);
+        // One length byte cannot hold 256: it went out as 0 for the newer 256-byte 6017/6018
+        // blocks. Use two bytes, little endian, as the controller itself does when it sends
+        // such a block; keep the single byte for everything up to 255, as before.
+        // Not yet confirmed on a controller for the write direction.
+        const len = arrayClone.length;
+        await sendMfFrame(initIdArr, len > 0xFF ? [len & 0xFF, len >> 8] : [len]);
+        console.log(`[Serializer] Sent Long Write Init: ID=0x${bafangIdArrayTo32Bit(initIdArr).toString(16)} Len=${len}`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
 
         // 2. Send MULTIFRAME_START
