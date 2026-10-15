@@ -131,6 +131,8 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         'display_autoshutdown_time',
         'controller_current_assist_level',
         'controller_calories',
+        'controller_odo',
+        'controller_record_odo',
         'controller_speed_params',
         'sensor',
         'battery',
@@ -298,6 +300,8 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         case 'controller_mn': state.controllerOtherInfo.modelNumber = parsedEvent.data?.model_number; needsInfoUpdate = true; break;
         case 'controller_mfg': state.controllerOtherInfo.manufacturer = parsedEvent.data?.manufacturer; needsInfoUpdate = true; break;
         case 'controller_cn': state.controllerOtherInfo.customerNumber = parsedEvent.data?.customer_number; needsInfoUpdate = true; break;
+        case 'controller_odo': state.controllerOtherInfo.odoKm = parsedEvent.data?.odo_km ?? null; needsInfoUpdate = true; break;
+        case 'controller_record_odo': state.controllerOtherInfo.recordOdoKm = parsedEvent.data?.odo_km ?? null; needsInfoUpdate = true; break;
         case 'controller_bootloader_version': state.controllerOtherInfo.bootloaderVersion = parsedEvent.data?.bootloader_version; needsInfoUpdate = true; break;
 
         case 'display_hw_version': state.displayOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;

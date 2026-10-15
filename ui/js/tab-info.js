@@ -17,6 +17,9 @@ export function updateInfoUI() {
     infoElements.ctrlCnValue.textContent = getNullableString(state.controllerOtherInfo.customerNumber);
     infoElements.ctrlMfgValue.textContent = getNullableString(state.controllerOtherInfo.manufacturer);
     if (state.controllerOtherInfo.manufacturer !== null && infoElements.ctrlMfgInput.value === "") infoElements.ctrlMfgInput.value = state.controllerOtherInfo.manufacturer;
+    const km = (v) => (v === null || v === undefined) ? 'N/A' : v.toFixed(2);
+    infoElements.ctrlOdoValue.textContent = km(state.controllerOtherInfo.odoKm);
+    infoElements.ctrlRecordOdoValue.textContent = km(state.controllerOtherInfo.recordOdoKm);
     infoElements.ctrlPlaceholder.style.display = (state.controllerOtherInfo.hwVersion || state.controllerOtherInfo.swVersion || state.controllerOtherInfo.modelNumber || state.controllerOtherInfo.bootloaderVersion || state.controllerOtherInfo.serialNumber || state.controllerOtherInfo.manufacturer || state.controllerOtherInfo.customerNumber) ? 'none' : 'block';
 
     // Display Info

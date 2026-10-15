@@ -422,6 +422,14 @@ class CanBusService extends EventEmitter {
                     dataType = 'controller_total_assist_levels'; parsedData = { raw_data: frame.data };
                     //console.log(`>>> RX Controller Total levels (Raw): ${formatBufferForLog(frame.data)}`);
             }
+            // Odometers broadcast by newer controllers, 32-bit LE in units of 10 m.
+            // 0x0E follows what "Set ODO" writes; 0x13 is the ride-record total
+            // (= bytes 0-1 of the 256-byte 6017 block), which Set ODO leaves alone.
+            else if ((subCode === 0x0E || subCode === 0x13) && frame.data.length >= 4) {
+                const km = Buffer.from(frame.data).readUInt32LE(0) / 100;
+                dataType = subCode === 0x0E ? 'controller_odo' : 'controller_record_odo';
+                parsedData = { odo_km: km, _rawBytes: [...frame.data] };
+            }
         }
         else if (cmdCode === 0x60) {
             if (subCode === 0x10) { parsedData = BafangCanControllerParser.parameter0(frame);
