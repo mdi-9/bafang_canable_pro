@@ -7,6 +7,7 @@ import {
 } from './shared.js';
 import { handleBafangEvent } from './websocket.js';
 import { populateHexEditor } from './tab-debug.js';
+import { updateRideStatsUI } from './tab-info.js';
 
 // Tabs whose fields are filled from device data. Restoring clears only these, so the
 // firmware, sniffer, logger and debug tabs keep what the user set there.
@@ -117,6 +118,7 @@ function clearAllInputs() {
     // which the checksum-fix buttons must keep writing, not the restored values.
     state.lastStartupAngle = null;
     state.rawParamData = {}; state.allEventsStore = {};
+    updateRideStatsUI({ fromBackup: false });
 
     // Clear the fields of the data tabs. Checkboxes are left alone: the only one there
     // ("Auto correction") is a UI preference, not device data.

@@ -941,6 +941,22 @@
                 </div>
                 <div id="infoCtrlPlaceholder" class="placeholder-text">Controller info not yet received.</div>
 
+                <div class="flex items-center gap-2 flex-wrap mt-4">
+                    <h3 class="section-subtitle" style="margin:0">Riding Record</h3>
+                    <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Distance and time per assist level, read from the 256-byte 6017 (Total) and 6018 (Day trip) blocks of newer controllers. Speed is not stored; it is distance divided by time, as in BESST. A day-trip reset on the display clears the Day trip columns. Read only.</span></span>
+                    <button id="infoRideStatsReadButton" class="btn btn-secondary btn-sm">Read Riding Record</button>
+                </div>
+                <div class="overflow-x-auto mt-2 mb-1">
+                    <table class="error-tbl ride-stats-tbl">
+                        <thead>
+                            <tr><th rowspan="2">Level</th><th colspan="4">Total (ODO)</th><th colspan="4">Day trip (DST)</th></tr>
+                            <tr><th>km</th><th>h</th><th>km/h</th><th>%</th><th>km</th><th>h</th><th>km/h</th><th>%</th></tr>
+                        </thead>
+                        <tbody id="infoRideStatsBody"></tbody>
+                    </table>
+                </div>
+                <div id="infoRideStatsNote" class="placeholder-text">Riding record not yet read.</div>
+
                 <h3 class="section-subtitle">Display</h3>
                 <div class="overflow-x-auto mb-1">
                     <table class="param-table">

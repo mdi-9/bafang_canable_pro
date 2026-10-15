@@ -52,6 +52,78 @@ export function updateInfoUI() {
     infoElements.batteryPlaceholder.style.display = (state.batteryOtherInfo.hwVersion || state.batteryOtherInfo.swVersion || state.batteryOtherInfo.modelNumber || state.batteryOtherInfo.serialNumber) ? 'none' : 'block';
 }
 
+// The 256-byte 6017/6018 blocks of newer controllers are BESST's Riding Record: 6017 the
+// totals ("ODO"), 6018 the day trip ("DST", cleared by a trip reset on the display).
+// Values are 32-bit LE, distance in 10 m and time in seconds; speed is not stored.
+const RIDE_LEVELS = 9;
+const RIDE_BLOCKS = {
+    total: { type: 'controller_params_6017', timeAt: 18, distAt: 156 },
+    trip: { type: 'controller_params_6018', timeAt: 0, distAt: 36 },
+};
+// 6017 also keeps the block total and a distance not assigned to any level (offset 192);
+// the total is their sum and is what the controller broadcasts as 32 13.
+const RIDE_TOTAL_AT = 0;
+const RIDE_UNASSIGNED_AT = 192;
+
+// Set when the table shows blocks restored from a backup file rather than read from the bike.
+let rideStatsFromBackup = false;
+
+const u32 = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
+
+function decodeRideBlock({ type, timeAt, distAt }) {
+    const bytes = state.rawParamData[type];
+    if (!Array.isArray(bytes) || bytes.length !== 256) return null;
+    const levels = [];
+    for (let k = 0; k < RIDE_LEVELS; k++)
+        levels.push({ km: u32(bytes, distAt + 4 * k) / 100, s: u32(bytes, timeAt + 4 * k) });
+    const km = levels.reduce((sum, l) => sum + l.km, 0);
+    const s = levels.reduce((sum, l) => sum + l.s, 0);
+    return { bytes, levels, sum: { km, s } };
+}
+
+function rideCells(row, sumKm) {
+    if (!row) return '<td>-</td><td>-</td><td>-</td><td>-</td>';
+    const speed = row.s > 0 ? (row.km / (row.s / 3600)).toFixed(1) : '0.0';
+    const pct = sumKm > 0 ? (100 * row.km / sumKm).toFixed(2) : '0.00';
+    return `<td>${row.km.toFixed(2)}</td><td>${(row.s / 3600).toFixed(2)}</td><td>${speed}</td><td>${pct} %</td>`;
+}
+
+export function updateRideStatsUI({ fromBackup } = {}) {
+    if (fromBackup !== undefined) rideStatsFromBackup = fromBackup;
+    const total = decodeRideBlock(RIDE_BLOCKS.total);
+    const trip = decodeRideBlock(RIDE_BLOCKS.trip);
+    const rows = [`<tr class="sum"><td>Sum</td>${rideCells(total?.sum, total?.sum.km)}${rideCells(trip?.sum, trip?.sum.km)}</tr>`];
+    for (let k = 0; k < RIDE_LEVELS; k++)
+        rows.push(`<tr><td>Level ${k + 1}</td>${rideCells(total?.levels[k], total?.sum.km)}${rideCells(trip?.levels[k], trip?.sum.km)}</tr>`);
+    infoElements.rideStatsBody.innerHTML = rows.join('');
+
+    const notes = [];
+    if (total) {
+        const blockKm = u32(total.bytes, RIDE_TOTAL_AT) / 100;
+        const unassignedKm = u32(total.bytes, RIDE_UNASSIGNED_AT) / 100;
+        notes.push(`Total in block: ${blockKm.toFixed(2)} km (levels ${total.sum.km.toFixed(2)} km + ${unassignedKm.toFixed(2)} km not assigned to a level).`);
+    }
+    for (const [label, block] of [['6017', RIDE_BLOCKS.total], ['6018', RIDE_BLOCKS.trip]]) {
+        const bytes = state.rawParamData[block.type];
+        if (Array.isArray(bytes) && bytes.length !== 256)
+            notes.push(`Block ${label} has ${bytes.length} bytes; only the 256-byte blocks of newer controllers hold the riding record.`);
+    }
+    if ((total || trip) && rideStatsFromBackup) notes.push('Restored from a backup file, not read from the bike.');
+    if (!total && !trip && notes.length === 0) notes.push('Riding record not yet read.');
+    infoElements.rideStatsNote.textContent = notes.join(' ');
+    infoElements.rideStatsNote.style.display = notes.length ? 'block' : 'none';
+}
+
+async function rideStatsRead() {
+    for (const [sub, block] of [[23, RIDE_BLOCKS.total], [24, RIDE_BLOCKS.trip]]) {
+        delete state.rawParamData[block.type];
+        socket.send(`READ:2:96:${sub}`);
+        if (!await waitFor(() => state.rawParamData[block.type] !== undefined, 3000))
+            addLog('WARN', `No answer to the riding record read (60${sub.toString(16)}).`);
+    }
+    updateRideStatsUI({ fromBackup: false });
+}
+
 async function controllerInfoSend() {
     state.controllerOtherInfo.hwVersion = null;
     socket.send('READ:2:96:0');
@@ -129,6 +201,13 @@ infoElements.syncButton.onclick = () => {
     sensorInfoSend();
     batteryInfoSend();
 };
+
+infoElements.rideStatsReadButton.onclick = () => {
+    addLog('REQ', 'Reading the riding record (6017, 6018)...');
+    rideStatsRead();
+};
+
+updateRideStatsUI();
 
 infoElements.saveButton.onclick = () => {
     if (!confirm("Are you sure you want to save changes to device information?")) return;

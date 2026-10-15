@@ -15,7 +15,7 @@ import { updateSensorUI } from './tab-sensor.js';
 import { updateBatteryUI } from './tab-battery.js';
 import { updateGearsUI, updatePasCurvesChartUnified, updateStartRampChartUnified } from './tab-gears.js';
 import { updateGearsUIM820 } from './tab-gears-m820.js';
-import { updateInfoUI } from './tab-info.js';
+import { updateInfoUI, updateRideStatsUI } from './tab-info.js';
 import { populateHexEditor, handleCustomRaw } from './tab-debug.js';
 import { updateFwUpdateProgress, addFwUpdateLog } from './tab-firmware.js';
 import { addSnifferLog } from './tab-sniffer.js';
@@ -233,6 +233,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
                 addLog('INFO', `Received Controller Custom Block (0x6017) - ${parsedEvent.data._rawBytes.length} bytes.`);
+                updateRideStatsUI({ fromBackup });
                 if (state.currentRawParamType === 'controller_params_6017') {
                     needsHexEditorUpdate = true;
                 }
@@ -244,6 +245,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
                 addLog('INFO', `Received Controller Custom Block (0x6018) - ${parsedEvent.data._rawBytes.length} bytes.`);
+                updateRideStatsUI({ fromBackup });
                 if (state.currentRawParamType === 'controller_params_6018') {
                     needsHexEditorUpdate = true;
                 }

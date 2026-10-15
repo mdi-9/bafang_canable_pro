@@ -302,6 +302,9 @@ export const infoElements = {
     ctrlOdoValue: document.getElementById('infoCtrlOdoValue'),
     ctrlRecordOdoValue: document.getElementById('infoCtrlRecordOdoValue'),
     ctrlPlaceholder: document.getElementById('infoCtrlPlaceholder'),
+    rideStatsReadButton: document.getElementById('infoRideStatsReadButton'),
+    rideStatsBody: document.getElementById('infoRideStatsBody'),
+    rideStatsNote: document.getElementById('infoRideStatsNote'),
     // Display Info
     displayHwVersionValue: document.getElementById('infoDisplayHwVersionValue'),
     displaySwVersionValue: document.getElementById('infoDisplaySwVersionValue'),

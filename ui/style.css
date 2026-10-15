@@ -190,6 +190,10 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
 }
 .error-tbl th { background-color: #f9fafb; font-weight: 600; color: #374151; }
 .error-tbl td.code { font-weight: 700; }
+.ride-stats-tbl th, .ride-stats-tbl td { text-align: right; white-space: nowrap; }
+.ride-stats-tbl th:first-child, .ride-stats-tbl td:first-child { text-align: left; }
+.ride-stats-tbl thead th { text-align: center; }
+.ride-stats-tbl tr.sum td { font-weight: 700; }
 
 /* ====== BUTTONS ====== */
 .btn {
