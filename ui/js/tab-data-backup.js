@@ -13,7 +13,7 @@ import { updateInfoUI, updateRideStatsUI } from './tab-info.js';
 
 // Tabs whose fields are filled from device data. Restoring clears only these, so the
 // firmware, sniffer, logger and debug tabs keep what the user set there.
-const DATA_TAB_IDS = ['tab-controller', 'tab-display', 'tab-sensor', 'tab-battery', 'tab-gears', 'tab-gearsM820', 'tab-info'];
+const DATA_TAB_IDS = ['tab-controller', 'tab-display', 'tab-sensor', 'tab-battery', 'tab-gears', 'tab-info'];
 
 function localTimestamp() {
     const d = new Date();

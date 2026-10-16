@@ -14,7 +14,6 @@ import { updateControllerUI, updateControllerStateUI } from './tab-controller.js
 import { updateSensorUI } from './tab-sensor.js';
 import { updateBatteryUI } from './tab-battery.js';
 import { updateGearsUI, updatePasCurvesChartUnified, updateStartRampChartUnified } from './tab-gears.js';
-import { updateGearsUIM820 } from './tab-gears-m820.js';
 import { updateInfoUI, updateRideStatsUI } from './tab-info.js';
 import { populateHexEditor, handleCustomRaw } from './tab-debug.js';
 import { updateFwUpdateProgress, addFwUpdateLog } from './tab-firmware.js';
@@ -107,13 +106,10 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
     let needsControllerUpdate = false;
     let needsControllerStateUpdate = false;
     let needsGearsUpdate = false;
-    let needsGearsM820Update = false;
     let needsInfoUpdate = false;
     let needsHexEditorUpdate = false;
     let needsPasChartUpdate = false;
     let needsStartRampChartUpdate = false;
-    let needsPasChartUpdateM820 = false;
-    let needsStartRampChartUpdateM820 = false;
 
     state.allEventsStore[parsedEvent.type] = parsedEvent;
     if (!fromBackup) state.liveEventsStore[parsedEvent.type] = parsedEvent;
@@ -165,6 +161,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         case 'controller_params_0':
             state.controllerParams0 = parsedEvent.data;
             state.lastControllerP0 = JSON.parse(JSON.stringify(parsedEvent.data || {}));
+            if (!fromBackup) state.controllerHasP0 = true;
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
                 needsHexEditorUpdate = true;
@@ -191,7 +188,6 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
                         console.log(`Recalculating Start Pulse[0] due to P1 change: ${calculatedPulse}`);
                         state.lastControllerP2.torque_profiles[0].start_pulse = calculatedPulse;
                         needsGearsUpdate = true;
-                        needsGearsM820Update = true;
                     }
                 } catch (e) {
                     console.error("Error recalculating start pulse after P1 update:", e);
@@ -206,11 +202,8 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
             }
             needsControllerUpdate = true;
             needsGearsUpdate = true;
-            needsGearsM820Update = true;
             needsPasChartUpdate = true;
             needsStartRampChartUpdate = true;
-            needsPasChartUpdateM820 = true;
-            needsStartRampChartUpdateM820 = true;
             break;
         case 'controller_params_2':
             state.controllerParams2 = parsedEvent.data;
@@ -227,8 +220,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
                 needsHexEditorUpdate = true;
             }
             needsGearsUpdate = true;
-            needsGearsM820Update = true;
-            needsStartRampChartUpdateM820 = true;
+            needsStartRampChartUpdate = true;
             break;
         case 'controller_params_6017':
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
@@ -287,14 +279,12 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
                         console.log(`Recalculating Start Pulse[0] due to Angle change: ${calculatedPulse}`);
                         state.lastControllerP2.torque_profiles[0].start_pulse = calculatedPulse;
                         needsGearsUpdate = true;
-                        needsGearsM820Update = true;
                     }
                 } catch (e) {
                     console.error("Error recalculating start pulse after angle update:", e);
                 }
             }
             needsGearsUpdate = true;
-            needsGearsM820Update = true;
             break;
         // --- INFO CASES ---
         case 'controller_hw_version': state.controllerOtherInfo.hwVersion = parsedEvent.data?.hardware_version; needsInfoUpdate = true; break;
@@ -360,11 +350,8 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
     if (needsControllerUpdate) updateControllerUI();
     if (needsControllerStateUpdate) updateControllerStateUI();
     if (needsGearsUpdate) updateGearsUI();
-    if (needsGearsM820Update) updateGearsUIM820();
     if (needsInfoUpdate) updateInfoUI();
     if (needsHexEditorUpdate || needsHexEditorUpdateC) populateHexEditor();
-    if (needsPasChartUpdate) updatePasCurvesChartUnified(false);
-    if (needsStartRampChartUpdate) updateStartRampChartUnified(false);
-    if (needsPasChartUpdateM820) updatePasCurvesChartUnified(true);
-    if (needsStartRampChartUpdateM820) updateStartRampChartUnified(true);
+    if (needsPasChartUpdate) updatePasCurvesChartUnified();
+    if (needsStartRampChartUpdate) updateStartRampChartUnified();
 }

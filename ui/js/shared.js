@@ -35,6 +35,9 @@ export const state = {
     controllerSpeedParams: null,
     controllerOtherInfo: { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, productionDate: null, manufacturer: null, customerNumber: null, odoKm: null, recordOdoKm: null },
     lastControllerP0: null,
+    // Whether the controller answers a P0 read: true for newer ones with an acceleration
+    // per assist level, false for older ones such as the M820, null until a sync has told.
+    controllerHasP0: null,
     lastControllerP1: null,
     lastControllerP2: null,
     lastControllerP1Read: null,
@@ -60,8 +63,6 @@ export const START_PULSE_MAX = 48; // Based on original input constraints
 // --- Chart instances (initialize to null) ---
 export let pasChart = null;
 export let startRampChart = null;
-export let pasChartM820 = null;
-export let startRampChartM820 = null;
 
 // --- Constants for Charting ---
 export const MAX_HUMAN_POWER_X_AXIS = 300;
@@ -149,20 +150,11 @@ export const gearsElements = {
     assistLevelPlaceholder: document.getElementById('assistLevelPlaceholder'),
     torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholder'),
     autoCorrectionCheckbox: document.getElementById('autoCorrectionCheckbox'),
-};
-
-export const gearsElementsM820 = {
-    syncButton: document.getElementById('gearsSyncButtonM820'),
-    saveButton: document.getElementById('gearsSaveButtonM820'),
-    controllerStartupAngleValueEl: document.getElementById('controllerStartupAngleValueM820'),
-    controllerStartupAngleInputEl: document.getElementById('controllerStartupAngleInputM820'),
-    globalAccelerationValueEl: document.getElementById('globalAccelerationValueM820'),
-    globalAccelerationInputEl: document.getElementById('globalAccelerationInputM820'),
-    startupAnglePlaceholderEl: document.getElementById('startupAnglePlaceholderM820'),
-    assistLevelTableBody: document.getElementById('assistLevelTableBodyM820'),
-    torqueProfileTableBody: document.getElementById('torqueProfileTableBodyM820'),
-    assistLevelPlaceholder: document.getElementById('assistLevelPlaceholderM820'),
-    torqueProfilePlaceholder: document.getElementById('torqueProfilePlaceholderM820'),
+    modeInfo: document.getElementById('assistModeInfo'),
+    assistLevelsSubtitle: document.getElementById('assistLevelsSubtitle'),
+    globalAccelerationRow: document.getElementById('globalAccelerationRow'),
+    globalAccelerationValueEl: document.getElementById('globalAccelerationValue'),
+    globalAccelerationInputEl: document.getElementById('globalAccelerationInput'),
 };
 
 export const debugElements = {
@@ -406,10 +398,6 @@ export const pasCurvesPlaceholder = document.getElementById('pasCurvesPlaceholde
 export const pasCurvesContainer = document.getElementById('pasCurvesContainer');
 export const startRampPlaceholder = document.getElementById('startRampPlaceholder');
 export const startRampContainer = document.getElementById('startRampContainer');
-export const pasCurvesPlaceholderM820 = document.getElementById('pasCurvesPlaceholderM820');
-export const pasCurvesContainerM820 = document.getElementById('pasCurvesContainerM820');
-export const startRampPlaceholderM820 = document.getElementById('startRampPlaceholderM820');
-export const startRampContainerM820 = document.getElementById('startRampContainerM820');
 
 // --- Error descriptions ---
 export const errorDescriptions = {
