@@ -1,13 +1,15 @@
 // tab-data-backup.js — ES Module
 import {
     state,
-    backupElements,
+    backupElements, displayElements,
     autoPopup, addLog,
     TRANSIENT_EVENT_TYPES,
 } from './shared.js';
 import { handleBafangEvent } from './websocket.js';
+import { updateControllerUI } from './tab-controller.js';
+import { updateDisplayUI } from './tab-display.js';
 import { populateHexEditor } from './tab-debug.js';
-import { updateRideStatsUI } from './tab-info.js';
+import { updateInfoUI, updateRideStatsUI } from './tab-info.js';
 
 // Tabs whose fields are filled from device data. Restoring clears only these, so the
 // firmware, sniffer, logger and debug tabs keep what the user set there.
@@ -90,6 +92,7 @@ backupElements.restoreBackupButton.onclick = () => {
                 console.error(`Restoring ${ev.type} failed:`, error);
             }
         }
+        const hasBikeData = restoreSaveBaselines();
         populateHexEditor();
         const skipped = Object.keys(backup).length - events.length;
         const summary = `Restored ${events.length - failed} item(s) from ${file.name}`
@@ -97,10 +100,41 @@ backupElements.restoreBackupButton.onclick = () => {
             + (failed ? `, ${failed} failed (see console)` : '');
         addLog('RESTORE', summary);
         autoPopup(summary, failed ? 'red' : 'green');
+        if (!hasBikeData) {
+            const hint = 'Nothing has been read from the bike yet, so Save has nothing to compare the backup with. '
+                + 'Sync the tabs first, then restore the backup again and save.';
+            addLog('WARN', hint);
+            alert(hint);
+        }
     };
     reader.onerror = () => autoPopup(`Could not read "${file.name}".`, 'red');
     reader.readAsText(file);
 };
+
+// The Controller, Display and Info tabs save only the fields that differ from the
+// values read, so after the replay above they would find nothing to write. Their
+// comparison values go back to what was read from the bike; the input fields keep the
+// backup's, and Save writes the difference. The Gears tabs and the Debug blocks write
+// their whole restored data instead and are left as restored.
+// Returns false when nothing was read from the bike in this session.
+function restoreSaveBaselines() {
+    const live = (type) => state.liveEventsStore[type]?.data ?? null;
+    state.controllerParams1 = live('controller_params_1');
+    state.displayData1 = live('display_data_1');
+    state.controllerOtherInfo.manufacturer = live('controller_mfg')?.manufacturer ?? null;
+    state.displayOtherInfo.manufacturer = live('display_mfg')?.manufacturer ?? null;
+    state.displayOtherInfo.customerNumber = live('display_cn')?.customer_number ?? null;
+
+    // Mileage is a record of the ride, not a setting: a backup must never wind the
+    // display's odometer back, so these fields show the bike's values again.
+    displayElements.totalMileageInput.value = '';
+    displayElements.singleMileageInput.value = '';
+
+    updateControllerUI();
+    updateDisplayUI();
+    updateInfoUI();
+    return Object.keys(state.liveEventsStore).some((type) => !TRANSIENT_EVENT_TYPES.has(type));
+}
 
 function clearAllInputs() {
     // Clear global data stores so UI update functions don't repopulate fields from stale data

@@ -42,6 +42,9 @@ export const state = {
     lastStartupAngle: null,
     rawParamData: {},
     allEventsStore: {},
+    // The last event of each type really received from the bike (never from a backup).
+    // Restoring a backup keeps it, so Save still compares against what the bike holds.
+    liveEventsStore: {},
     // Connection
     isCanConnected: false,
     isCanDeviceFound: false,

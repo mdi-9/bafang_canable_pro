@@ -116,6 +116,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
     let needsStartRampChartUpdateM820 = false;
 
     state.allEventsStore[parsedEvent.type] = parsedEvent;
+    if (!fromBackup) state.liveEventsStore[parsedEvent.type] = parsedEvent;
 
     const typesToSkipInUILog = [
         'sensor_realtime',
@@ -232,7 +233,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         case 'controller_params_6017':
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
-                addLog('INFO', `Received Controller Custom Block (0x6017) - ${parsedEvent.data._rawBytes.length} bytes.`);
+                if (!fromBackup) addLog('INFO', `Received Controller Custom Block (0x6017) - ${parsedEvent.data._rawBytes.length} bytes.`);
                 updateRideStatsUI({ fromBackup });
                 if (state.currentRawParamType === 'controller_params_6017') {
                     needsHexEditorUpdate = true;
@@ -244,7 +245,7 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         case 'controller_params_6018':
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
-                addLog('INFO', `Received Controller Custom Block (0x6018) - ${parsedEvent.data._rawBytes.length} bytes.`);
+                if (!fromBackup) addLog('INFO', `Received Controller Custom Block (0x6018) - ${parsedEvent.data._rawBytes.length} bytes.`);
                 updateRideStatsUI({ fromBackup });
                 if (state.currentRawParamType === 'controller_params_6018') {
                     needsHexEditorUpdate = true;
