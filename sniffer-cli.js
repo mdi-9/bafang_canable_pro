@@ -1,12 +1,14 @@
 // Standalone CAN sniffer: prints every frame and, like the old can-listener.js, writes
-// them to a log file in logs/. Usage: node sniffer-cli.js [--no-log]
+// them to a log file in logs/. The adapter is opened listen-only, so the sniffer never
+// sends anything and cannot disturb BESST or any other tool on the bus.
+// Usage: node sniffer-cli.js [--no-log]
 const canbus = require('./canbus'); // Assuming canbus.js handles CAN bus communication
 const Sniffer = require('./sniffer');
 const logToFile = !process.argv.includes('--no-log');
 let sniffer;
 async function main(){
 
-    const connected = await canbus.init();
+    const connected = await canbus.init(null, { listenOnly: true });
 
     if (connected) {
         console.log("CAN Bus Initialized. Listening for frames...");
