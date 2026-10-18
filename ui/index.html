@@ -526,6 +526,7 @@
                             <tr><th>Light Status</th><td><span id="displayLightValue">N/A</span></td></tr>
                             <tr><th>Up Button Status</th><td><span id="displayUpButtonValue">N/A</span></td></tr>
                             <tr><th>Down Button Status</th><td><span id="displayDownButtonValue">N/A</span></td></tr>
+                            <tr><th>Trip Active</th><td><span id="displayTripActiveValue">N/A</span> <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Sent by the display to the controller (6300, byte 3). "No" tells the controller to clear its day trip: on a trip reset, and on some displays (DPC18) for about a second whenever the bike stops.</span></span></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -864,6 +865,7 @@
                             </tr>
                             <tr><th>Controller ODO</th><td><span id="infoCtrlOdoValue">N/A</span> Km <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Broadcast by the controller (ID 82F8320E). Follows the value written with Set ODO. N/A if the controller does not send it.</span></span></td></tr>
                             <tr><th>Ride Record ODO</th><td><span id="infoCtrlRecordOdoValue">N/A</span> Km <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Broadcast by the controller (ID 82F83213). Total of the per-assist-level ride statistics, the same as bytes 0-1 of the 256-byte 6017 block. Set ODO does not change it. N/A if the controller does not send it.</span></span></td></tr>
+                            <tr><th>Day Trip</th><td><span id="infoCtrlDayTripValue">N/A</span> <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Broadcast by the controller: distance from 82F8320E bytes 4-7, time and average/max speed from 82F83210. Cleared when the display resets its trip (and by the DPC18 whenever the bike stops). N/A if the controller does not send it.</span></span></td></tr>
                         </tbody>
                     </table>
                 </div>

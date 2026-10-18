@@ -450,10 +450,24 @@ class CanBusService extends EventEmitter {
             // Odometers broadcast by newer controllers, 32-bit LE in units of 10 m.
             // 0x0E follows what "Set ODO" writes; 0x13 is the ride-record total
             // (= bytes 0-1 of the 256-byte 6017 block), which Set ODO leaves alone.
+            // 0x0E bytes 4-7 are the day-trip distance, same units.
             else if ((subCode === 0x0E || subCode === 0x13) && frame.data.length >= 4) {
-                const km = Buffer.from(frame.data).readUInt32LE(0) / 100;
+                const data = Buffer.from(frame.data);
                 dataType = subCode === 0x0E ? 'controller_odo' : 'controller_record_odo';
-                parsedData = { odo_km: km, _rawBytes: [...frame.data] };
+                parsedData = { odo_km: data.readUInt32LE(0) / 100, _rawBytes: [...frame.data] };
+                if (subCode === 0x0E && data.length >= 8) parsedData.trip_km = data.readUInt32LE(4) / 100;
+            }
+            // Day-trip summary: average and max speed in 0.01 km/h, trip time in
+            // seconds. Cleared together with the trip (display trip flag, 6300 byte 3).
+            else if (subCode === 0x10 && frame.data.length >= 6) {
+                const data = Buffer.from(frame.data);
+                dataType = 'controller_trip_stats';
+                parsedData = {
+                    avg_speed_kmh: data.readUInt16LE(0) / 100,
+                    max_speed_kmh: data.readUInt16LE(2) / 100,
+                    time_s: data.readUInt16LE(4),
+                    _rawBytes: [...frame.data],
+                };
             }
         }
         else if (cmdCode === 0x60) {

@@ -395,6 +395,10 @@ class BafangCanDisplayParser {
             light: (packet.data[2] & 1) === 1,
             button_up: (packet.data[2] & 0b10) >> 1 === 1,
             button_down: (packet.data[2] & 0b100000) >> 5 === 1,
+            // The display tells the controller whether its day trip is running; dropping
+            // it to 0 makes the controller clear the trip (display trip reset; the DPC18
+            // also does it for about a second whenever the bike stops).
+            trip_active: packet.data.length >= 4 ? packet.data[3] === 1 : undefined,
         };
     }
 

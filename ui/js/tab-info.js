@@ -6,6 +6,18 @@ import {
     addLog, waitFor,
 } from './shared.js';
 
+// "1.13 km, 0:03:12, avg 21.2 km/h, max 23.0 km/h"; parts the controller does not send are left out.
+function dayTripText(tripKm, stats) {
+    const parts = [];
+    if (tripKm !== null && tripKm !== undefined) parts.push(`${tripKm.toFixed(2)} km`);
+    if (stats) {
+        const s = stats.time_s;
+        parts.push(`${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`);
+        parts.push(`avg ${stats.avg_speed_kmh.toFixed(1)} km/h`, `max ${stats.max_speed_kmh.toFixed(1)} km/h`);
+    }
+    return parts.length ? parts.join(', ') : 'N/A';
+}
+
 export function updateInfoUI() {
     // Controller Info
     infoElements.ctrlHwVersionValue.textContent = getNullableString(state.controllerOtherInfo.hwVersion);
@@ -20,6 +32,7 @@ export function updateInfoUI() {
     const km = (v) => (v === null || v === undefined) ? 'N/A' : v.toFixed(2);
     infoElements.ctrlOdoValue.textContent = km(state.controllerOtherInfo.odoKm);
     infoElements.ctrlRecordOdoValue.textContent = km(state.controllerOtherInfo.recordOdoKm);
+    infoElements.ctrlDayTripValue.textContent = dayTripText(state.controllerOtherInfo.tripKm, state.controllerOtherInfo.tripStats);
     infoElements.ctrlPlaceholder.style.display = (state.controllerOtherInfo.hwVersion || state.controllerOtherInfo.swVersion || state.controllerOtherInfo.modelNumber || state.controllerOtherInfo.bootloaderVersion || state.controllerOtherInfo.serialNumber || state.controllerOtherInfo.manufacturer || state.controllerOtherInfo.customerNumber) ? 'none' : 'block';
 
     // Display Info

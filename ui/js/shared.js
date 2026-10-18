@@ -33,7 +33,7 @@ export const state = {
     controllerParams1: null,
     controllerParams2: null,
     controllerSpeedParams: null,
-    controllerOtherInfo: { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, productionDate: null, manufacturer: null, customerNumber: null, odoKm: null, recordOdoKm: null },
+    controllerOtherInfo: { hwVersion: null, swVersion: null, modelNumber: null, bootloaderVersion: null, serialNumber: null, productionDate: null, manufacturer: null, customerNumber: null, odoKm: null, recordOdoKm: null, tripKm: null, tripStats: null },
     lastControllerP0: null,
     // Whether the controller answers a P0 read: true for newer ones with an acceleration
     // per assist level, false for older ones such as the M820, null until a sync has told.
@@ -98,6 +98,7 @@ export const displayElements = {
     lightValue: document.getElementById('displayLightValue'),
     upButtonValue: document.getElementById('displayUpButtonValue'),
     downButtonValue: document.getElementById('displayDownButtonValue'),
+    tripActiveValue: document.getElementById('displayTripActiveValue'),
     errorTableBody: document.getElementById('displayErrorTableBody'),
     displayShutdownTimeValue: document.getElementById('displayShutdownTimeValue'),
     syncButton: document.getElementById('displaySyncButton'),
@@ -296,6 +297,7 @@ export const infoElements = {
     ctrlMfgInput: document.getElementById('infoCtrlMfgInput'),
     ctrlOdoValue: document.getElementById('infoCtrlOdoValue'),
     ctrlRecordOdoValue: document.getElementById('infoCtrlRecordOdoValue'),
+    ctrlDayTripValue: document.getElementById('infoCtrlDayTripValue'),
     ctrlPlaceholder: document.getElementById('infoCtrlPlaceholder'),
     rideStatsReadButton: document.getElementById('infoRideStatsReadButton'),
     rideStatsBody: document.getElementById('infoRideStatsBody'),
@@ -335,7 +337,7 @@ export const TRANSIENT_EVENT_TYPES = new Set([
     'normal_ack', 'error_ack',
     'display_realtime', 'display_errors',
     'controller_realtime_0', 'controller_realtime_1', 'controller_state', 'controller_errors',
-    'controller_odo', 'controller_record_odo',
+    'controller_odo', 'controller_record_odo', 'controller_trip_stats',
     'sensor_realtime',
     'battery_state', 'battery_capacity', 'battery_cells_raw', 'battery_charging_info',
 ]);

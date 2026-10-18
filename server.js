@@ -878,6 +878,7 @@ const wss = new WebSocket.Server({ server });
 				'controller_calories',
 				'controller_odo',
 				'controller_record_odo',
+				'controller_trip_stats',
 				'display_autoshutdown_time',
 				'sensor_realtime',
 				'battery_state',

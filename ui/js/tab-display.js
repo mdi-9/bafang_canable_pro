@@ -37,6 +37,7 @@ export function updateDisplayUI() {
     safeSetText(displayElements.lightValue, state.displayRealtime?.light, (val) => getNullableBoolean(val, 'ON', 'OFF'));
     safeSetText(displayElements.upButtonValue, state.displayRealtime?.button_up, (val) => getNullableBoolean(val, 'Pressed', 'Not Pressed'));
     safeSetText(displayElements.downButtonValue, state.displayRealtime?.button_down, (val) => getNullableBoolean(val, 'Pressed', 'Not Pressed'));
+    safeSetText(displayElements.tripActiveValue, state.displayRealtime?.trip_active, (val) => getNullableBoolean(val, 'Yes', 'No (trip being cleared)'));
 
     // Shutdown Time
     const shutdownVal = state.displayShutdownTime;
