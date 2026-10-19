@@ -730,15 +730,19 @@ const wss = new WebSocket.Server({ server });
 		return false;
 	}
 	async function handleStopSniffer(messageString) {
-		if (messageString.startsWith('SNIFFER_STOP') && sniffer) {
+		if (messageString.startsWith('SNIFFER_STOP')) {
+			if (!sniffer) return true;
 			sniffer.cleanup()
 			sniffer = null;
 			return true
 		}
 		return false;
 	}
+	// The filter list and the log checkbox can change while the sniffer is stopped; there is
+	// nothing to apply then (SNIFFER_START carries both), but they are not unknown commands.
 	async function handleFilteredIdSniffer(messageString) {
-		if (messageString.startsWith('SNIFFER_FILTEREDIDS_SET') && sniffer) {
+		if (messageString.startsWith('SNIFFER_FILTEREDIDS_SET')) {
+			if (!sniffer) return true;
 			const messageParts = messageString.split(':');
 			const filteredIds = messageParts[1].split(';');
 			if(filteredIds.length)
@@ -748,7 +752,8 @@ const wss = new WebSocket.Server({ server });
 		return false;
 	}
 	async function handleLogEnabledSniffer(messageString) {
-		if (messageString.startsWith('SNIFFER_LOG_ENABLE') && sniffer) {
+		if (messageString.startsWith('SNIFFER_LOG_ENABLE')) {
+			if (!sniffer) return true;
 			const messageParts = messageString.split(':');
 			const loggerEnabled = messageParts[1] === 'true'
 			if(loggerEnabled)

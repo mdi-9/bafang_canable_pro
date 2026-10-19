@@ -358,6 +358,10 @@ export function handleCustomRaw(parsedEvent) {
     const subCode0x = parseInt('0x' + subCode);
     if (destCode != parsedEvent.source || cmdCode0x != parsedEvent.cmdCode || subCode0x != parsedEvent.subCode)
         return false;
+    // The acknowledgement of a Save Custom matches too but carries no bytes ("NORMAL ACK");
+    // spreading it threw and cut short the handling of the event.
+    if (!Array.isArray(parsedEvent.data?._rawBytes))
+        return false;
     state.rawParamData[`${destCode}:${cmdCode0x}:${subCode0x}`] = [...parsedEvent.data._rawBytes];
     addLog(`RX (${parsedEvent.type || 'unknown'})`, parsedEvent);
     return true;
