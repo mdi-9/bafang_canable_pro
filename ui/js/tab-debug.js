@@ -18,8 +18,8 @@ function mappingFor(type) {
 
 // The 256-byte 6017/6018 blocks of newer controllers are the ride statistics (odometer,
 // time and distance per assist level), and the official tool warns that clearing them
-// wipes the ride history, so they are shown but never written. 600F is read only until
-// its layout, known from an M510 FC2.0, has been checked on other controllers.
+// wipes the ride history, so they are shown but never written. 600F is read only while
+// its layout is only partly understood (and differs between a BBS01B and an M510 FC2.0).
 function isReadOnlyBlock(type) {
     if (type === 'controller_params_600f') return true;
     const bytes = state.rawParamData[type];
@@ -29,7 +29,7 @@ function isReadOnlyBlock(type) {
 
 function readOnlyMessage(type) {
     return type === 'controller_params_600f'
-        ? 'Block 600F is read only for now: its layout is known from an M510 FC2.0 and has not been verified on other controllers.'
+        ? 'Block 600F is read only for now: its layout is only partly known and differs between controller families.'
         : 'The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
             + 'and writing them could wipe the ride history.';
 }
@@ -108,6 +108,8 @@ export function populateHexEditor() {
                     for (const field of mappingInfo.fields) {
                         if (byteIndex >= field.index && byteIndex < field.index + field.length) {
                             tooltipTextContent += `\nField: ${field.name}`;
+                            if (field.unit) tooltipTextContent += `\nUnit: ${field.unit}`;
+                            if (field.notes) tooltipTextContent += `\n${field.notes}`;
                             if (field.length > 1) {
                                 if (byteIndex === field.index) fieldClass = 'hex-byte-highlight-start';
                                 else if (byteIndex === field.index + field.length - 1) fieldClass = 'hex-byte-highlight-end';
