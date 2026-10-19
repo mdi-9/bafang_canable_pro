@@ -485,8 +485,8 @@ const wss = new WebSocket.Server({ server });
 				ws.send(`ERROR: 6017/6018 blocks larger than 64 bytes are read only (ride statistics).`);
 				return true;
 			}
-			// 600F is read only while its layout is only partly known; it differs between a
-			// BBS01B and an M510 FC2.0, and writes were refused without an extra access step.
+			// 600F is read only while its layout is only partly known; writes were refused
+			// without an extra access step.
 			if (cmdCode === 0x60 && subCode === 0x0F) {
 				ws.send(`ERROR: Block 600F is read only for now (layout not verified on this controller family).`);
 				return true;

@@ -19,7 +19,7 @@ function mappingFor(type) {
 // The 256-byte 6017/6018 blocks of newer controllers are the ride statistics (odometer,
 // time and distance per assist level), and the official tool warns that clearing them
 // wipes the ride history, so they are shown but never written. 600F is read only while
-// its layout is only partly understood (and differs between a BBS01B and an M510 FC2.0).
+// its layout is only partly understood and writes were refused without an extra access step.
 function isReadOnlyBlock(type) {
     if (type === 'controller_params_600f') return true;
     const bytes = state.rawParamData[type];
@@ -29,7 +29,7 @@ function isReadOnlyBlock(type) {
 
 function readOnlyMessage(type) {
     return type === 'controller_params_600f'
-        ? 'Block 600F is read only for now: its layout is only partly known and differs between controller families.'
+        ? 'Block 600F is read only for now: its layout is only partly known, and writing it seems to need an access step this tool does not send.'
         : 'The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
             + 'and writing them could wipe the ride history.';
 }
