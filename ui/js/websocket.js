@@ -235,6 +235,13 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
                 addLog('WARN', `Received ${parsedEvent.type} but no _rawBytes found.`);
             }
             break;
+        case 'controller_params_600f':
+            if (Array.isArray(parsedEvent.data?._rawBytes)) {
+                state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];
+                if (!fromBackup) addLog('INFO', `Received Controller Block (0x600F) - ${parsedEvent.data._rawBytes.length} bytes.`);
+                if (state.currentRawParamType === 'controller_params_600f') needsHexEditorUpdate = true;
+            }
+            break;
         case 'controller_params_6018':
             if (parsedEvent.data && parsedEvent.data._rawBytes && Array.isArray(parsedEvent.data._rawBytes)) {
                 state.rawParamData[parsedEvent.type] = [...parsedEvent.data._rawBytes];

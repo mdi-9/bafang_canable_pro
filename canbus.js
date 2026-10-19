@@ -496,6 +496,11 @@ class CanBusService extends EventEmitter {
                 parsedData = { _rawBytes: [...frame.data] };
                 console.log(`[CanBusService] Assembled controller_0x6018: ${frame.data.length} bytes`);
             }
+            else if (subCode === 0x0F) {
+                dataType = 'controller_params_600f';
+                parsedData = { _rawBytes: [...frame.data] };
+                console.log(`[CanBusService] Assembled controller_0x600F: ${frame.data.length} bytes`);
+            }
             else if (subCode === 0x00) { parsedData = { hardware_version: charsToString(frame.data) }; dataType = 'controller_hw_version'; }
             else if (subCode === 0x01) { parsedData = { software_version: charsToString(frame.data) }; dataType = 'controller_sw_version'; }
             else if (subCode === 0x03) { parsedData = { serial_number: charsToString(frame.data) }; dataType = 'controller_sn'; }

@@ -161,6 +161,11 @@ const CanReadCommandsList = Object.freeze({
         canCommandSubCode: 0x18, // 24 in decimal
         applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
     },
+    Controller_Parameter_600F: {
+        canCommandCode: 0x60,    // 96 in decimal
+        canCommandSubCode: 0x0F, // 15 in decimal
+        applicableDevices: [DeviceNetworkId.DRIVE_UNIT],
+    },
     FwUpdateReadyCheckOld: {
         canCommandCode: 0x20, // 32
         canCommandSubCode: 0x00,

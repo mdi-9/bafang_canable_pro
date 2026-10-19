@@ -16,13 +16,22 @@ function mappingFor(type) {
     return mapping && Array.isArray(bytes) && bytes.length === mapping.byteLength ? mapping : null;
 }
 
-// The 256-byte 6017/6018 blocks of newer controllers look like ride statistics (odometer,
-// time and distance per assist level). Their layout is unknown and the official tool warns
-// that clearing them wipes the ride history, so they are shown but never written.
+// The 256-byte 6017/6018 blocks of newer controllers are the ride statistics (odometer,
+// time and distance per assist level), and the official tool warns that clearing them
+// wipes the ride history, so they are shown but never written. 600F is read only until
+// its layout, known from an M510 FC2.0, has been checked on other controllers.
 function isReadOnlyBlock(type) {
+    if (type === 'controller_params_600f') return true;
     const bytes = state.rawParamData[type];
     return (type === 'controller_params_6017' || type === 'controller_params_6018')
         && Array.isArray(bytes) && bytes.length === 256;
+}
+
+function readOnlyMessage(type) {
+    return type === 'controller_params_600f'
+        ? 'Block 600F is read only for now: its layout is known from an M510 FC2.0 and has not been verified on other controllers.'
+        : 'The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
+            + 'and writing them could wipe the ride history.';
 }
 
 export function populateHexEditor() {
@@ -91,7 +100,8 @@ export function populateHexEditor() {
                     e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-F]/g, '');
                 });
 
-                let tooltipTextContent = `Byte Index: ${byteIndex}` + (readOnly ? '\nRead only (ride statistics)' : '');
+                const readOnlyNote = state.currentRawParamType === 'controller_params_600f' ? 'layout not verified' : 'ride statistics';
+                let tooltipTextContent = `Byte Index: ${byteIndex}` + (readOnly ? `\nRead only (${readOnlyNote})` : '');
                 let fieldClass = 'hex-byte-single';
 
                 if (mappingInfo && mappingInfo.fields) {
@@ -322,6 +332,7 @@ if (debugElements.rawParamSyncButton) {
             case 'controller_params_2': readCommand = 'READ:2:96:18'; break;
             case 'controller_params_6017': readCommand = 'READ:2:96:23'; break;
             case 'controller_params_6018': readCommand = 'READ:2:96:24'; break;
+            case 'controller_params_600f': readCommand = 'READ:2:96:15'; break;
             case 'controller_speed_params': readCommand = 'READ:2:50:3'; break;
             default:
                 addLog('ERROR', `Unknown raw parameter type for sync: ${state.currentRawParamType}`);
@@ -394,8 +405,7 @@ debugElements.rawParamCustomSaveButton.onclick = () => {
         return;
     }
     if (isReadOnlyBlock(state.currentRawParamType)) {
-        alert('The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
-            + 'and writing them could wipe the ride history.');
+        alert(readOnlyMessage(state.currentRawParamType));
         return;
     }
 
@@ -444,6 +454,11 @@ if (debugElements.rawParamSaveButton) {
     debugElements.rawParamSaveButton.onclick = () => {
         if (!state.currentRawParamType || !state.rawParamData[state.currentRawParamType]) {
             alert('Please select a parameter block and ensure data is loaded before saving.');
+            return;
+        }
+        // Before the checksum below is recalculated into the editor.
+        if (isReadOnlyBlock(state.currentRawParamType)) {
+            alert(readOnlyMessage(state.currentRawParamType));
             return;
         }
 

@@ -73,7 +73,8 @@ const RIDE_BLOCKS = {
     total: { type: 'controller_params_6017', timeAt: 18, distAt: 156 },
     trip: { type: 'controller_params_6018', timeAt: 0, distAt: 36 },
 };
-// 6017 also keeps the block total and a distance not assigned to any level (offset 192);
+// 6017 also keeps the block total and the distance ridden in assist level 0, i.e. without
+// assist (offset 192, found by DPC18RI);
 // the total is their sum and is what the controller broadcasts as 32 13.
 const RIDE_TOTAL_AT = 0;
 const RIDE_UNASSIGNED_AT = 192;
@@ -114,7 +115,7 @@ export function updateRideStatsUI({ fromBackup } = {}) {
     if (total) {
         const blockKm = u32(total.bytes, RIDE_TOTAL_AT) / 100;
         const unassignedKm = u32(total.bytes, RIDE_UNASSIGNED_AT) / 100;
-        notes.push(`Total in block: ${blockKm.toFixed(2)} km (levels ${total.sum.km.toFixed(2)} km + ${unassignedKm.toFixed(2)} km not assigned to a level).`);
+        notes.push(`Total in block: ${blockKm.toFixed(2)} km (levels ${total.sum.km.toFixed(2)} km + ${unassignedKm.toFixed(2)} km in assist level 0, no assist).`);
     }
     for (const [label, block] of [['6017', RIDE_BLOCKS.total], ['6018', RIDE_BLOCKS.trip]]) {
         const bytes = state.rawParamData[block.type];
