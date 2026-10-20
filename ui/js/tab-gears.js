@@ -5,7 +5,6 @@ import {
     gearsElements, checksumElements,
     safeSetText, safeSetInput,
     addLog, waitFor,
-    calculateStartPulse,
     START_PULSE_MIN, START_PULSE_MAX,
     uiToInternalAssistMap,
     MAX_HUMAN_POWER_X_AXIS, MAX_TIME_X_AXIS_START_RAMP, EFFICIENCY_FACTOR,
@@ -147,8 +146,6 @@ function renderTorqueProfiles() {
     torqueBody.innerHTML = '';
 
     const p2 = state.lastControllerP2;
-    const angle = state.lastStartupAngle;
-    const signals = state.lastControllerP1?.pedal_sensor_signals_per_rotation;
 
     if (!p2 || !Array.isArray(p2.torque_profiles) || p2.torque_profiles.length < 6) {
         console.warn("Gears UI Update: P2 data or torque_profiles missing/invalid for torque table.");
@@ -195,17 +192,23 @@ function renderTorqueProfiles() {
         createInputCell('max_current', profileData?.max_current, 0, 100, 1, '');
         createInputCell('min_current', profileData?.min_current, 0, 100, 1, '');
 
-        let startPulseValue = '';
+        const startPulseValue = (profileData && typeof profileData.start_pulse === 'number') ? profileData.start_pulse : '';
         let startPulseReadOnly = false;
         let startPulseTitle = '';
+        let startPulseNote = '';
         if (i === 0) {
-            startPulseValue = calculateStartPulse(angle, signals);
+            // Shows what Save will write: the value recalculated from Startup Angle and
+            // Cadence Signals once both are known, otherwise the one read. It used to show a
+            // fresh calculation instead, which hid a controller holding a different value.
             startPulseReadOnly = true;
-            startPulseTitle = "Calculated from Startup Angle & Cadence Signals (P1)";
-        } else {
-            startPulseValue = (profileData && typeof profileData.start_pulse === 'number') ? profileData.start_pulse : '';
+            startPulseTitle = "Calculated from Startup Angle & Cadence Signals (P1); Save writes this value";
+            const read = state.lastControllerP2Read?.torque_profiles?.[0]?.start_pulse;
+            if (typeof read === 'number' && read !== startPulseValue) {
+                startPulseNote = `(controller: ${read})`;
+                startPulseTitle += `. The controller currently has ${read}.`;
+            }
         }
-        createInputCell('start_pulse', startPulseValue, START_PULSE_MIN, START_PULSE_MAX, 1, '', startPulseReadOnly, startPulseTitle);
+        createInputCell('start_pulse', startPulseValue, START_PULSE_MIN, START_PULSE_MAX, 1, startPulseNote, startPulseReadOnly, startPulseTitle);
 
         createInputCell('current_decay_time', profileData?.current_decay_time, 5, 1275, 5, '');
         createInputCell('torque_decay_time', profileData?.torque_decay_time, 5, 1275, 5, '');

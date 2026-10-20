@@ -19,7 +19,8 @@ function mappingFor(type) {
 // The 256-byte 6017/6018 blocks of newer controllers are the ride statistics (odometer,
 // time and distance per assist level), and the official tool warns that clearing them
 // wipes the ride history, so they are shown but never written. 600F is read only while
-// its layout is only partly understood and writes were refused without an extra access step.
+// its layout is only partly understood, and the controller acknowledges writes but keeps the
+// old values (DPC18RI).
 function isReadOnlyBlock(type) {
     if (type === 'controller_params_600f') return true;
     const bytes = state.rawParamData[type];
@@ -29,7 +30,7 @@ function isReadOnlyBlock(type) {
 
 function readOnlyMessage(type) {
     return type === 'controller_params_600f'
-        ? 'Block 600F is read only for now: its layout is only partly known, and writing it seems to need an access step this tool does not send.'
+        ? 'Block 600F is read only: the controller acknowledges writes to it but keeps the old values, and its layout is only partly known.'
         : 'The 256-byte 6017/6018 blocks are read only: they hold the ride statistics, '
             + 'and writing them could wipe the ride history.';
 }
@@ -100,7 +101,7 @@ export function populateHexEditor() {
                     e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-F]/g, '');
                 });
 
-                const readOnlyNote = state.currentRawParamType === 'controller_params_600f' ? 'layout not verified' : 'ride statistics';
+                const readOnlyNote = state.currentRawParamType === 'controller_params_600f' ? 'writes are ignored by the controller' : 'ride statistics';
                 let tooltipTextContent = `Byte Index: ${byteIndex}` + (readOnly ? `\nRead only (${readOnlyNote})` : '');
                 let fieldClass = 'hex-byte-single';
 
