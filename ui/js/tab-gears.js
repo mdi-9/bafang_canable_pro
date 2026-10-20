@@ -216,6 +216,11 @@ function renderTorqueProfiles() {
     }
 }
 
+// One colour per assist level. There used to be five, and levels 6-9 of a 9-level display
+// all fell back to grey, whose stacked fills washed the whole chart grey (DPC18RI).
+const PAS_LEVEL_COLORS = ['#9CA3AF', '#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6', '#22D3EE', '#FB923C'];
+const levelColor = (level) => PAS_LEVEL_COLORS[(level - 1) % PAS_LEVEL_COLORS.length];
+
 export function updatePasCurvesChartUnified() {
     const isM820 = assistMode() === 'global';
     const container = pasCurvesContainer;
@@ -254,7 +259,6 @@ export function updatePasCurvesChartUnified() {
 
     const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
-    const PAS_LEVEL_COLORS = ["#9CA3AF", "#60A5FA", "#34D399", "#FBBF24", "#F87171"];
 
     for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
         const internalIndex = internalLevelMapping[displayedLevel];
@@ -301,13 +305,13 @@ export function updatePasCurvesChartUnified() {
             mode: 'lines',
             type: 'scatter',
             line: {
-                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                color: levelColor(displayedLevel),
                 width: 3,
                 shape: 'spline',
                 smoothing: 0.6,
             },
             fill: 'tozeroy',
-            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
+            fillcolor: levelColor(displayedLevel) + '22',
             hovertemplate:
                 'Human: %{x} W<br>' +
                 'Motor: %{y:.0f} W' +
@@ -375,7 +379,6 @@ export function updateStartRampChartUnified() {
 
     const internalLevelMapping = uiToInternalAssistMap[totalDisplayLevels] || uiToInternalAssistMap[5];
 
-    const PAS_LEVEL_COLORS = ["#9CA3AF", "#60A5FA", "#34D399", "#FBBF24", "#F87171"];
 
     for (let displayedLevel = 1; displayedLevel <= totalDisplayLevels; displayedLevel++) {
         const internalIndex = internalLevelMapping[displayedLevel];
@@ -428,13 +431,13 @@ export function updateStartRampChartUnified() {
             mode: 'lines',
             type: 'scatter',
             line: {
-                color: PAS_LEVEL_COLORS[displayedLevel - 1] || '#999',
+                color: levelColor(displayedLevel),
                 width: 3,
                 shape: 'spline',
                 smoothing: 0.6,
             },
             fill: 'tozeroy',
-            fillcolor: (PAS_LEVEL_COLORS[displayedLevel - 1] || '#999') + '22',
+            fillcolor: levelColor(displayedLevel) + '22',
             hovertemplate:
                 'Time: %{x} ms<br>' +
                 'Motor: %{y:.0f} W' +
