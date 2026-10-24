@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebUSB feasibility test</title>
+<!--
+  Can the application run in the browser, without the Node server?
+
+  This page loads the application's own modules (canbus.js, gsusb.js, fw-updater.js
+  and the Bafang parser/serializer) unchanged and runs them on WebUSB, with only the
+  Node built-ins replaced (ui/webusb/node-shim.js). Two checks:
+
+    1. Receive: open the CANable at 250 kbit/s (listen-only by default) and show what
+       arrives, decoded by the real parser.
+    2. Firmware benchmark: the same run as tools/bench-adapter.js - silent loopback,
+       simulated display, synthetic 456572 B image - so the stall figures can be
+       compared directly with the Node numbers. Needs no bike and never drives the bus.
+
+  Serve the repository root over http://localhost (WebUSB needs a secure context):
+    python -m http.server 8090 --bind 127.0.0.1
+  then open http://localhost:8090/tools/webusb-bench/ in Chrome or Edge.
+  Close the Node application first - only one program can hold the adapter.
+-->
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #5f6b7a; --border: #d9dee5;
+    --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --code: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1a1f27; --text: #e4e8ee; --muted: #9aa5b4; --border: #2c333e;
+      --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --code: #11151b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  p { margin: 4px 0; color: var(--muted); }
+  button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent);
+           background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 8px 0; }
+  input[type=number] { width: 70px; font: inherit; padding: 4px; background: var(--code); color: var(--text);
+                       border: 1px solid var(--border); border-radius: 4px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .stat { background: var(--code); border-radius: 6px; padding: 6px 10px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  pre { background: var(--code); border-radius: 6px; padding: 10px; margin: 8px 0 0; overflow: auto;
+        font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  #log { height: 320px; }
+  #frames { min-height: 60px; max-height: 260px; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>WebUSB feasibility test</h1>
+  <p id="env"></p>
+
+  <section>
+    <h2>1. Adapter</h2>
+    <div class="row">
+      <button id="btnSelect">Select adapter</button>
+      <span id="devInfo">No adapter selected.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Receive</h2>
+    <p>Opens the adapter at 250 kbit/s through canbus.js and GSUsb, exactly like the server does.
+       Without a bike connected there is simply no traffic - opening and starting is then the test.</p>
+    <div class="row">
+      <label><input type="checkbox" id="listenOnly" checked> listen-only (never acknowledges or sends)</label>
+      <button id="btnRxStart">Start</button>
+      <button id="btnRxStop" class="secondary" disabled>Stop</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sFrames">0</b><span>frames received</span></div>
+      <div class="stat"><b id="sRate">0</b><span>frames / s</span></div>
+      <div class="stat"><b id="sParsed">0</b><span>decoded by parser</span></div>
+      <div class="stat"><b id="sErrors">0</b><span>CAN error frames</span></div>
+      <div class="stat"><b id="sPacked">0</b><span>multi-frame USB transfers</span></div>
+    </div>
+    <pre id="frames">-</pre>
+  </section>
+
+  <section>
+    <h2>3. Firmware transfer benchmark</h2>
+    <p>Same run as <code>node tools/bench-adapter.js</code>: silent loopback (the controller acknowledges its
+       own frames and never drives the bus lines), a simulated display, a synthetic 456572 B image in HMI mode.
+       Keep this tab visible while it runs - a hidden tab is throttled.</p>
+    <div class="row">
+      <label>runs <input type="number" id="runs" value="3" min="1" max="20"></label>
+      <label>send window <input type="number" id="window" value="4" min="0" max="32"></label>
+      <label title="0 = await every USB write, as the Node version does">USB writes in flight <input type="number" id="pipeline" value="0" min="0" max="16"></label>
+      <label title="Bulk IN transfers kept queued; GSUsb uses 3">USB reads in flight <input type="number" id="reads" value="3" min="1" max="8"></label>
+      <button id="btnBench">Run benchmark</button>
+    </div>
+    <pre id="bench">-</pre>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <div class="row">
+      <button id="btnDownload" class="secondary">Download full log</button>
+      <button id="btnClear" class="secondary">Clear</button>
+    </div>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script src="../../ui/webusb/node-shim.js"></script>
+<script>
+'use strict';
+
+const MODULES = [
+    'canbus.js', 'gsusb.js', 'canframe.js', 'bafang-parser.js', 'bafang-serializer.js',
+    'request-manager.js', 'bafang-can-requests.js', 'bafang-constants.js',
+    'bafang-can-read-commands.js', 'bafang-can-write-commands.js', 'bafang-can-broadcast-commands.js',
+    'fw-updater.js', 'utils.js',
+];
+// Same list as GSUSBConstants.GS_USB_DEVICES.
+const USB_FILTERS = [
+    { vendorId: 0x1D50, productId: 0x606F },
+    { vendorId: 0x1209, productId: 0x606F },
+    { vendorId: 0x1CD2, productId: 0x606F },
+    { vendorId: 0x16D0, productId: 0x10B8 },
+];
+const DPC245_SIZE = 456572;
+
+const $ = (id) => document.getElementById(id);
+
+// --- console mirror -------------------------------------------------------------
+// Rendering is batched: touching the DOM per log line during the benchmark would add
+// exactly the kind of main-thread stall the benchmark is measuring.
+const allLines = [];
+let pendingRender = false;
+function fmt(a) {
+    if (typeof a === 'string') return a;
+    if (a instanceof Error) return `${a.name}: ${a.message}`;
+    try { return JSON.stringify(a, (k, v) => typeof v === 'bigint' ? v.toString() : v)?.slice(0, 400) ?? String(a); }
+    catch { return String(a); }
+}
+for (const level of ['log', 'info', 'warn', 'error', 'debug']) {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => {
+        orig(...args);
+        const t = new Date().toISOString().slice(11, 23);
+        allLines.push(`${t} ${level === 'log' || level === 'info' ? '' : level.toUpperCase() + ' '}${args.map(fmt).join(' ')}`);
+        if (allLines.length > 100000) allLines.splice(0, 20000);
+        if (!pendingRender) { pendingRender = true; setTimeout(renderLog, 300); }
+    };
+}
+function renderLog() {
+    pendingRender = false;
+    const el = $('log');
+    el.textContent = allLines.slice(-400).join('\n');
+    el.scrollTop = el.scrollHeight;
+}
+addEventListener('unhandledrejection', (e) => console.error('Unhandled rejection:', e.reason));
+addEventListener('error', (e) => console.error('Uncaught:', e.message));
+
+// --- environment ----------------------------------------------------------------
+const hasUsb = 'usb' in navigator;
+$('env').innerHTML = hasUsb
+    ? `WebUSB available. ${navigator.userAgent}`
+    : `<span class="bad">WebUSB is not available here.</span> Use Chrome or Edge, and open the page over http://localhost or https.`;
+
+// --- modules --------------------------------------------------------------------
+let canbus = null, FwUpdater = null, GSUsb = null;
+async function loadApp() {
+    if (canbus) return;
+    await NodeShim.preload('../../', MODULES);
+    canbus = NodeShim.require('./canbus');
+    FwUpdater = NodeShim.require('./fw-updater');
+    GSUsb = NodeShim.require('./gsusb').GSUsb;
+    console.log('[page] Application modules loaded unchanged:', MODULES.join(', '));
+}
+
+// --- adapter selection ----------------------------------------------------------
+let device = null;
+function showDevice(d) {
+    device = d;
+    NodeShim.selectDevice(d);
+    $('devInfo').textContent = `${d.productName || '?'} by ${d.manufacturerName || '?'}, serial ${d.serialNumber || '?'} `
+        + `(${d.vendorId.toString(16).padStart(4, '0')}:${d.productId.toString(16).padStart(4, '0')})`;
+    updateButtons();
+}
+$('btnSelect').onclick = async () => {
+    try { showDevice(await navigator.usb.requestDevice({ filters: USB_FILTERS })); }
+    catch (e) { console.warn('[page] No adapter chosen:', e.message); }
+};
+if (hasUsb) {
+    // An adapter allowed earlier is available again without the chooser.
+    navigator.usb.getDevices().then((list) => {
+        const d = list.find((x) => USB_FILTERS.some((f) => f.vendorId === x.vendorId && f.productId === x.productId));
+        if (d) showDevice(d);
+    });
+    navigator.usb.addEventListener('disconnect', (e) => {
+        if (e.device === device) { console.warn('[page] Adapter unplugged'); $('devInfo').textContent = 'Adapter unplugged.'; device = null; updateButtons(); }
+    });
+}
+
+let busy = null; // 'rx' | 'bench' | null
+function updateButtons() {
+    $('btnSelect').disabled = !hasUsb || !!busy;
+    $('btnRxStart').disabled = !device || !!busy;
+    $('btnRxStop').disabled = busy !== 'rx';
+    $('btnBench').disabled = !device || !!busy;
+}
+updateButtons();
+
+function describeAdapter() {
+    const dev = canbus.canDevice, caps = dev.capabilities || {};
+    return `CAN clock ${caps.fclk_can ? caps.fclk_can / 1e6 + ' MHz' : '?'}, features 0x${(caps.features ?? 0).toString(16)}, `
+        + `mode flags 0x${(dev.device_flags ?? 0).toString(16)}, frame ${dev.frameLength} B`;
+}
+
+// --- receive test ---------------------------------------------------------------
+let rxTimer = null;
+$('btnRxStart').onclick = async () => {
+    busy = 'rx'; updateButtons();
+    try {
+        await loadApp();
+        const listenOnly = $('listenOnly').checked;
+        const t0 = performance.now();
+        await canbus.init(null, { listenOnly });
+        if (!canbus.isConnected()) throw new Error('canbus.init() did not connect - see the log');
+        console.log(`[page] Started in ${(performance.now() - t0).toFixed(0)} ms. ${describeAdapter()}`);
+
+        const st = { frames: 0, parsed: 0, errors: 0, lastFrames: 0, last: [] };
+        const dev = canbus.canDevice;
+        dev.on('frame', (f) => {
+            st.frames++;
+            const bytes = [];
+            for (let i = 0; i < Math.min(f.can_dlc, 8); i++) bytes.push(f.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
+            st.last.push(`${(f.can_id & 0x1FFFFFFF).toString(16).toUpperCase().padStart(8, '0')}  [${f.can_dlc}]  ${bytes.join(' ')}`);
+            if (st.last.length > 16) st.last.shift();
+        });
+        dev.on('canerror', () => st.errors++);
+        canbus.on('bafang_data_received', (d) => { st.parsed++; st.lastParsed = d.type; });
+        let lastT = performance.now();
+        rxTimer = setInterval(() => {
+            const now = performance.now();
+            $('sFrames').textContent = st.frames;
+            $('sRate').textContent = Math.round((st.frames - st.lastFrames) * 1000 / (now - lastT));
+            $('sParsed').textContent = st.parsed + (st.lastParsed ? ` (${st.lastParsed})` : '');
+            $('sErrors').textContent = st.errors;
+            $('sPacked').textContent = dev.multiFrameTransfers || 0;
+            $('frames').textContent = st.last.length ? st.last.join('\n') : 'Connected, no traffic yet.';
+            st.lastFrames = st.frames; lastT = now;
+        }, 1000);
+    } catch (e) {
+        console.error('[page] Receive test failed:', e);
+        await stopCan();
+        busy = null;
+    }
+    updateButtons();
+};
+async function stopCan() {
+    clearInterval(rxTimer); rxTimer = null;
+    if (canbus) {
+        canbus.removeAllListeners('bafang_data_received');
+        await canbus.close();
+    }
+}
+$('btnRxStop').onclick = async () => {
+    await stopCan();
+    console.log('[page] Stopped.');
+    busy = null; updateButtons();
+};
+
+// --- firmware benchmark ---------------------------------------------------------
+// Port of attachVirtualDisplay() from tools/bench-adapter.js: answers the updater's
+// frames like the real display would, buffering 256-chunk blocks.
+function attachVirtualDisplay(canbus) {
+    let got, numChunks;
+    const reset = () => { got = new Set([0, 1]); numChunks = 0; };
+    reset();
+    const prefix = () => { let k = 0; while (got.has(k)) k++; return k; };
+    const hex = (v) => v.toString(16).toUpperCase().padStart(4, '0');
+    const addr = (a) => [(a >>> 24) & 255, (a >>> 16) & 255, (a >>> 8) & 255, a & 255, 0, 0, 8, 0];
+    const answer = (id, bytes) => {
+        const data = new DataView(new ArrayBuffer(8));
+        bytes.forEach((b, i) => data.setUint8(i, b));
+        canbus.emit('raw_frame_received', { can_id: parseInt(id, 16), can_dlc: bytes.length, data });
+    };
+    const original = canbus.sendRawFrame;
+    const send = original.bind(canbus);
+    canbus.sendRawFrame = async (idHex, dataHex) => {
+        const sent = await send(idHex, dataHex);
+        const f = idHex.toUpperCase();
+        setImmediate(() => {
+            if (f === '85194000') { reset(); return answer('832A4000', []); }
+            if (f === '85196008') return answer('832A6008', [68, 80, 66, 70, 56, 49, 46, 48]);
+            if (f === '85184001') {
+                numChunks = Math.ceil(parseInt(dataHex.slice(0, 6), 16) / 8);
+                return answer('832A4001', [0, 0, 0, 0, 0, 0, 0, 16]);
+            }
+            const m = /^851([CDE])([0-9A-F]{4})$/.exec(f);
+            if (!m) return;
+            const i = parseInt(m[2], 16);
+            got.add(i);
+            if (i === 1) return answer('832A0002', addr(16));
+            if (m[1] === 'E') return answer('832A' + hex(numChunks), [0, 0, 0, 0]);
+            if ((i - 1) % 256 === 0) answer('832A' + hex(i + 1), addr(prefix() * 8));
+        });
+        return sent;
+    };
+    return () => { canbus.sendRawFrame = original; };
+}
+
+function benchOut(line) {
+    console.log('[bench] ' + line);
+    const el = $('bench');
+    el.textContent = (el.textContent === '-' ? '' : el.textContent + '\n') + line;
+}
+
+$('btnBench').onclick = async () => {
+    busy = 'bench'; updateButtons();
+    $('bench').textContent = '-';
+    const runs = Math.max(1, Number($('runs').value) || 3);
+    const win = Math.max(0, Number($('window').value) ?? 4);
+    const pipeline = Math.max(0, Number($('pipeline').value) || 0);
+    NodeShim.setPipelinedWrites(pipeline);
+    const reads = Math.max(1, Number($('reads').value) || 3);
+    let hiddenDuringRun = false;
+    const onVis = () => { if (document.hidden) hiddenDuringRun = true; };
+    document.addEventListener('visibilitychange', onVis);
+
+    let detachDisplay = null, origStart = null, origLog = null;
+    const worst = [];
+    try {
+        await loadApp();
+        let current = null;
+        origLog = FwUpdater.prototype.logMessage;
+        FwUpdater.prototype.logMessage = function (m, t = 'INFO', ws = true) {
+            if (current) current.push(`[${t}] ${m}`);
+            return origLog.call(this, m, t, ws);
+        };
+
+        // Connect through the application's own path, only forcing silent loopback
+        // (listen-only + loopback), as bench-adapter.js does.
+        origStart = canbus.canDevice.start;
+        const startDevice = origStart.bind(canbus.canDevice);
+        canbus.canDevice.start = (bitrate) => startDevice(bitrate, 0x03);
+        canbus.canDevice.pollTransfers = reads;
+        await canbus.init();
+        if (!canbus.isConnected()) throw new Error('Adapter not available - see the log');
+        benchOut(`Adapter: ${device.productName}, ${describeAdapter()}`);
+        // Loopback hands back a copy of every frame sent; keep those out of the parser.
+        canbus.canDevice.removeAllListeners('frame');
+        // The loopback copies are what the controller put on the bus, in bus order: with
+        // several USB writes in flight that order has to be checked, not assumed.
+        const newOrder = () => ({ last: -1, seen: 0, backwards: 0, skipped: 0 });
+        const track = (o, f) => {
+            const id = f.can_id & 0x1FFFFFFF, kind = (id >>> 16) & 0xFFF;
+            if (kind !== 0x51C && kind !== 0x51D && kind !== 0x51E) return;
+            const idx = id & 0xFFFF;
+            o.seen++;
+            if (o.last >= 0) {
+                if (idx <= o.last) o.backwards++;
+                else if (idx > o.last + 1) o.skipped++;
+            }
+            o.last = idx;
+        };
+        let order = newOrder(), echoOrder = newOrder();
+        // Echoes travel the same IN path but are produced by the firmware after the
+        // frame is sent: comparing both orders tells a bus reorder from a read reorder.
+        canbus.canDevice.on('echo', (f) => track(echoOrder, f));
+        canbus.canDevice.on('frame', (f) => {
+            if (((f.can_id >>> 24) & 0xff) !== 0x85) { canbus._handleFrameReceived(f); return; }
+            track(order, f);
+        });
+        detachDisplay = attachVirtualDisplay(canbus);
+
+        const buf = NodeShim.Buffer.alloc(DPC245_SIZE);
+        benchOut(`Synthetic ${DPC245_SIZE} B image, HMI mode, send window ${win}, `
+            + `USB writes in flight ${pipeline || '1 (each awaited)'}, USB reads in flight ${reads}, ${runs} run(s)\n`);
+        for (let r = 1; r <= runs; r++) {
+            current = [];
+            order = newOrder(); echoOrder = newOrder();
+            const fw = new FwUpdater(canbus);
+            fw.maxInFlight = win;
+            fw.emitProgress = async () => {};
+            await fw.startUpdateProcedure(buf, 'HMI');
+            const pick = (re) => { const l = current.find((x) => re.test(x)); return l ? l.replace(/^\[\w+\]\s*/, '') : '(missing)'; };
+            const stalls = pick(/Stalls:/);
+            worst.push(Number((/worst (\d+)us; worst event loop/.exec(stalls) || [])[1] || 0));
+            benchOut(`--- run ${r}: ${current.some((l) => l.includes('completed successfully')) ? 'completed' : 'FAILED'}`);
+            benchOut('  ' + pick(/All data chunks|Stopped at/));
+            benchOut('  ' + stalls.replace(/ \(BESST reference.*$/, ''));
+            benchOut('  ' + pick(/worst single USB write/));
+            benchOut('  ' + pick(/Adapter confirmed transmitting/));
+            benchOut(`  Loopback order: ${order.seen} chunk frames, ${order.backwards} out of order, ${order.skipped} skips`);
+            benchOut(`  Echo order:     ${echoOrder.seen} chunk frames, ${echoOrder.backwards} out of order, ${echoOrder.skipped} skips`);
+        }
+        const max = Math.max(...worst);
+        benchOut(`\n=== Verdict: worst stall per run ${worst.map((w) => (w / 1000).toFixed(1) + ' ms').join(', ')}`);
+        if (max >= 30000) benchOut('  Reproduces the problem: stalls of 30 ms or more - the browser is not good enough for updates here.');
+        else if (max >= 10000) benchOut('  Borderline: stalls of 10-30 ms, well above the ~3 ms Node shows on the development PC.');
+        else benchOut('  Clean (under 10 ms): nothing here produces the long stalls seen on the bike.');
+        if (hiddenDuringRun) benchOut('  WARNING: the tab was hidden during the run, timings are not representative.');
+    } catch (e) {
+        console.error('[page] Benchmark failed:', e);
+        benchOut(`FAILED: ${e.message || e}`);
+    } finally {
+        document.removeEventListener('visibilitychange', onVis);
+        if (detachDisplay) detachDisplay();
+        if (origStart) canbus.canDevice.start = origStart;
+        if (origLog) FwUpdater.prototype.logMessage = origLog;
+        NodeShim.setPipelinedWrites(0);
+        await stopCan();
+        busy = null; updateButtons();
+    }
+};
+
+// --- log download ---------------------------------------------------------------
+$('btnDownload').onclick = () => {
+    let text = allLines.join('\n');
+    for (const [name, lines] of NodeShim.logFiles) text += `\n\n===== ${name} =====\n` + lines.join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    a.download = `webusb-test-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('btnClear').onclick = () => { allLines.length = 0; renderLog(); };
+</script>
+</body>
+</html>

@@ -20,6 +20,16 @@
 - Run `npm install` in terminal to download all dependencies
 - Run `node server.js` in terminal
 
+## Or run it in the browser, without Node (experimental)
+The whole application also runs inside Chrome or Edge and talks to the CANable over WebUSB.
+- Serve the source folder with any static web server, e.g. `python -m http.server 8090 --bind 127.0.0.1`
+- Open [localhost:8090/ui/](http://localhost:8090/ui/) in Chrome or Edge (WebUSB needs `http://localhost` or `https`)
+- Press **Select adapter** in the bottom-left corner once, then **Connect** as usual
+- Close the Node application first: only one program can use the adapter at a time
+- Logs (firmware update, sniffer, ride logger) are kept in the page; save them with **Logs** before closing it
+- During a firmware update keep the tab visible and the computer awake
+- `tools/webusb-bench/` compares firmware transfer timing in the browser with `node tools/bench-adapter.js`
+
 ## (STM32G431) Required: candlelight firmware flashing 
 - For Canable 2.0 (STM32G431) use [HUD ECU Hacker candlelight firmware and updater](https://www.netcult.ch/elmue/CANable%20Firmware%20Update/)
 
