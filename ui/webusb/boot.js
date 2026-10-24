@@ -241,6 +241,25 @@ function refreshLogs() {
     }
 }
 
+// Every frame the adapter confirms it put on the bus (its echo: the real bus order of
+// what we sent) and every frame received, with a timestamp. The browser build is new;
+// when a controller acknowledges a write but does not keep it, this shows what it got.
+function traceCanTraffic(canbus, stamp) {
+    const lines = [];
+    NodeShim.logFiles.set(`logs/can-trace-${stamp}.log`, lines);
+    const t0 = performance.now();
+    const add = (dir, f) => {
+        if (!f || !f.data) return;
+        const n = Math.min(f.can_dlc || 0, 8), bytes = [];
+        for (let i = 0; i < n && i < f.data.byteLength; i++) bytes.push(f.data.getUint8(i).toString(16).toUpperCase().padStart(2, '0'));
+        const id = ((f.can_id >>> 0) & 0x1FFFFFFF).toString(16).toUpperCase().padStart(8, '0');
+        lines.push(`${((performance.now() - t0) / 1000).toFixed(4)} ${dir} ${id} [${n}] ${bytes.join(' ')}`);
+        if (lines.length > 300000) lines.splice(0, 100000);
+    };
+    canbus.on('raw_frame_sent', (f) => add('TX', f));
+    canbus.on('raw_frame_received', (f) => add('RX', f));
+}
+
 // --- start ----------------------------------------------------------------------
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -276,6 +295,7 @@ async function start() {
     await refreshDevices();
     await NodeShim.preload('../', MODULES);
     NodeShim.require('./server');
+    traceCanTraffic(NodeShim.require('./canbus'), stamp);
     // server.js turns a failed connect into a bare FOUND status; the reason only reaches
     // the console. In a browser that reason is usually WebUSB specific (another tab or
     // program holds the adapter), so show it in the UI log as well.
