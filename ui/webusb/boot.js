@@ -255,6 +255,16 @@ async function start() {
     await refreshDevices();
     await NodeShim.preload('../', MODULES);
     NodeShim.require('./server');
+    // server.js turns a failed connect into a bare FOUND status; the reason only reaches
+    // the console. In a browser that reason is usually WebUSB specific (another tab or
+    // program holds the adapter), so show it in the UI log as well.
+    NodeShim.require('./canbus').on('can_status', (connected, message) => {
+        if (connected || !/error|fail/i.test(message || '')) return;
+        let hint = '';
+        if (/claim|access|in use|busy|open/i.test(message))
+            hint = ' - close any other tab or program using the adapter (another copy of this page, the Node app), then try again';
+        for (const c of clients) c.deliver(`CAN_ERROR: ${message}${hint}`);
+    });
     console.log('[webusb] server.js running in the page');
 }
 
