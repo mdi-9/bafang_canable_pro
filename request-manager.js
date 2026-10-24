@@ -127,22 +127,26 @@ class RequestManager {
                 //      // This path is mainly for READ and WRITE_SHORT
                 // }
 
+                // Register for the ACK/response *before* sending. The answer can arrive
+                // before sendFrame() resolves: over WebUSB the USB write completes through
+                // the browser's USB process, and a controller ACKs a short write in about a
+                // millisecond. Registered afterwards, that ACK found nothing waiting and the
+                // write timed out although the controller had accepted it.
+                const registered = this.registerForAck(source, target, operation, code, subcode, promiseControls, attempt, data);
                 try {
                     // Use the low-level canbus sendFrame
                     const sent = await this.canbus.sendFrame(`${canId32bit.toString(16).padStart(8, '0')}#${dataHex}`);
 
-                    if (sent) {
-                        // Successfully sent, now register for ACK/timeout
-                        // Pass the correct 'attempt' count when registering
-                        this.registerForAck(source, target, operation, code, subcode, promiseControls, attempt, data);
-                    } else {
+                    if (!sent) {
                         console.error(`[RequestManager] sendFrame failed for ${code}/${subcode}`);
+                        if (registered) this.cancelPending(target, code, subcode, registered);
                         if (promiseControls) {
                             promiseControls.resolve({ success: false, error: 'Failed to send frame via CAN bus', timedOut: false });
                         }
                     }
                 } catch (sendError) {
                     console.error(`[RequestManager] Error during sendFrame for ${code}/${subcode}:`, sendError);
+                    if (registered) this.cancelPending(target, code, subcode, registered);
                     if (promiseControls) {
                         promiseControls.resolve({ success: false, error: `Send error: ${sendError.message}`, timedOut: false });
                     }
@@ -256,11 +260,27 @@ class RequestManager {
 
         this.ackTimeoutIds.add(timeoutHandle);
 
-        this.pendingAckRequests[target][code][subcode] = {
+        const entry = {
             promiseControls,
             operation,
             timeoutHandle,
         };
+        this.pendingAckRequests[target][code][subcode] = entry;
+        return entry;
+    }
+
+    /**
+     * Withdraws a registration whose frame could not be sent, so its timeout does not
+     * fire later and the slot is free for the next request. Only removes `entry`
+     * itself, never a newer registration for the same command.
+     */
+    cancelPending(target, code, subcode, entry) {
+        if (this.pendingAckRequests[target]?.[code]?.[subcode] !== entry) return;
+        clearTimeout(entry.timeoutHandle);
+        this.ackTimeoutIds.delete(entry.timeoutHandle);
+        delete this.pendingAckRequests[target][code][subcode];
+        if (Object.keys(this.pendingAckRequests[target][code]).length === 0) delete this.pendingAckRequests[target][code];
+        if (Object.keys(this.pendingAckRequests[target]).length === 0) delete this.pendingAckRequests[target];
     }
 
     /**

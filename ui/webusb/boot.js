@@ -31,6 +31,24 @@ const USB_FILTERS = [
 ];
 const isAdapter = (d) => USB_FILTERS.some((f) => f.vendorId === d.vendorId && f.productId === d.productId);
 
+// Everything the server side prints (sent frames, ACK timeouts, connect errors) is
+// kept as a session log too, so a test away from a developer console can still be
+// sent over afterwards. Added to the Logs panel once node-shim has loaded.
+const consoleLines = [];
+for (const level of ['log', 'info', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => {
+        original(...args);
+        const text = args.map((a) => {
+            if (typeof a === 'string') return a;
+            if (a instanceof Error) return `${a.name}: ${a.message}`;
+            try { return JSON.stringify(a, (k, v) => (typeof v === 'bigint' ? v.toString() : v)); } catch (e) { return String(a); }
+        }).join(' ');
+        consoleLines.push(`${new Date().toISOString().slice(11, 23)} ${level === 'log' || level === 'info' ? '' : level.toUpperCase() + ' '}${text}`);
+        if (consoleLines.length > 200000) consoleLines.splice(0, 50000);
+    };
+}
+
 let markReady, markFailed;
 const ready = new Promise((resolve, reject) => { markReady = resolve; markFailed = reject; });
 ready.catch(() => {}); // reported on the page; each socket reports it again
@@ -242,6 +260,9 @@ async function start() {
         throw new Error('WebUSB is not available: use Chrome or Edge, over https or http://localhost');
     }
     await loadScript('webusb/node-shim.js');
+    const started = new Date();
+    const stamp = `${started.toISOString().slice(0, 10)}-${started.toTimeString().slice(0, 8).replace(/:/g, '-')}`;
+    NodeShim.logFiles.set(`logs/console-${stamp}.log`, consoleLines);
     NodeShim.registerBuiltin('ws', { Server: WsServer, OPEN: 1 });
     NodeShim.registerBuiltin('http', {
         createServer: () => ({
