@@ -360,8 +360,12 @@ class FwUpdater {
         await this.sendRawFrameWithRetry(`51${this.chunkNPrefix}${chunkId1}`,chunkData1);
         this.startTime = Date.now();
         this.logMessage('Step 4.1: Waiting for acknowledgment of the first chunk...', 'INFO');
+        // Poll finely: the data chunks have to follow this ACK quickly (BESST sends
+        // chunk 2 within 1 ms). Polling with setTimeout(20) left 35 ms there in the
+        // browser build (timers there round up), and the display rejected the
+        // transfer from chunk 2 on.
         do{
-            await delay(20);
+            await delayu(this.delayUs);
             if (this.transferError) {
                 throw `Step 4.1: ${this.transferError}`;
             }
