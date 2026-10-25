@@ -164,16 +164,44 @@ h3.section-subtitle:first-of-type { margin-top: 0; }
     .param-table,
     .param-table tbody,
     .param-table tr,
+    .param-table th { display: block; width: 100%; }
+    /* Left-aligned label: the controller tab sets text-align: right inline on its
+       two-line labels, which on a phone left them floating at the far edge. */
     .param-table th,
-    .param-table td { display: block; width: 100%; }
+    .param-table th div { text-align: left !important; }
     .param-table th {
         border-bottom: none;
-        padding-bottom: 2px;
+        padding: 6px 10px 2px;
         font-size: 0.75rem;
         color: #6b7280;
     }
-    .param-table td { padding-top: 4px; border-top: none; }
+    /* The cell stays a flex row (not block) so the input takes the free width
+       instead of shrinking to its 100px minimum and cutting off its placeholder. */
+    .param-table td { display: flex; width: 100%; padding: 4px 10px 6px; border-top: none; }
     .param-table tr { border: 1px solid #e5e7eb; margin-bottom: 6px; border-radius: 6px; overflow: hidden; }
+    /* Two side-by-side columns (sniffer filters Off / On) stay a real table:
+       stacked, their headers and drop zones no longer line up. */
+    .param-table--2col                    { display: table; border-collapse: collapse; }
+    .param-table--2col tbody              { display: table-row-group; }
+    .param-table--2col tr                 { display: table-row; border: none; }
+    .param-table--2col th,
+    .param-table--2col td                 { display: table-cell; width: 50%; border: 1px solid #e5e7eb; vertical-align: top; }
+    .param-table--2col th,
+    .param-table--2col th div             { text-align: center !important; }
+}
+
+/* Narrow screens: wrap the tab bar into rows so all eleven tabs are visible,
+   rather than half of them sitting off-screen in a scroller without a scrollbar. */
+@media (max-width: 640px) {
+    .tab-buttons {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        row-gap: 2px;
+    }
+    .tab-button { padding: 6px 10px; }
+    /* Data backup: the file picker sat squeezed between the two buttons. */
+    #tab-data-backup .flex.gap-2 { flex-wrap: wrap; }
+    #restoreBackupInput { flex-basis: 100%; }
 }
 
 /* ====== ERROR TABLE ====== */

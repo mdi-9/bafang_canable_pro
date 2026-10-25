@@ -44,8 +44,24 @@ function createFilteredIdItem(text) {
         li.classList.remove('dragging');
         snifferElements.zones.forEach(z => z.classList.remove('drag-over'));
     });
+    // A tap moves the ID to the other list: touch screens do not drag reliably.
+    li.addEventListener('click', () => {
+        const target = li.parentElement === snifferElements.filteredIdsListOn
+            ? snifferElements.filteredIdsListOff : snifferElements.filteredIdsListOn;
+        target.appendChild(li);
+        saveFilteredIds();
+    });
 
     return li;
+}
+
+function saveFilteredIds() {
+    const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
+    const itemsJoined = Array.from(items).map(item => item.textContent).join(';');
+    document.cookie = `FilteredIdsOn=${Array.from(items).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
+    const itemsOff = snifferElements.filteredIdsListOff.querySelectorAll('.item span');
+    document.cookie = `FilteredIdsOff=${Array.from(itemsOff).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
+    socket.send(`SNIFFER_FILTEREDIDS_SET:${itemsJoined}`);
 }
 
 snifferElements.addFilteredIdButton.onclick = () => {
@@ -80,12 +96,7 @@ snifferElements.zones.forEach(zone => {
     zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
     zone.addEventListener('drop', () => {
         zone.classList.remove('drag-over');
-        const items = snifferElements.filteredIdsListOn.querySelectorAll('.item span');
-        const itemsJoined = Array.from(items).map(item => item.textContent).join(';');
-        document.cookie = `FilteredIdsOn=${Array.from(items).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
-        const itemsOff = snifferElements.filteredIdsListOff.querySelectorAll('.item span');
-        document.cookie = `FilteredIdsOff=${Array.from(itemsOff).map(item => item.textContent).join(',')}; path=/; max-age=31536000; `;
-        socket.send(`SNIFFER_FILTEREDIDS_SET:${itemsJoined}`);
+        saveFilteredIds();
     });
 });
 

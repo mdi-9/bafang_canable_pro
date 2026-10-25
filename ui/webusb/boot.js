@@ -113,7 +113,14 @@ function buildPanel() {
         font: 12px/1.5 ui-monospace, Consolas, monospace; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
       #webusb-logs a { color: #93c5fd; display: block; }
       #webusb-fw { position: fixed; top: 0; left: 0; right: 0; z-index: 10000; padding: 8px 12px; text-align: center;
-        background: #b45309; color: #fff; font: 600 14px/1.3 system-ui, sans-serif; }`;
+        background: #b45309; color: #fff; font: 600 14px/1.3 system-ui, sans-serif; }
+      /* Room below the page for the panel, so it never covers the last rows. */
+      body { padding-bottom: 64px; }
+      @media (max-width: 640px) {
+        #webusb-panel { left: 8px; right: 8px; bottom: 8px; max-width: none; flex-wrap: nowrap; }
+        #webusb-state { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #webusb-logs { left: 8px; right: 8px; bottom: 56px; min-width: 0; max-width: none; }
+      }`;
     document.head.appendChild(css);
 
     const panel = document.createElement('div');
