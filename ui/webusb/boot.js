@@ -192,6 +192,9 @@ function saveLog(path, text) {
 // --- start ----------------------------------------------------------------------
 function start() {
     buildPanel();
+    // "Log to file" names the Node app's logs folder; here the files stay in the page.
+    for (const el of document.querySelectorAll('.log-target'))
+        el.textContent = '→ kept in this page, save it with Logs (bottom of the screen)';
     if (!('usb' in navigator)) {
         showState('- not available in this browser');
         ui.select.hidden = true;
