@@ -134,7 +134,7 @@ function buildPanel() {
     const fw = document.createElement('div');
     fw.id = 'webusb-fw';
     fw.hidden = true;
-    fw.textContent = 'Firmware update running in the browser - keep this tab visible and the computer awake until it finishes.';
+    fw.textContent = 'Firmware update running in the browser - keep this page on screen and the device awake until it finishes.';
     document.body.append(panel, logs, fw);
 
     Object.assign(ui, {
@@ -188,6 +188,31 @@ function saveLog(path, text) {
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
+
+// --- installable app, offline start ---------------------------------------------
+// The manifest and the service worker sit at the repository root, one level above the
+// page, so they cover both / and /ui/. Added from here, not in ui/index.html, because
+// the Node build serves ui/ as its root and has neither.
+function setUpPwa() {
+    const root = new URL('../', document.baseURI);
+    const manifest = document.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = new URL('manifest.webmanifest', root).href;
+    document.head.appendChild(manifest);
+    const theme = document.createElement('meta');
+    theme.name = 'theme-color';
+    theme.content = '#1f2937';
+    document.head.appendChild(theme);
+    const icon = document.createElement('link');
+    icon.rel = 'icon';
+    icon.href = new URL('icons/icon.svg', root).href;
+    document.head.appendChild(icon);
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(new URL('sw.js', root).href, { scope: root.href })
+            .catch((e) => console.warn('[webusb] offline support unavailable:', e.message));
+    }
+}
+setUpPwa();
 
 // --- start ----------------------------------------------------------------------
 function start() {

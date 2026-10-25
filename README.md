@@ -35,6 +35,9 @@ The whole application also runs inside the browser and talks to the CANable dire
 2. Press **Select adapter** in the panel at the bottom of the screen and pick the CANable. The browser remembers this choice, so next time it is found automatically.
 3. Press **Connect** and use the application as usual.
 
+**Install it as an app (works offline)**
+After the first visit the page also opens without internet, e.g. on the bike. It can be installed like an app: on Android open the browser menu and choose **Add to Home screen** / **Install app**, on a computer use the install icon in the address bar. When online, it always loads the latest version.
+
 **Good to know**
 - Only one program can use the adapter at a time: close the desktop application (and any other tab with this page) first.
 - Logs (firmware update, sniffer, ride logger) are not written to a folder, they are kept in the page. Save them with **Logs** in the bottom panel before closing or reloading the page.

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so it also works as a maskable icon; the mark stays in the
+       central safe zone. -->
+  <rect width="512" height="512" fill="#1f2937"/>
+  <path d="M286 96 L156 286 H246 L222 416 L356 222 H264 Z" fill="#facc15"/>
+  <path d="M120 360 H170 M342 360 H392" stroke="#60a5fa" stroke-width="18" stroke-linecap="round"/>
+</svg>
