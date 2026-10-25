@@ -23,7 +23,7 @@
 ## Or run it in the browser, without Node (experimental)
 The whole application also runs inside Chrome or Edge and talks to the CANable over WebUSB.
 - Serve the source folder with any static web server, e.g. `python -m http.server 8090 --bind 127.0.0.1`
-- Open [localhost:8090/ui/](http://localhost:8090/ui/) in Chrome or Edge (WebUSB needs `http://localhost` or `https`)
+- Open [localhost:8090](http://localhost:8090) in Chrome or Edge (WebUSB needs `http://localhost` or `https`)
 - Press **Select adapter** in the bottom-left corner once, then **Connect** as usual
 - Close the Node application first: only one program can use the adapter at a time
 - Logs (firmware update, sniffer, ride logger) are kept in the page; save them with **Logs** before closing it

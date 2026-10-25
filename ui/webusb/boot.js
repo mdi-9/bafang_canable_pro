@@ -8,14 +8,14 @@
 // the USB reads and the next parameter write lost its opening frame.
 //
 // Active only when the UI is served from a static web server with the repository
-// root as document root (the page is then at .../ui/), because the server modules
-// are fetched from the directory above. Served by server.js (page at /) nothing here
-// runs and the UI uses its real WebSocket. Needs Chrome or Edge, over https or
-// http://localhost.
+// root as document root (the page is at .../ui/, or at the root through index.html
+// there, which sets <base href="ui/">), because the server modules are fetched from
+// the directory above. Served by server.js (page at /, no base) nothing here runs and
+// the UI uses its real WebSocket. Needs Chrome or Edge, over https or http://localhost.
 'use strict';
 
 (function () {
-if (!location.pathname.includes('/ui/')) return;
+if (!new URL(document.baseURI).pathname.includes('/ui/')) return;
 
 // Same list as GSUSBConstants.GS_USB_DEVICES.
 const USB_FILTERS = [

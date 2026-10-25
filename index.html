@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bafang CANable Pro</title>
+    <!--
+    Entry point of the browser (WebUSB) version when the repository root is served by a
+    static web server, so the app opens at http://localhost:8090/ rather than /ui/.
+    It loads ui/index.html in place with <base href="ui/">: the UI's relative paths keep
+    resolving inside ui/ while the address bar stays at the root. Not used by server.js,
+    which serves the ui folder itself.
+    -->
+    <script>
+    fetch('ui/index.html', { cache: 'no-store' })
+        .then((r) => { if (!r.ok) throw new Error(`ui/index.html: HTTP ${r.status}`); return r.text(); })
+        .then((html) => {
+            document.open();
+            document.write(html.replace(/<head>/i, '<head><base href="ui/">'));
+            document.close();
+        })
+        .catch((e) => { document.body.textContent = `Cannot load the application: ${e.message}`; });
+    </script>
+</head>
+<body></body>
+</html>
