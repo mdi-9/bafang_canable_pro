@@ -132,7 +132,12 @@ class BafangCanControllerParser {
              return { parseError: true, error: "Invalid data length for Parameter1" };
          }
 	
+		// Byte 63 is a checksum on some firmware (a newer M410) and not on others (the
+		// M510 FC2.0); the write keeps it as read unless the read held a valid sum.
+		const sum = packet.data.slice(0, 63).reduce((a, b) => a + b, 0) & 0xFF;
 		const pkg = {
+			checksum_byte: packet.data[63],
+			checksum_valid: sum === packet.data[63],
 			par0_value_offset_0: packet.data[0],
             acceleration_levels: [],
 			assist_ratio_levels: [], 

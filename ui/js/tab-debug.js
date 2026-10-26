@@ -28,6 +28,15 @@ function isReadOnlyBlock(type) {
         && Array.isArray(bytes) && bytes.length === 256;
 }
 
+// Byte 63 is rewritten as the sum of bytes 0-62 only where the block uses a checksum:
+// 6011 and 6012 always (the controller checks them), any other 64-byte block only when it
+// held a valid sum as read. 6010 and 600F have none on e.g. the M510 FC2.0, and writing one
+// changed a byte of unknown meaning (Steakbroetchen); a newer M410 does use one (DPC18RI).
+function usesChecksum(type) {
+    if (type === 'controller_params_1' || type === 'controller_params_2') return true;
+    return state.rawParamChecksumOk[type] === true;
+}
+
 function readOnlyMessage(type) {
     return type === 'controller_params_600f'
         ? 'Block 600F is read only: the controller acknowledges writes to it but keeps the old values, and its layout is only partly known.'
@@ -172,7 +181,7 @@ function handleHexInputChange(event) {
         // Only for the 64-byte layout: in a 256-byte block byte 63 is plain data, and
         // rewriting it as a checksum would silently corrupt it.
         const mapping = mappingFor(state.currentRawParamType);
-        if (mapping && mapping.byteLength === 64 && byteIndex !== 63) {
+        if (mapping && mapping.byteLength === 64 && byteIndex !== 63 && usesChecksum(state.currentRawParamType)) {
             const checksumByteIndex = 63;
             let sum = 0;
             for (let k = 0; k < checksumByteIndex; k++) {
@@ -477,7 +486,7 @@ if (debugElements.rawParamSaveButton) {
         }
 
         const mapping = rawParamFieldMappings[state.currentRawParamType];
-        if (mapping && mapping.byteLength === 64) {
+        if (mapping && mapping.byteLength === 64 && usesChecksum(state.currentRawParamType)) {
             const checksumByteIndex = 63;
             if (bytesToSend.length === 64) {
                 let sum = 0;

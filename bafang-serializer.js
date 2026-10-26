@@ -250,7 +250,11 @@ function prepareParameter0WriteData(canbusInstance, value) {
              }
         }
 
-        new_pkg[63] = calculateChecksum(new_pkg.slice(0, 63));
+        // Not every firmware has a checksum in 6010: where the block as read did not hold
+        // one, byte 63 goes back unchanged instead of being overwritten with a sum.
+        new_pkg[63] = (value.checksum_valid === false && typeof value.checksum_byte === 'number')
+            ? value.checksum_byte
+            : calculateChecksum(new_pkg.slice(0, 63));
 
         writeLongParameter(canbusInstance, DeviceNetworkId.DRIVE_UNIT, CanWriteCommandsList.Parameter0, new_pkg)
 

@@ -355,6 +355,11 @@ export function handleBafangEvent(parsedEvent, { fromBackup = false } = {}) {
         case 'battery_sn': state.batteryOtherInfo.serialNumber = parsedEvent.data?.serial_number; state.batteryOtherInfo.productionDate = getProductionDateFromSerial(parsedEvent.data?.serial_number); needsBatteryUpdate = true; break;
     }
 
+    // Whether a freshly read 64-byte block carries a checksum in byte 63 (see usesChecksum
+    // in tab-debug.js). Recorded on arrival, before any edit in the hex editor.
+    const readBytes = parsedEvent.data?._rawBytes ?? parsedEvent.data?.raw_data;
+    if (Array.isArray(readBytes) && readBytes.length === 64)
+        state.rawParamChecksumOk[parsedEvent.type] = (readBytes.slice(0, 63).reduce((a, b) => a + b, 0) & 0xFF) === readBytes[63];
     let needsHexEditorUpdateC = handleCustomRaw(parsedEvent);
     // Call UI update functions if needed
     if (needsDisplayUpdate) updateDisplayUI();
