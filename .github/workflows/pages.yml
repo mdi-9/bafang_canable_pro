@@ -1,0 +1,76 @@
+# GitHub Pages: the master branch at the site root and the "test" branch under /test/,
+# e.g. https://<user>.github.io/bafang_canable_pro/ and .../bafang_canable_pro/test/.
+#
+# Needs, once, in the repository settings:
+#   - Pages > Build and deployment > Source: "GitHub Actions"
+#   - Environments > github-pages > Deployment branches: allow "test" besides master
+# To publish a branch as the test version: git push origin <branch>:test --force
+name: Pages
+
+on:
+  push:
+    branches: [master, test]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: master
+
+      - name: Is there a test branch
+        id: test
+        working-directory: master
+        run: |
+          if git ls-remote --exit-code --heads origin test >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.test.outputs.exists == 'true'
+        with:
+          ref: test
+          path: test
+
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          rsync -a --exclude .git --exclude .github master/ _site/
+          if [ -d test ]; then
+            rsync -a --exclude .git --exclude .github test/ _site/test/
+            # Own cache family, so the two service workers on one origin keep their caches.
+            sed -i "s/const CACHE_FAMILY = 'bafang-canable-pro';/const CACHE_FAMILY = 'bafang-canable-pro-test';/" _site/test/sw.js
+            grep -q "bafang-canable-pro-test" _site/test/sw.js || { echo "test sw.js: cache name not changed"; exit 1; }
+            # Tell the installed apps and tabs apart.
+            sed -i 's/"name": "Bafang CANable Pro"/"name": "Bafang CANable Pro (test)"/; s/"short_name": "CANable Pro"/"short_name": "CANable Test"/' _site/test/manifest.webmanifest
+            sed -i 's#<title>Bafang CANable Pro#<title>[TEST] Bafang CANable Pro#' _site/test/index.html _site/test/ui/index.html
+            echo "Test site from: $(git -C test log -1 --format='%h %s')"
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
