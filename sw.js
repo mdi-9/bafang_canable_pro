@@ -8,7 +8,10 @@
 // right after the first visit, before any tab was opened.
 'use strict';
 
-const CACHE = 'bafang-canable-pro-v1';
+// The test site (/test/ on GitHub Pages, same origin) gets its own family name from the
+// Pages workflow, so neither site deletes the other's cache.
+const CACHE_FAMILY = 'bafang-canable-pro';
+const CACHE = CACHE_FAMILY + '-v1';
 const NETWORK_TIMEOUT_MS = 4000;
 
 // Paths relative to this file (the repository root). Keep in step with what the page
@@ -44,7 +47,10 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil((async () => {
-        for (const key of await caches.keys()) if (key !== CACHE) await caches.delete(key);
+        // Only older versions of this site's own cache: other caches on the origin
+        // (the test site, other github.io pages of the same user) are left alone.
+        for (const key of await caches.keys())
+            if (key.startsWith(CACHE_FAMILY + '-v') && key !== CACHE) await caches.delete(key);
         await self.clients.claim();
     })());
 });
