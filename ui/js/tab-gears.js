@@ -522,12 +522,11 @@ export function handleAssistInputChange(event) {
         }
         targetObject[targetArrayName][internalIndex][targetParamName] = value;
         console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
-        // Auto correction keeps the values rising with the level, but only across the levels
-        // the connected display shows: the slots it skips (e.g. 1, 3, 5, 7 on a 5-level display)
-        // are left as they are, since nobody sees them change (DPC18RI). Not for acceleration:
-        // a response speed 1-8, all 6 by default, with no reason to rise with the level.
+        // Auto correction keeps each level greater than or equal to the one below it, but only
+        // across the levels the connected display shows: the slots it skips (e.g. 0, 2, 4, 6 on
+        // a 5-level display) are left as they are, since nobody sees them change (DPC18RI).
         const visible = Object.values(uiToInternalAssistMap[state.displayRealtime?.assist_levels] || uiToInternalAssistMap[9]);
-        if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked && param !== 'acceleration_level') {
+        if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked) {
             for (let i = (internalIndex + 1); i < 9; i++) {
                 if (!visible.includes(i)) continue;
                 if (targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value) {
