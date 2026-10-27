@@ -522,8 +522,14 @@ export function handleAssistInputChange(event) {
         }
         targetObject[targetArrayName][internalIndex][targetParamName] = value;
         console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
-        if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked) {
+        // Auto correction keeps the values rising with the level, but only across the levels
+        // the connected display shows: the slots it skips (e.g. 1, 3, 5, 7 on a 5-level display)
+        // are left as they are, since nobody sees them change (DPC18RI). Not for acceleration:
+        // a response speed 1-8, all 6 by default, with no reason to rise with the level.
+        const visible = Object.values(uiToInternalAssistMap[state.displayRealtime?.assist_levels] || uiToInternalAssistMap[9]);
+        if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked && param !== 'acceleration_level') {
             for (let i = (internalIndex + 1); i < 9; i++) {
+                if (!visible.includes(i)) continue;
                 if (targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] < value) {
                     targetObject[targetArrayName][i][targetParamName] = value;
                     const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
@@ -532,6 +538,7 @@ export function handleAssistInputChange(event) {
                 }
             }
             for (let i = (internalIndex - 1); i >= 0; i--) {
+                if (!visible.includes(i)) continue;
                 if (targetObject[targetArrayName][i] && targetObject[targetArrayName][i][targetParamName] > value) {
                     targetObject[targetArrayName][i][targetParamName] = value;
                     const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
