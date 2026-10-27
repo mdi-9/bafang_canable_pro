@@ -465,6 +465,17 @@ export function updateStartRampChartUnified() {
     Plotly.react(chartDiv, traces, layout, { responsive: true, displayModeBar: false });
 }
 
+// Values of one parameter in all 9 slots as they were read, kept from the first change
+// until the next read (which brings a new P0/P1 object).
+const readValues = new WeakMap();
+function valuesAsRead(block, arrayName, param) {
+    if (!readValues.has(block)) readValues.set(block, {});
+    const kept = readValues.get(block);
+    const key = `${arrayName}.${param}`;
+    if (!kept[key]) kept[key] = block[arrayName].map((level) => level?.[param]);
+    return kept[key];
+}
+
 export function handleAssistInputChange(event) {
     const input = event.target;
     if (!input) {
@@ -520,11 +531,15 @@ export function handleAssistInputChange(event) {
         if (typeof targetObject[targetArrayName][internalIndex] !== 'object') {
             targetObject[targetArrayName][internalIndex] = {};
         }
-        targetObject[targetArrayName][internalIndex][targetParamName] = value;
+        const levels = targetObject[targetArrayName];
+        const asRead = valuesAsRead(targetObject, targetArrayName, targetParamName);
+        levels[internalIndex][targetParamName] = value;
         console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
-        // Auto correction keeps each level greater than or equal to the one below it, but only
-        // across the levels the connected display shows: the slots it skips (e.g. 0, 2, 4, 6 on
-        // a 5-level display) are left as they are, since nobody sees them change (DPC18RI).
+        // Auto correction keeps each slot greater than or equal to the one below it, as the
+        // controller firmware often requires. The levels the connected display shows are
+        // adjusted to the changed one; the slots it skips (e.g. 0, 2, 4, 6 on a 5-level display)
+        // are their value as read, kept between the visible levels around them, so they also
+        // go back when a level does (DPC18RI saw a hidden slot stay lowered).
         const visible = Object.values(uiToInternalAssistMap[state.displayRealtime?.assist_levels] || uiToInternalAssistMap[9]);
         if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked) {
             for (let i = (internalIndex + 1); i < 9; i++) {
@@ -543,6 +558,18 @@ export function handleAssistInputChange(event) {
                     const nInput = document.querySelector(`input[data-internal-type="${internalType}"][data-internal-index="${i}"][data-param="${targetParamName}"]`);
                     if (nInput) nInput.value = value;
                     console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
+                }
+            }
+            for (let i = 0; i < levels.length; i++) {
+                if (visible.includes(i) || !levels[i] || typeof asRead[i] !== 'number') continue;
+                const below = visible.filter((v) => v < i).pop();
+                const above = visible.find((v) => v > i);
+                let v = asRead[i];
+                if (below !== undefined) v = Math.max(v, levels[below][targetParamName]);
+                if (above !== undefined) v = Math.min(v, levels[above][targetParamName]);
+                if (levels[i][targetParamName] !== v) {
+                    levels[i][targetParamName] = v;
+                    console.log(`Updated ${internalType.toUpperCase()} hidden Internal Assist Index ${i}, Param ${targetParamName} to ${v} to stay between the levels around it`);
                 }
             }
         }
