@@ -9,6 +9,10 @@
 ## Wire the Canable (UCAN module example)
 ![GUI](UCAN_wiring.JPG)
 
+Check the CAN termination jumper on the Canable before a firmware update: reading and saving settings may work with it set wrong, but a firmware transfer then fails. With the battery off, everything connected and the jumper removed, measure between CAN-H and CAN-L:
+- about 120 Ω: put the jumper on (it should then read about 60 Ω)
+- about 60 Ω: leave it off
+
 ## Run the software from executable
 - Download and run last [release](https://github.com/mdi-9/bafang_canable_pro/releases)
 - Open [localhost:8080](http://localhost:8080)

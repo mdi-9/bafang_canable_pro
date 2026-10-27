@@ -1022,6 +1022,16 @@
                     <button id="fwUpdateStartButton" disabled class="btn btn-success">Start Update Procedure</button>
                 </div>
 
+                <div class="warning-message mb-4">
+                    <div>
+                        <b>Before updating, check the CAN termination jumper on the CANable.</b>
+                        Settings may work with it set wrong, but a firmware transfer then fails and can leave the device waiting in its bootloader.
+                        With the battery off, everything connected and the jumper removed, measure between CAN-H and CAN-L:
+                        about <b>120&nbsp;&Omega;</b> &rarr; put the jumper <b>on</b> (it should then read about 60&nbsp;&Omega;);
+                        about <b>60&nbsp;&Omega;</b> &rarr; leave it <b>off</b>.
+                    </div>
+                </div>
+
                 <div class="overflow-x-auto mb-4">
                     <table class="param-table">
                         <tbody>

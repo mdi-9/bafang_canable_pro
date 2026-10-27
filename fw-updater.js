@@ -808,6 +808,10 @@ class FwUpdater {
                 this.logMessage(`Firmware update failed after ${this.maxUpdateAttempts} attempt(s).`, 'ERROR');
                 this.logMessage('Restart the display before trying again - it stays in this state '
                     + 'until it is restarted.', 'ERROR');
+                // The most common cause of failed transfers seen so far.
+                this.logMessage('Check the CAN termination jumper on the CANable: with the battery off and '
+                    + 'the jumper removed, about 120 Ohm between CAN-H and CAN-L means jumper on, '
+                    + 'about 60 Ohm means jumper off.', 'ERROR');
             }
         } finally {
             this.restorePriority();
