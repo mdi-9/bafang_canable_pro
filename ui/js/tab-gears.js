@@ -465,17 +465,6 @@ export function updateStartRampChartUnified() {
     Plotly.react(chartDiv, traces, layout, { responsive: true, displayModeBar: false });
 }
 
-// Values of one parameter in all 9 slots as they were read, kept from the first change
-// until the next read (which brings a new P0/P1 object).
-const readValues = new WeakMap();
-function valuesAsRead(block, arrayName, param) {
-    if (!readValues.has(block)) readValues.set(block, {});
-    const kept = readValues.get(block);
-    const key = `${arrayName}.${param}`;
-    if (!kept[key]) kept[key] = block[arrayName].map((level) => level?.[param]);
-    return kept[key];
-}
-
 export function handleAssistInputChange(event) {
     const input = event.target;
     if (!input) {
@@ -532,14 +521,14 @@ export function handleAssistInputChange(event) {
             targetObject[targetArrayName][internalIndex] = {};
         }
         const levels = targetObject[targetArrayName];
-        const asRead = valuesAsRead(targetObject, targetArrayName, targetParamName);
         levels[internalIndex][targetParamName] = value;
         console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${internalIndex}, Param ${targetParamName} to ${value}`);
         // Auto correction keeps each slot greater than or equal to the one below it, as the
         // controller firmware often requires. The levels the connected display shows are
-        // adjusted to the changed one; the slots it skips (e.g. 0, 2, 4, 6 on a 5-level display)
-        // are their value as read, kept between the visible levels around them, so they also
-        // go back when a level does (DPC18RI saw a hidden slot stay lowered).
+        // adjusted to the changed one. Of the slots it skips (e.g. 0, 2, 4, 6 on a 5-level
+        // display), those just below the changed level take its value, so they go back up with
+        // it (DPC18RI saw one stay lowered after a save); the others are only kept between the
+        // levels around them.
         const visible = Object.values(uiToInternalAssistMap[state.displayRealtime?.assist_levels] || uiToInternalAssistMap[9]);
         if (gearsElements.autoCorrectionCheckbox && gearsElements.autoCorrectionCheckbox.checked) {
             for (let i = (internalIndex + 1); i < 9; i++) {
@@ -560,16 +549,21 @@ export function handleAssistInputChange(event) {
                     console.log(`Updated ${internalType.toUpperCase()} Internal Assist Index ${i}, Param ${targetParamName} to ${value} because next level was bigger`);
                 }
             }
+            const belowChanged = visible.filter((n) => n < internalIndex).pop() ?? -1;
             for (let i = 0; i < levels.length; i++) {
-                if (visible.includes(i) || !levels[i] || typeof asRead[i] !== 'number') continue;
-                const below = visible.filter((v) => v < i).pop();
-                const above = visible.find((v) => v > i);
-                let v = asRead[i];
-                if (below !== undefined) v = Math.max(v, levels[below][targetParamName]);
-                if (above !== undefined) v = Math.min(v, levels[above][targetParamName]);
+                if (visible.includes(i) || !levels[i]) continue;
+                let v = levels[i][targetParamName];
+                if (i > belowChanged && i < internalIndex) {
+                    v = value;
+                } else {
+                    const below = visible.filter((n) => n < i).pop();
+                    const above = visible.find((n) => n > i);
+                    if (below !== undefined) v = Math.max(v, levels[below][targetParamName]);
+                    if (above !== undefined) v = Math.min(v, levels[above][targetParamName]);
+                }
                 if (levels[i][targetParamName] !== v) {
                     levels[i][targetParamName] = v;
-                    console.log(`Updated ${internalType.toUpperCase()} hidden Internal Assist Index ${i}, Param ${targetParamName} to ${v} to stay between the levels around it`);
+                    console.log(`Updated ${internalType.toUpperCase()} hidden Internal Assist Index ${i}, Param ${targetParamName} to ${v}`);
                 }
             }
         }
