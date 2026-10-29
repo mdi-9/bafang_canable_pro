@@ -388,7 +388,8 @@ class BafangCanDisplayParser {
         if (!packet || !Array.isArray(packet.data) || packet.data.length < 3) {
              return { parseError: true, error: "Invalid data length for Display Realtime" };
         }
-        const rideMode = (packet.data[0] & 0b10000) ? 'BOOST' : 'ECO'; // Simplified BafangCanRideMode
+        // ECO / SPORT as BESST shows it (EKD01, 860C; DPC18RI); boost is the next bit.
+        const rideMode = (packet.data[0] & 0b10000) ? 'SPORT' : 'ECO';
         return {
             assist_levels: packet.data[0] & 0b1111,
             ride_mode: rideMode,

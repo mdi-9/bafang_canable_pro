@@ -326,6 +326,10 @@ if (debugElements.rawParamSelect) {
         state.currentRawParamType = event.target.value;
         addLog('DEBUG', `Raw parameter type selected: ${state.currentRawParamType || 'None'}`);
         populateHexEditor();
+        // What is kept is the last read of this block, which a save from another tab
+        // does not update (DPC18RI saw 6010 unchanged after an Assist save): read it again.
+        if (state.currentRawParamType && state.isCanConnected && debugElements.rawParamSyncButton)
+            debugElements.rawParamSyncButton.onclick();
     });
 }
 
