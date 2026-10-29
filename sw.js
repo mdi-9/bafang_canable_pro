@@ -65,8 +65,17 @@ async function networkFirst(request) {
     const cache = await caches.open(CACHE);
     // The app fetches its modules with cache: 'no-store'; the kept copy is keyed by URL.
     const key = new Request(request.url);
-    const network = fetch(request).then((response) => {
-        if (response.ok) cache.put(key, response.clone());
+    // Set when the kept copy was served: its text, to tell whether the network brings
+    // something newer once it does answer.
+    let servedText = null;
+    const network = fetch(request).then(async (response) => {
+        if (response.ok) {
+            if (servedText) {
+                const [old, fresh] = await Promise.all([servedText, response.clone().text()]);
+                if (old !== null && old !== fresh) notifyUpdate();
+            }
+            await cache.put(key, response.clone());
+        }
         return response;
     });
     network.catch(() => {}); // a late failure after the cache answered is not an error
@@ -75,7 +84,17 @@ async function networkFirst(request) {
         const response = await Promise.race([network, timeout]);
         if (response) return response;
     } catch (e) { /* offline: fall back to the kept copy */ }
-    const cached = await cache.match(key, { ignoreSearch: true });
+    const kept = cache.match(key, { ignoreSearch: true });
+    servedText = kept.then((cached) => (cached ? cached.clone().text() : null));
+    const cached = await kept;
     if (cached) return cached;
     return network; // nothing kept: wait for the network after all, or fail with it
+}
+
+// A slow network (e.g. right after the computer wakes up) started the app from the kept
+// copy and a newer version arrived afterwards: the pages offer a reload (DPC18RI saw the
+// old version until he refreshed). Each file may report it; the page shows one bar.
+async function notifyUpdate() {
+    for (const client of await self.clients.matchAll({ type: 'window' }))
+        client.postMessage({ type: 'update-available' });
 }

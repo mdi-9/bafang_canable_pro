@@ -225,7 +225,34 @@ function setUpPwa() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register(new URL('sw.js', root).href, { scope: root.href })
             .catch((e) => console.warn('[webusb] offline support unavailable:', e.message));
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === 'update-available') showUpdateBar();
+        });
     }
+}
+
+// The page started from the kept copy (slow network) and a newer version has arrived
+// since: offer a reload instead of running the old one until the next refresh.
+function showUpdateBar() {
+    if (document.getElementById('webusb-update')) return;
+    const bar = document.createElement('div');
+    bar.id = 'webusb-update';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10001;display:flex;gap:10px;align-items:center;'
+        + 'justify-content:center;flex-wrap:wrap;padding:8px 12px;background:#1e40af;color:#fff;'
+        + 'font:600 14px/1.3 system-ui,sans-serif;';
+    bar.innerHTML = '<span>A newer version of the app was downloaded.</span>'
+        + '<button data-act="reload" style="font:inherit;padding:4px 12px;border-radius:6px;border:0;background:#fff;color:#1e40af;cursor:pointer">Reload</button>'
+        + '<button data-act="close" title="Later" style="font:inherit;padding:4px 10px;border-radius:6px;border:1px solid #93c5fd;background:transparent;color:#fff;cursor:pointer">&times;</button>';
+    bar.querySelector('[data-act="reload"]').onclick = () => {
+        // Reloading would cut a firmware transfer short.
+        if (ui.fwBanner && !ui.fwBanner.hidden) {
+            alert('A firmware update is running. Reload after it finishes.');
+            return;
+        }
+        location.reload();
+    };
+    bar.querySelector('[data-act="close"]').onclick = () => bar.remove();
+    document.body.appendChild(bar);
 }
 setUpPwa();
 
