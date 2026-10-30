@@ -401,8 +401,8 @@ class BafangCanDisplayParser {
             light: (packet.data[2] & 1) === 1,
             button_up: (packet.data[2] & 0b10) >> 1 === 1,
             button_down: (packet.data[2] & 0b100000) >> 5 === 1,
-            // Set while the power button was held on an EKD01, and seen in its menu (DPC18RI);
-            // a reading of bit 2 as "+" is not supported by those logs.
+            // The power button on an EKD01, "INFO" on a DPC18, "M" on an 860C (DPC18RI).
+            // Down (bit 5) is only reported by some displays (DPC080, DPC010CB/CN).
             button_power: (packet.data[2] & 0b100) >> 2 === 1,
             // The display tells the controller whether its day trip is running; dropping
             // it to 0 makes the controller clear the trip (display trip reset; the DPC18
