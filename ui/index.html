@@ -528,7 +528,8 @@
                             <tr><th>Light Status</th><td><span id="displayLightValue">N/A</span></td></tr>
                             <tr><th>Up Button Status</th><td><span id="displayUpButtonValue">N/A</span></td></tr>
                             <tr><th>Down Button Status</th><td><span id="displayDownButtonValue">N/A</span></td></tr>
-                            <tr><th>Trip Active</th><td><span id="displayTripActiveValue">N/A</span> <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Sent by the display to the controller (6300, byte 3). "No" tells the controller to clear its day trip: on a trip reset, and on some displays (DPC18) for about a second whenever the bike stops.</span></span></td></tr>
+                            <tr><th>Power/M Button (?)</th><td><span id="displayPowerButtonValue">N/A</span> <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">6300, byte 2, bit 2. Set while the power button was held on an EKD01 (DPC18RI); not yet confirmed on other displays.</span></span></td></tr>
+                            <tr><th>Trip Active</th><td><span id="displayTripActiveValue">N/A</span> <span class="hint-tip" tabindex="0">?<span class="hint-tip-text" role="tooltip">Sent by the display to the controller (6300, byte 3). "No" tells the controller to clear its day trip: on a trip reset, once when an EKD01 starts up, and on some displays (DPC18) for about a second whenever the bike stops.</span></span></td></tr>
                         </tbody>
                     </table>
                 </div>

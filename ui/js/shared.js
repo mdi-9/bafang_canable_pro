@@ -100,6 +100,7 @@ export const displayElements = {
     lightValue: document.getElementById('displayLightValue'),
     upButtonValue: document.getElementById('displayUpButtonValue'),
     downButtonValue: document.getElementById('displayDownButtonValue'),
+    powerButtonValue: document.getElementById('displayPowerButtonValue'),
     tripActiveValue: document.getElementById('displayTripActiveValue'),
     errorTableBody: document.getElementById('displayErrorTableBody'),
     displayShutdownTimeValue: document.getElementById('displayShutdownTimeValue'),
